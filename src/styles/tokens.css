@@ -1,0 +1,63 @@
+/* OSGB 360 - Tasarım değişkenleri
+ * Referans: Gurizon CRM demosu (ekran görüntüleri). Renkler ekran görüntülerinden GÖZLE tahmin edilmiştir;
+ * demo sayfasının CSS dosyasına erişilemedi. Nihai değerler arayüz aşamasında ince ayar yapılacaktır.
+ */
+:root {
+  /* Yüzeyler */
+  --bg: #f7f3f0;            /* sıcak kırık beyaz sayfa zemini */
+  --surface: #ffffff;       /* kartlar */
+  --surface-2: #faf7f5;     /* kart içi alt bloklar, tablo başlığı */
+  --border: #ece6e1;
+
+  /* Metin */
+  --text: #1b1a19;
+  --text-2: #6b645e;
+  --text-3: #9a928b;
+
+  /* Marka (kırmızı) */
+  --primary: #d03a3a;
+  --primary-600: #bf2e2e;
+  --primary-50: #fdeeed;    /* seçili menü, ince vurgu zemini */
+
+  /* Durum renkleri */
+  --success: #2e9e4f;  --success-50: #e8f6ec;
+  --warning: #d98a2b;  --warning-50: #fcf1e3;
+  --danger:  #d03a3a;  --danger-50:  #fdeeed;
+  --info:    #3563e9;  --info-50:    #e9eefd;
+  --violet:  #7c4ddb;  --violet-50:  #f1ebfc;
+  --teal:    #2a9d8f;  --teal-50:    #e4f4f2;
+
+  /* Biçim */
+  --radius-card: 20px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(60, 40, 30, .04), 0 8px 24px rgba(60, 40, 30, .06);
+  --shadow-primary: 0 6px 16px rgba(208, 58, 58, .28);
+
+  /* Yazı */
+  --font: "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-xs: 12px; --fs-sm: 13px; --fs-md: 15px; --fs-lg: 18px; --fs-xl: 28px; --fs-kpi: 34px;
+
+  /* Yerleşim */
+  --sidebar-w: 280px;
+  --sidebar-w-collapsed: 76px;
+  --topbar-h: 72px;
+}
+
+/* Koyu tema: kullanıcı tercihi (data-theme="dark") veya sistem ayarı */
+:root[data-theme="dark"] {
+  --bg: #17130f; --surface: #1f1a16; --surface-2: #26201b; --border: #332b25;
+  --text: #f4efea; --text-2: #b9afa6; --text-3: #8c8279;
+  --primary: #e25151; --primary-600: #d03a3a; --primary-50: #3a1f1f;
+  --success-50: #17301f; --warning-50: #35280f; --danger-50: #3a1f1f; --info-50: #1b2440; --violet-50: #2a2140; --teal-50: #173230;
+  --shadow-card: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17130f; --surface: #1f1a16; --surface-2: #26201b; --border: #332b25;
+    --text: #f4efea; --text-2: #b9afa6; --text-3: #8c8279;
+    --primary: #e25151; --primary-600: #d03a3a; --primary-50: #3a1f1f;
+    --success-50: #17301f; --warning-50: #35280f; --danger-50: #3a1f1f; --info-50: #1b2440; --violet-50: #2a2140; --teal-50: #173230;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}

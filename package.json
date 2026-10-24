@@ -1,0 +1,10 @@
+{
+  "name": "karmacrm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OSGB 360 - OSGB yönetim, CRM, satış ve kârlılık platformu",
+  "scripts": {
+    "test": "node --test tests/hesaplama.test.js"
+  }
+}

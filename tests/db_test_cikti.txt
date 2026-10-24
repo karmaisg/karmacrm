@@ -1,0 +1,370 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests.sql:70: NOTICE:  PASS | Sahip firma ekleyebilir (organization_id otomatik atanır)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:72: NOTICE:  PASS | Test 12 (DB): aynı vergi numarasıyla ikinci firma açılamaz [duplicate key value violates unique constraint "companies_tax_no_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:74: NOTICE:  PASS | İkinci firma eklenebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:78: NOTICE:  PASS | Firma profili ocak-mart: 30 çalışan / tehlikeli
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:80: NOTICE:  PASS | Nisan ve sonrası: 45 çalışan (yeni satır, eskisi değişmez)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:82: NOTICE:  PASS | Çakışan profil dönemi reddedilir [conflicting key value violates exclusion constraint "company_profiles_company_id_daterange]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:84: NOTICE:  PASS | Test 9: ocak ayı için hâlâ 30 çalışan görünüyor
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests.sql:94: NOTICE:  PASS | Uzman 1 firmaya %60 pay ile atanır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:96: NOTICE:  PASS | Uzman 2 aynı firmaya %40 pay ile atanır (toplam %100)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:98: NOTICE:  PASS | Test 3: toplam pay %100'ü aşan üçüncü atama reddedilir (süre mükerrer sayılmaz) [Bu firmada aynı dönemde is_guvenligi_uzmani hizmet payı toplamı %100'ü aşıyor (mevcut: 100]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:102: NOTICE:  PASS | Zaman kaydı eklenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:104: NOTICE:  PASS | Aynı personelde çakışan zaman kaydı reddedilir [conflicting key value violates exclusion constraint "time_entries_employee_id_tstzrange_ex]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:106: NOTICE:  PASS | Alt süreler toplam süreyi aşamaz [new row for relation "time_entries" violates check constraint "time_entries_check1"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:110: NOTICE:  PASS | Fatura 12.000 + 2.400 KDV = 14.400 eklenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:111: NOTICE:  PASS | 1. kısmi tahsilat 5.000
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:112: NOTICE:  PASS | 2. kısmi tahsilat 3.400
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:114: NOTICE:  PASS | Test 5: toplam KDV dahil 14.400, tahsil 8.400, kalan 6.000
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:115: NOTICE:  PASS | Kalan 6.000 tahsil edilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:117: NOTICE:  PASS | Tamamı ödenince durum tahsil_edildi, kalan 0
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:118: NOTICE:  PASS | Fazla tahsilat kaydedilebilir (uyarı olarak işaretlenir, engellenmez)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:120: NOTICE:  PASS | Fazla tahsilatta overpaid=true
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:124: NOTICE:  PASS | Ortak gider (Kira 10.000) eklenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:126: NOTICE:  PASS | Doğrudan gider (Araç yakıtı, Atlas Yapı için 3.000) eklenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:128: NOTICE:  PASS | Doğrudan gider firma/personel olmadan kaydedilemez [new row for relation "expenses" violates check constraint "expenses_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:130: NOTICE:  PASS | Kira havuzundan 6.000 dağıtılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:132: NOTICE:  PASS | Kira havuzunu (10.000) aşan dağıtım reddedilir [Dağıtılan toplam (10500.00) ilgili ortak gider havuzunu (10000.00) aşıyor.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:134: NOTICE:  PASS | Test 6: doğrudan giderin kategorisinde ortak havuz yok -> dağıtım yapılamaz (çift sayım engeli) [Dağıtılan toplam (3000.00) ilgili ortak gider havuzunu (0) aşıyor.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:136: NOTICE:  PASS | Havuzun kalanı (4.000) dağıtılabilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:140: NOTICE:  PASS | Uzman maaşı gideri eklenir (hassas kategori)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:143: NOTICE:  PASS | Denetim kaydı oluşuyor
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:145: NOTICE:  PASS | Sahip firmayı arşivleyebilir (yetkisi var)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:147: NOTICE:  PASS | Arşivleyen kullanıcı kaydedildi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:148: NOTICE:  PASS | Fiziksel silme yasak [permission denied for table companies]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:149: NOTICE:  PASS | Denetim kaydı değiştirilemez [permission denied for table audit_logs]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests.sql:154: NOTICE:  PASS | Test 11: Başka kurumun kullanıcısı bizim firmaları göremiyor
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:155: NOTICE:  PASS | Yabancı kullanıcı yalnızca kendi firmasını görüyor
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:157: NOTICE:  PASS | Test 11: Başka kurum adına kayıt eklenemez [new row violates row-level security policy for table "companies"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:158: NOTICE:  PASS | Başka kurumun faturaları görünmüyor
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:159: NOTICE:  PASS | Başka kurumun personel/gider kayıtları görünmüyor
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests.sql:163: NOTICE:  PASS | Satış sorumlusu firmaları görebilir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:164: NOTICE:  PASS | Satış sorumlusu faturaları göremez (finansal veri)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:165: NOTICE:  PASS | Satış sorumlusu giderleri göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:166: NOTICE:  PASS | Satış sorumlusu personel maliyetini göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:168: NOTICE:  PASS | Satış sorumlusu fatura ekleyemez [new row violates row-level security policy for table "invoices"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:170: NOTICE:  PASS | Satış sorumlusu potansiyel müşteri ekleyebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:172: NOTICE:  PASS | Satış sorumlusu firma arşivleyemez (arşiv yetkisi yok) [Bu kaydı arşivleme yetkiniz yok (companies).]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests.sql:175: NOTICE:  PASS | Finans sorumlusu faturaları görebilir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:177: NOTICE:  PASS | Finans sorumlusu maaş giderini görebilir (payroll yetkisi var)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:178: NOTICE:  PASS | Finans sorumlusu potansiyel müşteri (CRM) kayıtlarını göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests.sql:186: NOTICE:  PASS | Payroll yetkisi yokken maaş gideri görünmüyor, diğer giderler görünüyor
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:193: NOTICE:  PASS | Girişsiz kullanıcı firma listesini okuyamaz [permission denied for table companies]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests.sql:198: NOTICE:  PASS | Seed: 6 rol x 21 modül = 126 yetki satırı / kurum
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:199: NOTICE:  PASS | Seed: 6 hizmet süresi kuralı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:200: NOTICE:  PASS | Seed: 17 gider kategorisi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests.sql:202: NOTICE:  PASS | Hizmet süresi kuralı dönemleri çakışamaz [conflicting key value violates exclusion constraint "service_time_rules_organization_id_st]
+ fails 
+-------
+ 
+(1 row)
+
