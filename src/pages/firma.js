@@ -1,0 +1,264 @@
+// OSGB 360 - Firma kartı: genel bilgiler, kişiler, çalışan sayısı geçmişi ve teorik hizmet süresi.
+import {
+  html, raw, bugun, ayBasi, tarih, ayAdi, sayi, ondalik, dakikaSaat, safeUrl, telHref, mailHref, TEHLIKE, TEHLIKE_SIRASI, gunEkle,
+} from '../lib/format.js';
+import { icon } from '../ui/icons.js';
+import {
+  avatar, pill, emptyState, field, openFormModal, confirmDialog, toast,
+} from '../ui/components.js';
+import { firmaAylikIhtiyac, kapasiteKullanimi } from '../lib/hesaplama.js';
+import { guncelProfil, kapasiteDakika, bosIseNull } from '../lib/veri.js';
+import { humanError } from '../lib/api.js';
+import { tehlikePill, durumPill, firmaFormuAc } from './firmalar.js';
+import { kisiFormuAc, kisiArsivle, kisiArsivdenCikar, kisiEylemDugmeleri, telHucre, epostaHucre } from './kisiler.js';
+import { MENU } from '../modules.js';
+
+const SEKMELER = [
+  { id: 'genel', ad: 'Genel bilgiler' },
+  { id: 'kisiler', ad: 'Kişiler' },
+  { id: 'calisan', ad: 'Çalışan sayısı' },
+  { id: 'teklifler', ad: 'Teklifler', asama: 4 },
+  { id: 'sozlesmeler', ad: 'Sözleşmeler', asama: 5 },
+  { id: 'atamalar', ad: 'Atamalar', asama: 6 },
+  { id: 'faturalar', ad: 'Faturalar', asama: 8 },
+];
+
+const bilgi = (etiket, deger) => html`<div class="kv"><dt>${etiket}</dt><dd>${deger || html`<span class="muted">—</span>`}</dd></div>`;
+
+// Sayfa yenilense de (kayıt sonrası) aynı firmada açık sekme korunur.
+const hatirla = { id: null, sekme: 'genel' };
+
+export async function firmaSayfasi(app, id) {
+  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler] = await Promise.all([
+    app.api.getCompany(id),
+    app.api.listProfiles(id),
+    app.can('contacts', 'view') ? app.api.listContactsByCompany(id) : Promise.resolve([]),
+    app.api.listServiceRules(),
+    app.api.listSettings(),
+    app.api.listOrgMembers().catch(() => []),
+  ]);
+  if (!firma) {
+    return {
+      baslik: 'Firma bulunamadı', altBaslik: '',
+      eylemler: html`<a class="btn btn-secondary" href="#/firmalar">${icon('arrowL', 18)} Firmalara dön</a>`,
+      govde: emptyState({ simge: 'building', baslik: 'Bu firma yok ya da erişim izniniz yok', metin: 'Bağlantı eski olabilir veya firma silinmiş olabilir.' }),
+    };
+  }
+
+  const uyeAdi = new Map(uyeler.map((u) => [u.id, u.full_name]));
+  const durum = { sekme: hatirla.id === id ? hatirla.sekme : 'genel', ay: ayBasi(bugun()) };
+  const duzenleyebilir = app.can('companies', 'edit');
+  const arsivleyebilir = app.can('companies', 'archive');
+  const profilEkleyebilir = app.can('companies', 'edit');
+  const kisiEkleyebilir = app.can('contacts', 'create');
+  const guncel = guncelProfil(profiller, bugun());
+  const web = safeUrl(firma.website);
+
+  // ---------------------------------------------------------------- sekmeler
+  const genel = () => html`<div class="grid-2">
+    <section class="card"><h2 class="card-title">Firma bilgileri</h2><dl class="kv-list">
+      ${bilgi('Vergi no / tanımlayıcı', firma.tax_no)}
+      ${bilgi('Sektör', firma.sector)}
+      ${bilgi('Konum', [firma.city, firma.district].filter(Boolean).join(' / '))}
+      ${bilgi('Adres', firma.address)}
+      ${bilgi('Mevcut OSGB', firma.current_provider)}
+      ${bilgi('Sorumlu kullanıcı', uyeAdi.get(firma.responsible_user))}
+    </dl></section>
+    <section class="card"><h2 class="card-title">İletişim</h2><dl class="kv-list">
+      ${bilgi('Telefon', firma.phone ? (telHref(firma.phone) ? html`<a class="link" href="${telHref(firma.phone)}">${firma.phone}</a>` : firma.phone) : '')}
+      ${bilgi('E-posta', firma.email ? (mailHref(firma.email) ? html`<a class="link" href="${mailHref(firma.email)}">${firma.email}</a>` : firma.email) : '')}
+      ${bilgi('Web sitesi', firma.website ? (web ? html`<a class="link" href="${web}" target="_blank" rel="noopener noreferrer">${firma.website}</a>` : firma.website) : '')}
+      ${bilgi('Kayıt tarihi', tarih(String(firma.created_at ?? '').slice(0, 10)))}
+    </dl></section>
+    ${firma.notes ? html`<section class="card grid-full"><h2 class="card-title">Notlar</h2><p class="prewrap">${firma.notes}</p></section>` : ''}
+    ${teorikKart()}
+  </div>`;
+
+  const kisilerSekmesi = () => {
+    if (!app.can('contacts', 'view')) return emptyState({ simge: 'lock', baslik: 'Kişileri görme izniniz yok' });
+    const aktif = kisiler.filter((k) => !k.archived_at);
+    const arsiv = kisiler.filter((k) => k.archived_at);
+    if (!kisiler.length) {
+      return emptyState({
+        simge: 'contact', baslik: 'Bu firmada kişi yok', metin: 'Firma yetkilisini veya iletişim kişisini ekleyin.',
+        eylem: kisiEkleyebilir ? html`<button type="button" class="btn btn-primary" data-action="kisi-ekle">${icon('plus', 18)} Kişi ekle</button>` : '',
+      });
+    }
+    const satir = (k) => html`<tr class="${k.archived_at ? 'row-muted' : ''}">
+      <td><span class="cell-main">${avatar(k.full_name)}<span><strong>${k.full_name}</strong>${k.is_decision_maker ? html`<small class="tag-ok">Karar verici</small>` : ''}</span></span></td>
+      <td class="hide-sm">${k.title || html`<span class="muted">—</span>`}</td>
+      <td>${telHucre(k.phone)}</td><td class="hide-md">${epostaHucre(k.email)}</td>
+      <td class="actions">${kisiEylemDugmeleri(app, k)}</td></tr>`;
+    return html`<section class="card card-flush">
+      <div class="card-head"><h2 class="card-title">Kişiler <span class="chip-n">${aktif.length}</span></h2>
+        ${kisiEkleyebilir ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="kisi-ekle">${icon('plus', 16)} Kişi ekle</button>` : ''}</div>
+      <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Kişi</th><th scope="col" class="hide-sm">Unvan</th><th scope="col">Telefon</th><th scope="col" class="hide-md">E-posta</th><th scope="col"><span class="sr-only">Eylemler</span></th></tr></thead>
+      <tbody>${aktif.map(satir)}${arsiv.map(satir)}</tbody></table></div></section>`;
+  };
+
+  const calisanSekmesi = () => {
+    const satir = (p) => {
+      const simdi = !p.valid_to || p.valid_to >= bugun();
+      return html`<tr>
+        <td>${tarih(p.valid_from)}</td><td>${p.valid_to ? tarih(p.valid_to) : html`<span class="muted">Devam ediyor</span>`}</td>
+        <td class="num">${sayi(p.employee_count)}</td><td>${tehlikePill(p.hazard_class)}</td>
+        <td class="hide-sm">${p.note || html`<span class="muted">—</span>`}</td>
+        <td>${simdi && p.valid_from <= bugun() ? pill('Güncel', 'success') : ''}</td></tr>`;
+    };
+    return html`<section class="card card-flush">
+      <div class="card-head"><div><h2 class="card-title">Çalışan sayısı ve tehlike sınıfı geçmişi</h2>
+        <p class="card-sub">Her dönem kendi tarihinde geçerlidir; geçmiş aylar sonradan değişen sayılardan etkilenmez.</p></div>
+        ${profilEkleyebilir ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="profil-ekle">${icon('plus', 16)} Yeni dönem ekle</button>` : ''}</div>
+      ${profiller.length ? html`<div class="table-wrap"><table class="table"><thead><tr>
+        <th scope="col">Başlangıç</th><th scope="col">Bitiş</th><th scope="col" class="num">Çalışan</th><th scope="col">Tehlike sınıfı</th><th scope="col" class="hide-sm">Not</th><th scope="col"><span class="sr-only">Durum</span></th></tr></thead>
+        <tbody>${profiller.map(satir)}</tbody></table></div>`
+        : emptyState({ simge: 'users', baslik: 'Henüz çalışan sayısı girilmedi', metin: 'Teorik hizmet süresi hesaplanabilmesi için çalışan sayısı ve tehlike sınıfı gerekir.',
+          eylem: profilEkleyebilir ? html`<button type="button" class="btn btn-primary" data-action="profil-ekle">${icon('plus', 18)} İlk dönemi ekle</button>` : '' })}
+    </section>${profiller.length ? teorikKart() : ''}`;
+  };
+
+  const beklemede = (s) => emptyState({
+    simge: MENU.find((m) => m.id === ({ teklifler: 'teklifler', sozlesmeler: 'sozlesmeler', atamalar: 'atamalar', faturalar: 'faturalar' }[s.id]))?.simge ?? 'info',
+    baslik: `${s.ad} Aşama ${s.asama}'te eklenecek`,
+    metin: 'Bu sekme yapım aşamasında. Şimdilik firma, kişi ve çalışan sayısı kayıtlarını kullanabilirsiniz.',
+  });
+
+  // ---------------------------------------------------------------- teorik hizmet süresi kartı
+  function aySecenekleri() {
+    const bu = ayBasi(bugun());
+    const [y] = bu.split('-').map(Number);
+    const liste = [];
+    for (let yil = y - 1; yil <= y + 1; yil += 1) {
+      for (let a = 1; a <= 12; a += 1) liste.push(`${yil}-${String(a).padStart(2, '0')}-01`);
+    }
+    return liste;
+  }
+
+  function teorikIcerik() {
+    const sonuc = firmaAylikIhtiyac({ profiller, kurallar, ay: durum.ay });
+    if (!sonuc.profil) {
+      const ilk = profiller.length ? profiller.reduce((m, p) => (p.valid_from < m ? p.valid_from : m), '9999-12-31') : null;
+      return html`<p class="muted">${ayAdi(durum.ay)} için geçerli bir çalışan sayısı kaydı yok.${ilk && ilk > durum.ay ? ` İlk kayıt ${tarih(ilk)} tarihinde başlıyor; hesap ayın 1'indeki kayda göre yapıldığından o aydan sonraki ayları seçin.` : ''}</p>`;
+    }
+    const kap = kapasiteDakika(ayarlar, durum.ay);
+    const kutu = (ad, dk) => html`<div class="stat"><span class="stat-l">${ad}</span><strong class="stat-v">${dk === null ? '—' : sayi(dk)} <small>dk</small></strong>
+      <span class="stat-s">${dk === null ? 'Süre kuralı bulunamadı' : `${dakikaSaat(dk).replace(/^.*\(/, '').replace(')', '')} · bir tam zamanlı kişinin kapasitesinin %${ondalik(kapasiteKullanimi(dk, kap) * 100)}'i`}</span></div>`;
+    return html`<p class="card-sub">${ayAdi(durum.ay)} · ${sayi(sonuc.profil.employee_count)} çalışan · ${TEHLIKE[sonuc.profil.hazard_class]}</p>
+      <div class="stats">${kutu('İş güvenliği uzmanı', sonuc.uzmanDakika)}${kutu('İşyeri hekimi', sonuc.hekimDakika)}</div>
+      ${sonuc.eksik ? html`<div class="notice notice-warn" role="status">${sonuc.eksik}</div>` : ''}
+      <p class="fine">Bu değer firmanın toplam teorik ihtiyacıdır. Kişilere dağıtım Aşama 6'da yapılır. Kapasite: kişi başı ayda ${sayi(kap)} dk.</p>`;
+  }
+
+  function teorikKart() {
+    return html`<section class="card grid-full" id="teorik-kart">
+      <div class="card-head"><h2 class="card-title">Teorik hizmet süresi</h2>
+        <label class="select-inline"><span class="sr-only">Ay seçin</span>
+          <select id="teorik-ay">${aySecenekleri().map((a) => html`<option value="${a}" ${a === durum.ay ? raw('selected') : ''}>${ayAdi(a)}</option>`)}</select></label></div>
+      <div id="teorik-icerik">${teorikIcerik()}</div></section>`;
+  }
+
+  function sekmeGovdesi() {
+    const s = SEKMELER.find((x) => x.id === durum.sekme);
+    if (s.asama) return beklemede(s);
+    if (s.id === 'kisiler') return kisilerSekmesi();
+    if (s.id === 'calisan') return calisanSekmesi();
+    return genel();
+  }
+
+  const sekmeCubugu = () => html`<div class="tabs" role="tablist" aria-label="Firma bölümleri">
+    ${SEKMELER.map((s) => html`<button type="button" role="tab" class="tab ${durum.sekme === s.id ? 'tab-on' : ''}" aria-selected="${durum.sekme === s.id}" data-sekme="${s.id}">
+      ${s.ad}${s.asama ? html` <span class="tab-tag">Aşama ${s.asama}</span>` : ''}${s.id === 'kisiler' && kisiler.length ? html` <span class="chip-n">${kisiler.filter((k) => !k.archived_at).length}</span>` : ''}</button>`)}</div>`;
+
+  // ---------------------------------------------------------------- eylemler
+  function profilFormu() {
+    const acik = profiller.find((p) => !p.valid_to);
+    const enSon = profiller.length ? profiller.reduce((m, p) => (p.valid_from > m ? p.valid_from : m), '') : '';
+    const varsayilan = enSon && enSon >= ayBasi(bugun()) ? gunEkle(enSon, 1) : ayBasi(bugun());
+    openFormModal({
+      baslik: 'Yeni dönem ekle', altBaslik: firma.name,
+      govde: html`${field({ ad: 'employee_count', etiket: 'Çalışan sayısı', tur: 'number', min: 0, adim: 1, inputmode: 'numeric', zorunlu: true, deger: guncel?.employee_count ?? '' })}
+        ${field({ ad: 'hazard_class', etiket: 'Tehlike sınıfı', zorunlu: true, deger: guncel?.hazard_class ?? '', secenekler: [{ deger: '', etiket: 'Seçiniz' }].concat(TEHLIKE_SIRASI.map((k) => ({ deger: k, etiket: TEHLIKE[k] }))) })}
+        ${field({ ad: 'valid_from', etiket: 'Geçerlilik başlangıcı', tur: 'date', zorunlu: true, deger: varsayilan,
+          ipucu: acik ? `Mevcut dönem (${tarih(acik.valid_from)} başlangıçlı) bu tarihin bir gün öncesinde kapatılır.` : 'İlk dönem kaydı.' })}
+        ${field({ ad: 'note', etiket: 'Not', deger: '', maksUzunluk: 200, tam: true, yerTutucu: 'Örn. yeni şube açıldı' })}`,
+      async onSubmit(fd) {
+        const g = (k) => String(fd.get(k) ?? '').trim();
+        const h = {};
+        if (!/^\d{1,7}$/.test(g('employee_count'))) h.employee_count = 'Çalışan sayısı 0 veya daha büyük bir tam sayı olmalıdır.';
+        if (!g('hazard_class')) h.hazard_class = 'Tehlike sınıfını seçin.';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(g('valid_from'))) h.valid_from = 'Başlangıç tarihini seçin.';
+        else if (enSon && g('valid_from') <= enSon) h.valid_from = `Başlangıç, mevcut en son dönemin başlangıcından (${tarih(enSon)}) sonra olmalıdır.`;
+        if (Object.keys(h).length) return { errors: h };
+        await app.api.addProfile({
+          companyId: firma.id, calisanSayisi: Number(g('employee_count')), tehlike: g('hazard_class'),
+          baslangic: g('valid_from'), not: bosIseNull(g('note')),
+        });
+        toast('Yeni dönem eklendi.');
+      },
+      onDone: () => app.yenile(),
+    });
+  }
+
+  async function arsivIslemi() {
+    if (firma.archived_at) {
+      try { await app.api.unarchiveCompany(firma.id); toast('Firma arşivden çıkarıldı.'); app.aramaOnbellegiTemizle(); app.yenile(); }
+      catch (e) { toast(humanError(e), 'hata'); }
+      return;
+    }
+    const onay = await confirmDialog({
+      baslik: 'Firmayı arşivle', onayEtiketi: 'Arşivle', tehlikeli: true,
+      mesaj: `"${firma.name}" arşive alınacak. Kayıtlar silinmez; "Arşivli" filtresinden görülüp geri alınabilir.`,
+    });
+    if (!onay) return;
+    try { await app.api.archiveCompany(firma.id); toast('Firma arşive alındı.'); app.aramaOnbellegiTemizle(); app.yenile(); }
+    catch (e) { toast(humanError(e), 'hata'); }
+  }
+
+  return {
+    baslik: firma.name,
+    altBaslik: [firma.sector, [firma.city, firma.district].filter(Boolean).join(' / ')].filter(Boolean).join(' · '),
+    geri: { href: '#/firmalar', ad: 'Firmalar' },
+    ozelBaslik: html`<div class="company-head">${avatar(firma.name, 'lg')}<div>
+      <h1>${firma.name}</h1>
+      <div class="company-meta">${durumPill(firma)} ${guncel ? html`${tehlikePill(guncel.hazard_class)} <span class="muted">${sayi(guncel.employee_count)} çalışan</span>` : html`<span class="muted">Çalışan sayısı girilmedi</span>`}</div>
+    </div></div>`,
+    eylemler: html`${duzenleyebilir && !firma.archived_at ? html`<button type="button" class="btn btn-secondary" data-action="duzenle">${icon('pencil', 18)} Düzenle</button>` : ''}
+      ${arsivleyebilir ? html`<button type="button" class="btn ${firma.archived_at ? 'btn-primary' : 'btn-secondary'}" data-action="arsiv">${icon(firma.archived_at ? 'restore' : 'archive', 18)} ${firma.archived_at ? 'Arşivden çıkar' : 'Arşivle'}</button>` : ''}`,
+    govde: html`${firma.archived_at ? html`<div class="notice notice-warn" role="status">Bu firma arşivde. Kayıtları görüntüleyebilirsiniz; düzenlemek için önce arşivden çıkarın.</div>` : ''}
+      <div id="sekme-cubugu">${sekmeCubugu()}</div>
+      <div id="sekme-govde" role="tabpanel">${sekmeGovdesi()}</div>`,
+    mount(kok) {
+      const govdeEl = kok.querySelector('#sekme-govde');
+      const ciz = () => {
+        kok.querySelector('#sekme-cubugu').innerHTML = sekmeCubugu().s;
+        govdeEl.innerHTML = sekmeGovdesi().s;
+      };
+      kok.addEventListener('change', (e) => {
+        if (e.target.id === 'teorik-ay') {
+          durum.ay = e.target.value;
+          kok.querySelector('#teorik-icerik').innerHTML = teorikIcerik().s;
+        }
+      });
+      kok.addEventListener('click', async (e) => {
+        const t = e.target.closest('[data-sekme]');
+        if (t) { durum.sekme = t.dataset.sekme; hatirla.id = id; hatirla.sekme = durum.sekme; ciz(); kok.querySelector(`[data-sekme="${durum.sekme}"]`)?.focus(); return; }
+        const a = e.target.closest('[data-action]');
+        if (a) {
+          const eylem = a.dataset.action;
+          if (eylem === 'duzenle') firmaFormuAc(app, { firma });
+          else if (eylem === 'arsiv') await arsivIslemi();
+          else if (eylem === 'profil-ekle') profilFormu();
+          else if (eylem === 'kisi-ekle') kisiFormuAc(app, { firmaId: firma.id });
+          return;
+        }
+        const d = e.target.closest('[data-kisi-eylem]');
+        if (!d) return;
+        const k = kisiler.find((x) => x.id === d.dataset.id);
+        if (!k) return;
+        if (d.dataset.kisiEylem === 'duzenle') kisiFormuAc(app, { kisi: k });
+        if (d.dataset.kisiEylem === 'arsivle' && await kisiArsivle(app, k)) app.yenile();
+        if (d.dataset.kisiEylem === 'geri' && await kisiArsivdenCikar(app, k)) app.yenile();
+      });
+    },
+  };
+}

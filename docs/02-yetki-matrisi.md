@@ -42,3 +42,10 @@ Yetkiler veri tabanında `role_permissions` tablosunda durur ve ileride **Kullan
 
 1. **"Yalnızca kendi kayıtlarını gör" kuralı henüz yok.** Uzman/hekim kullanıcısı, yetkisi olan modüllerde (zaman kayıtları, görevler, firmalar) kurumdaki **tüm** kayıtları görür. Kendi görevlendirmesi dışındaki firmaları gizleme kuralı Aşama 5'te eklenecek.
 2. **Yönetici panelinde parça bazlı yetki** (ör. satışçıya tahsilat kartlarını gizleme) panel yazılırken (Aşama 8) uygulanacak. Veri tabanı zaten bu verileri satışçıya vermiyor.
+
+## Aşama 2 ile eklenen korumalar (veri tabanında zorlanır)
+
+- Kullanıcı kendi rolünü ve aktiflik durumunu değiştiremez (kilitlenme önlemi).
+- İşletme sahibi ve Sistem yöneticisi rollerini yalnızca bu iki roldeki kullanıcılar atayabilir/değiştirebilir.
+- Bu iki rolün yetki matrisi arayüzden veya API'den değiştirilemez; diğer dört rolün matrisi "Kullanıcılar ve yetkiler > Yetki matrisi"nden düzenlenir ve her değişiklik denetim kaydına yazılır.
+- Arşivleme ve arşivden çıkarma "arşivle" yetkisi gerektirir; arşiv alanları elle bozulamaz.

@@ -1,7 +1,7 @@
 # Kurulum rehberi (Supabase + GitHub)
 
 Bu rehber kod bilmeden izlenebilir. Her adımın sonunda ne görmeniz gerektiği yazılıdır.
-Aşama 1'de **ekran yoktur**; burada yalnızca veri tabanını kurup doğruluyorsunuz.
+Adım 1–7 Aşama 1'de yapıldı. **Aşama 2 için yalnızca "Aşama 2 kurulumu" bölümünü (en altta) uygulayın.**
 
 > **Güvenlik kuralı:** Supabase'in iki anahtarı vardır.
 > - `anon public` anahtarı tarayıcı kodunda durabilir. Veriyi koruyan şey bu anahtarın gizli olması değil, veri tabanındaki erişim kurallarıdır (RLS).
@@ -96,3 +96,30 @@ select
 - Ücretsiz planda otomatik yedeğe güvenmeyin. Önemli bir veri girişinden önce **Database → Backups** bölümünü kontrol edin.
 - Aşama 8'de her rapor Excel/CSV olarak dışa aktarılabilecek; bu da ikinci bir yedek olur.
 - Aşama 8'deki içe aktarma, mevcut kayıtların üzerine yazmadan önce otomatik yedek alacak şekilde tasarlanacak.
+
+
+---
+
+## Aşama 2 kurulumu (giriş ekranı ve firma/kişi ekranları için)
+
+### A) 03_asama2.sql dosyasını çalıştırın (bir kez)
+
+1. Supabase > **SQL Editor** > **New query**.
+2. `supabase/03_asama2.sql` dosyasının **tamamını** yapıştırıp **Run** deyin.
+3. Beklenen sonuç: "Success. No rows returned". Dosya tekrar çalıştırılırsa zarar vermez, ama gerekmez.
+
+Bu dosya: firma ve ilk çalışan kaydını tek işlemde oluşturan, çalışan sayısı dönemini kapatıp yenisini açan, kullanıcı ekleyen fonksiyonları; kendi rolünüzü değiştirmenizi, İşletme sahibi/Sistem yöneticisi yetkilerini bozmanızı ve başka kuruma ait kayıt bağlamayı engelleyen korumaları ekler.
+
+### B) Adres ayarları (şifre sıfırlama bağlantısı için)
+
+**Authentication > URL Configuration**:
+- **Site URL:** `https://karmaisg.github.io/karmacrm/`
+- **Redirect URLs** listesine aynı adresi ekleyin.
+
+### C) Yeni kullanıcı nasıl eklenir?
+
+Tarayıcıdaki uygulama güvenlik nedeniyle giriş hesabı **oluşturamaz**. İki adım:
+1. Supabase > **Authentication > Users > Add user > Create new user** (e-posta + şifre, **Auto Confirm User** işaretli).
+2. Uygulamada **Kullanıcılar ve yetkiler > Kullanıcı ekle**: aynı e-postayı, ad soyadı ve rolü yazın.
+
+Hesabı Supabase'de açmadan 2. adımı yaparsanız "hesabı bulunamadı" uyarısı alırsınız.

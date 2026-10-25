@@ -99,3 +99,9 @@ users.role_id -> roles
 - **Müşteri puanlama formülü** (Aşama 3): `leads.score` ve `score_details` alanları hazır; formül ve ağırlıklar ayarlardan gelecek.
 - **Kişi/firma bazlı fiilî maliyet hesabı** veri tabanında değil, hesaplama motorunda (`src/lib/hesaplama.js`) yapılır; raporlar bu motoru kullanacak.
 - **Dosya depolama kovası** (Supabase Storage) ve kova erişim kuralları Aşama 4'te (belgeler ile birlikte) kurulacak.
+
+## Aşama 2 ile eklenenler
+
+- Fonksiyonlar: `firma_olustur`, `firma_profili_ekle` (çalışan sayısı/tehlike sınıfı dönemleri; açık dönemi başlangıçtan bir gün önce kapatır), `kullanici_ekle`, `kurum_kullanicilari`.
+- `app.check_same_org` tetikleyicisi: firma-sorumlu kullanıcı, firma profili ve kişi kayıtları başka kurumun kaydına bağlanamaz. Diğer tablolara Aşama 10'da eklenecek.
+- Denetim: `users` ve `role_permissions` değişiklikleri `audit_logs` içine yazılır.

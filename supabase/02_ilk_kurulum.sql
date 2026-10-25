@@ -9,10 +9,10 @@
 
 do $$
 declare
-  v_kullanici_id  uuid := '405f97f9-9e51-4b4b-93c2-54b013bc82e2';  -- << BURAYA kendi User UID'nizi yazın
-  v_sirket_adi    text := 'KARMA OSGB';                          -- << OSGB işletmenizin adı
-  v_ad_soyad      text := '�zg�n Andi�';                               -- << sizin adınız
-  v_eposta        text := 'ozgunandic@gmail.com';                       -- << giriş e-postanız
+  v_kullanici_id  uuid := '00000000-0000-0000-0000-000000000000';  -- << BURAYA kendi User UID'nizi yazın
+  v_sirket_adi    text := 'ŞİRKET ADINIZ';                          -- << OSGB işletmenizin adı
+  v_ad_soyad      text := 'Ad Soyad';                               -- << sizin adınız
+  v_eposta        text := 'ornek@eposta.com';                       -- << giriş e-postanız
   v_org           uuid;
 begin
   -- Yer tutucu (yalnızca sıfırlardan oluşan kod) değiştirilmemişse dur
@@ -37,4 +37,3 @@ begin
 
   raise notice 'Kurulum tamam. Kurum: %, ilk kullanıcı: % (işletme sahibi)', v_org, v_eposta;
 end $$;
-

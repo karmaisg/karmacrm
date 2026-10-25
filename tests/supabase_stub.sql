@@ -6,8 +6,12 @@ do $$ begin
 end $$;
 create schema auth;
 create table auth.users (id uuid primary key default gen_random_uuid(), email text);
+-- Supabase'in gerçek auth.uid() tanımıyla aynı mantık (PostgREST 'request.jwt.claims' JSON'unu da okur)
 create function auth.uid() returns uuid language sql stable as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+  select coalesce(
+    nullif(current_setting('request.jwt.claim.sub', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+  )::uuid $$;
 grant usage on schema auth to anon, authenticated;
 grant usage on schema public to anon, authenticated;
 -- Supabase varsayılanı: public şemasındaki yeni tablolara anon/authenticated tam yetki verilir (RLS sınırlar)

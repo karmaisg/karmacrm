@@ -1,0 +1,626 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama2.sql:77: NOTICE:  PASS | Sahip: firma + ilk profil tek işlemde oluşturulur
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:79: NOTICE:  PASS | Firma adı kırpıldı, kayıt var
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:82: NOTICE:  PASS | İlk profil açık dönemli: 30 çalışan / tehlikeli
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:84: NOTICE:  PASS | Kurum otomatik atandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:86: NOTICE:  PASS | Çalışan bilgisi olmadan da firma oluşturulabilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:88: NOTICE:  PASS | Çalışan bilgisi verilmeyince profil oluşmaz
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:90: NOTICE:  PASS | Aynı vergi numarası reddedilir (mükerrer firma) [duplicate key value violates unique constraint "companies_tax_no_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:92: NOTICE:  PASS | Boş firma adı reddedilir [Firma adı zorunludur.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:94: NOTICE:  PASS | Çalışan sayısı var, tehlike sınıfı yok -> reddedilir [Çalışan sayısı girildiyse tehlike sınıfı ve geçerlilik tarihi de girilmelidir.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:96: NOTICE:  PASS | Negatif çalışan sayısı reddedilir ve firma da oluşmaz (atomik) [new row for relation "company_profiles" violates check constraint "company_profiles_employ]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:98: NOTICE:  PASS | Atomiklik: başarısız çağrıdan firma kalmadı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:100: NOTICE:  PASS | Başka kurumun kullanıcısı sorumlu olarak atanamaz [Bağlantılı kayıt bu kuruma ait değil (companies.responsible_user).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:102: NOTICE:  PASS | Kendi kurumundaki kullanıcı sorumlu olarak atanabilir
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama2.sql:107: NOTICE:  PASS | Satış sorumlusu firma oluşturabilir
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama2.sql:110: NOTICE:  PASS | Finans sorumlusu firma oluşturamaz [Firma ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 55555555-5555-5555-5555-555555555555
+(1 row)
+
+psql:tests/db_tests_asama2.sql:113: NOTICE:  PASS | Uzman/hekim firma oluşturamaz [Firma ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:115: NOTICE:  PASS | Uzman/hekim firmaları görebilir (companies: görüntüle)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama2.sql:125: NOTICE:  PASS | Yeni dönem: 1 Nisan'dan itibaren 45 çalışan
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:127: NOTICE:  PASS | Eski dönem bir gün önce kapandı (31 Mart), silinmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:129: NOTICE:  PASS | Eski dönemin çalışan sayısı ve başlangıcı aynı kaldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:131: NOTICE:  PASS | Yeni dönem açık ve notu kayıtlı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:134: NOTICE:  PASS | Test 9: ocak için 30, nisan için 45 çalışan görünür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:136: NOTICE:  PASS | Mevcut dönemin başlangıcından önceki tarih reddedilir [Yeni dönemin başlangıcı (01.03.2026), mevcut dönemin başlangıcından (01.04.2026) sonra olm]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:138: NOTICE:  PASS | Aynı başlangıç tarihi reddedilir [Yeni dönemin başlangıcı (01.04.2026), mevcut dönemin başlangıcından (01.04.2026) sonra olm]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:140: NOTICE:  PASS | Negatif çalışan sayısı reddedilir [Çalışan sayısı 0 veya daha büyük bir tam sayı olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:142: NOTICE:  PASS | Tehlike sınıfı zorunlu [Tehlike sınıfı zorunludur.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:144: NOTICE:  PASS | Başka kurumun firmasına profil eklenemez [Firma bulunamadı veya erişim yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:146: NOTICE:  PASS | Dönem değişimi sınıf da değiştirebilir (çok tehlikeli)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:148: NOTICE:  PASS | Üç dönem var, hiçbiri çakışmıyor
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama2.sql:152: NOTICE:  PASS | Finans (firma düzenleme yetkisi yok) profil ekleyemez [new row violates row-level security policy for table "company_profiles"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:154: NOTICE:  PASS | Finans başarısız denemeden sonra veri aynı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama2.sql:161: NOTICE:  PASS | Satışçı (ayarlar yetkisi yok) hizmet süresi kurallarını okuyabilir: 6 satır (referans tablo)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:163: NOTICE:  PASS | Satışçı hizmet süresi kuralı ekleyemez (ayarlar yetkisi yok) [new row violates row-level security policy for table "service_time_rules"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:165: NOTICE:  PASS | Kurum kullanıcıları: yalnızca kendi kurumu (4 kişi)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:167: NOTICE:  PASS | Kurum kullanıcıları listesinde yabancı kurumun kullanıcısı yok
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama2.sql:171: NOTICE:  PASS | Yabancı kurum yalnızca kendi 6 kuralını görür, bizimkileri görmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:175: NOTICE:  PASS | Girişsiz kullanıcı hizmet süresi kurallarını okuyamaz [permission denied for table service_time_rules]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:176: NOTICE:  PASS | Girişsiz kullanıcı firma_olustur çağıramaz [permission denied for function firma_olustur]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:177: NOTICE:  PASS | Girişsiz kullanıcı kullanici_ekle çağıramaz [permission denied for function kullanici_ekle]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:178: NOTICE:  PASS | Girişsiz kullanıcı firma_profili_ekle çağıramaz [permission denied for function firma_profili_ekle]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:179: NOTICE:  PASS | Girişsiz kullanıcı kurum_kullanicilari çağıramaz [permission denied for function kurum_kullanicilari]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama2.sql:188: NOTICE:  PASS | Sahip: Supabase hesabını (büyük/küçük harf farkıyla) satış rolüyle ekler
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:192: NOTICE:  PASS | Eklenen kullanıcı kurumda, rol satış, e-posta küçük harf
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:194: NOTICE:  PASS | Aynı kullanıcı ikinci kez eklenemez [Bu kullanıcı zaten tanımlı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:196: NOTICE:  PASS | Supabase'de olmayan e-posta reddedilir [Bu e-posta ile oluşturulmuş bir giriş hesabı bulunamadı. Önce Supabase > Authentication > ]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:198: NOTICE:  PASS | Geçersiz rol reddedilir [Geçersiz rol.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:200: NOTICE:  PASS | Ad soyad boş olamaz [Ad soyad zorunludur.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama2.sql:204: NOTICE:  PASS | Satışçı kullanıcı ekleyemez (yetki yok) [Kullanıcı ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama2.sql:208: NOTICE:  PASS | Sahip kendi rolünü değiştiremez [Kendi hesabınızın rolünü veya durumunu değiştiremezsiniz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:210: NOTICE:  PASS | Sahip kendini pasifleştiremez [Kendi hesabınızın rolünü veya durumunu değiştiremezsiniz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:212: NOTICE:  PASS | Sahip başkasının rolünü değiştirebilir (satış -> operasyon)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:214: NOTICE:  PASS | Sahip başkasını pasifleştirebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:216: NOTICE:  PASS | Kullanıcı başka kuruma taşınamaz [Kullanıcının kimliği ve kurumu değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:218: NOTICE:  PASS | Başka kurumun rolü atanamaz [Seçilen rol bu kuruma ait değil.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:220: NOTICE:  PASS | Kullanıcı değişiklikleri denetim kaydına yazıldı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama2.sql:229: NOTICE:  PASS | users yetkisi olan satışçı bile işletme sahibi rolü veremez (kullanici_ekle) [Sistem yöneticisi ve işletme sahibi rollerini yalnızca bu rollerdeki kullanıcılar verebili]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:231: NOTICE:  PASS | users yetkisi olan satışçı kullanıcıyı işletme sahibi yapamaz (güncelleme) [Sistem yöneticisi ve işletme sahibi rollerini yalnızca bu rollerdeki kullanıcılar değiştir]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:233: NOTICE:  PASS | users yetkisi olan satışçı kendini yükseltemez [Kendi hesabınızın rolünü veya durumunu değiştiremezsiniz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:235: NOTICE:  PASS | Sahibin rolü satışçı tarafından düşürülemez [Sistem yöneticisi ve işletme sahibi rollerini yalnızca bu rollerdeki kullanıcılar değiştir]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama2.sql:246: NOTICE:  PASS | Sahip satış rolüne firma arşivleme yetkisi verebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:248: NOTICE:  PASS | Yetki değişikliği denetim kaydına yazıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:250: NOTICE:  PASS | İşletme sahibi rolünün yetkileri değiştirilemez (kilitlenme koruması) [Sistem yöneticisi ve işletme sahibi yetkileri değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:252: NOTICE:  PASS | Sistem yöneticisi rolünün yetkileri değiştirilemez [Sistem yöneticisi ve işletme sahibi yetkileri değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:257: NOTICE:  PASS | Başka kurumun rolünün yetkisi değiştirilemez (RLS) [RLS: satır görünmüyor]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama2.sql:263: NOTICE:  PASS | Satışçı yetki matrisini değiştiremez [RLS: satır güncellenemedi]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:264: NOTICE:  PASS | Satışçı denetim kayıtlarını göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama2.sql:274: NOTICE:  PASS | Sahip firmayı arşivler
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:276: NOTICE:  PASS | Arşivleyen kullanıcı kaydedildi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:285: NOTICE:  PASS | Arşiv tarihi başka bir güncellemeyle oynatılamaz (değişmeden kalır) [KORUNDU: arşiv alanları değişmedi]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:287: NOTICE:  PASS | Sahip arşivden çıkarır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:289: NOTICE:  PASS | Arşivden çıkınca arşivleyen bilgisi temizlendi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:291: NOTICE:  PASS | Firma yeniden arşivlenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:293: NOTICE:  PASS | Arşivli firmanın vergi numarası yeniden kullanılabilir (mükerrer kuralı yalnızca aktifler için)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:295: NOTICE:  PASS | Aynı vergi numaralı aktif firma varken arşivden çıkarma reddedilir [duplicate key value violates unique constraint "companies_tax_no_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama2.sql:300: NOTICE:  PASS | Arşiv yetkisi verilen satışçı arşivleyebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:302: NOTICE:  PASS | Arşiv yetkisi verilen satışçı arşivden çıkarabilir
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama2.sql:310: NOTICE:  PASS | Arşiv yetkisi olmayan satışçı arşivden çıkaramaz [Bu kaydı arşivden çıkarma yetkiniz yok (companies).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:311: NOTICE:  PASS | Firma hâlâ arşivde
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama2.sql:318: NOTICE:  PASS | Başka kurumun firmasına kişi eklenemez [Bağlantılı kayıt bu kuruma ait değil (contacts.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:320: NOTICE:  PASS | Başka kurumun firmasına doğrudan profil eklenemez [Bağlantılı kayıt bu kuruma ait değil (company_profiles.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:322: NOTICE:  PASS | Firmanın sorumlusu başka kurumdan seçilemez (güncelleme) [Bağlantılı kayıt bu kuruma ait değil (companies.responsible_user).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:324: NOTICE:  PASS | Kendi firmasına kişi eklenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:326: NOTICE:  PASS | Firmasız ve potansiyel müşterisiz kişi eklenemez [new row for relation "contacts" violates check constraint "contacts_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:328: NOTICE:  PASS | Sahip kişiyi arşivler
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama2.sql:331: NOTICE:  PASS | Yabancı kurum bizim firmalarımızı ve kişilerimizi göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama2.sql:333: NOTICE:  PASS | Yabancı kurum bizim firmamıza profil ekleyemez [Firma bulunamadı veya erişim yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
