@@ -105,3 +105,10 @@ users.role_id -> roles
 - Fonksiyonlar: `firma_olustur`, `firma_profili_ekle` (çalışan sayısı/tehlike sınıfı dönemleri; açık dönemi başlangıçtan bir gün önce kapatır), `kullanici_ekle`, `kurum_kullanicilari`.
 - `app.check_same_org` tetikleyicisi: firma-sorumlu kullanıcı, firma profili ve kişi kayıtları başka kurumun kaydına bağlanamaz. Diğer tablolara Aşama 10'da eklenecek.
 - Denetim: `users` ve `role_permissions` değişiklikleri `audit_logs` içine yazılır.
+
+## Aşama 3 ile eklenenler
+
+- Fonksiyonlar: `potansiyel_olustur` (aday + yetki varsa ilk fırsat), `potansiyel_firmaya_donustur` (tek işlemde firma, ilk çalışan dönemi, yetkili kişi; kişi/fırsat/görüşme/görev taşıma; açık fırsatlar "kazanıldı").
+- Tetikleyiciler: fırsat kapanış tarihi ve kayıp nedeni temizliği, görev tamamlanma tarihi, görüşme eklenince adayın son temas tarihi, kurumlar arası bağlantı koruması (aday, fırsat, görüşme, görev).
+- Aşama geçmişi (`opportunity_stage_history`) her taşımada kullanıcı ve zamanla otomatik yazılır; "kaybedildi" için kayıp nedeni zorunludur.
+- Potansiyel müşteri puanı (0-100): firma büyüklüğü 30 + tehlike sınıfı 20 + kaynak 20 + tahmini gelir 30. Ağırlıklar şimdilik kodda sabittir (`src/lib/puanlama.js`); Aşama 10'da ayarlardan değiştirilebilir olacak. Girilmeyen bilgi 0 puan sayılır ve "veri eksik" işaretlenir.

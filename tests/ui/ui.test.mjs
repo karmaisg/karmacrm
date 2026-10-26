@@ -321,8 +321,8 @@ await test('kabuk: koyu tema kalıcı, yer imi arama, çıkış', async (s) => {
 
 await test('kabuk: yakında sayfası ve olmayan adres', async (s) => {
   await girisYap(s);
-  await git(s, '#/crm');
-  await var_(s.locator('h3:has-text("Aşama 3")'), 'yakında');
+  await git(s, '#/teklifler');
+  await var_(s.locator('h3:has-text("Aşama 4")'), 'yakında');
   await git(s, '#/yok-boyle-sayfa');
   await var_(s.locator('h3:has-text("Bu adreste sayfa yok")'), '404');
 });
@@ -366,6 +366,183 @@ await test('mobil 375px: menü açılır ve kapanır', async (s) => {
   await s.keyboard.press('Escape');
   await s.waitForTimeout(300);
   esit(await s.locator('#yan-menu').evaluate((e) => e.getBoundingClientRect().right <= 0), true, 'tekrar kapalı');
+}, { genislik: 375, yukseklik: 800 });
+
+
+// ---------------------------------------------------------------- Aşama 3
+async function adayEkle(s, { ad, vergi = '', calisan = '', tehlike = '', kaynak = '', gelir = '', yetkili = '' }) {
+  await git(s, '#/crm');
+  await s.waitForSelector('[data-action="yeni-aday"]');
+  await s.click('[data-action="yeni-aday"]');
+  const m = modal(s);
+  await m.locator('#f-name').fill(ad);
+  if (vergi) await m.locator('#f-tax_no').fill(vergi);
+  if (calisan !== '') await m.locator('#f-employee_count').fill(String(calisan));
+  if (tehlike) await m.locator('#f-hazard_class').selectOption(tehlike);
+  if (kaynak) await m.locator('#f-source').selectOption(kaynak);
+  if (gelir !== '') await m.locator('#f-est_monthly_revenue').fill(String(gelir));
+  if (yetkili) await m.locator('#f-contact_name').fill(yetkili);
+  return m;
+}
+
+await test('crm: aday ekle, canlı puan 62, ilk fırsat otomatik açılır', async (s) => {
+  await girisYap(s);
+  const m = await adayEkle(s, { ad: 'Aday Metal Ltd.', calisan: 30, tehlike: 'tehlikeli', kaynak: 'tavsiye', gelir: 10000, yetkili: 'Mehmet Usta' });
+  const onizleme = (await m.locator('#puan-alani .score-v').textContent()).trim();
+  esit(onizleme, '62', 'canlı puan');
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head');
+  await var_(s.locator('.card-title:has-text("Puan: 62 / 100")'), 'kayıtlı puan');
+  await ekran(s, '11-aday-karti');
+  await git(s, '#/firsatlar');
+  await s.waitForSelector('.kcol-yeni_aday .kcard');
+  await var_(s.locator('.kcol-yeni_aday .kcard:has-text("Aday Metal Ltd.")'), 'otomatik fırsat');
+});
+
+await test('crm: aynı vergi numarası ve geçersiz alanlar reddedilir', async (s) => {
+  await girisYap(s);
+  let m = await adayEkle(s, { ad: 'Bir', vergi: '2222222222' });
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head');
+  m = await adayEkle(s, { ad: 'İki', vergi: '2222 222 222' });
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.modal-overlay #e-tax_no:not(:empty)');
+  if (!(await s.textContent('.modal-overlay #e-tax_no')).includes('Bir')) throw new Error('mükerrer mesajı eksik');
+  await m.locator('#f-tax_no').fill('');
+  await m.locator('#f-employee_count').fill('12');
+  await m.locator('#f-email').fill('yanlis');
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.modal-overlay #e-hazard_class:not(:empty)');
+  await var_(s.locator('.modal-overlay #e-email:not(:empty)'), 'e-posta hatası');
+});
+
+await test('crm: görüşme, kişi, görev eklenir; görüşme arşivlenir', async (s) => {
+  await girisYap(s);
+  const m = await adayEkle(s, { ad: 'Takip Gıda' });
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head');
+  await s.click('[data-sekme="gorusmeler"]');
+  await s.click('[data-action="gorusme-ekle"]');
+  let f = modal(s);
+  await f.locator('#f-summary').fill('Teklif için bilgi istedi');
+  await f.locator('button[type=submit]').click();
+  await s.waitForSelector('.timeline .tl-item:has-text("Teklif için bilgi istedi")');
+  await s.click('[data-sekme="kisiler"]');
+  await s.click('[data-action="kisi-ekle"]');
+  f = modal(s);
+  await f.locator('#f-full_name').fill('Zeynep Kaya');
+  await f.locator('button[type=submit]').click();
+  await s.waitForSelector('#sekme-govde td:has-text("Zeynep Kaya")');
+  await s.click('[data-sekme="gorevler"]');
+  await s.click('[data-action="gorev-ekle"]');
+  f = modal(s);
+  await f.locator('#f-title').fill('Teklifi ara');
+  await f.locator('button[type=submit]').click();
+  await s.waitForSelector('#sekme-govde td:has-text("Teklifi ara")');
+  await s.click('[data-sekme="gorusmeler"]');
+  await s.click('[data-gorusme-eylem="arsivle"]');
+  await s.click('[data-ok]');
+  await s.waitForSelector('.timeline', { state: 'detached' });
+});
+
+await test('fırsatlar: aşama taşıma, kayıp nedeni zorunlu, geçmiş', async (s) => {
+  await girisYap(s);
+  const m = await adayEkle(s, { ad: 'Pano A.Ş.' });
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head');
+  await git(s, '#/firsatlar');
+  await s.waitForSelector('.kcol-yeni_aday .kcard');
+  await s.locator('.kcol-yeni_aday [data-tasi]').selectOption('teklif_gonderildi');
+  await s.waitForSelector('.kcol-teklif_gonderildi .kcard:has-text("Pano A.Ş.")');
+  await s.locator('.kcol-teklif_gonderildi [data-tasi]').selectOption('kaybedildi');
+  await s.waitForSelector('.modal-overlay #f-lost_reason');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.modal-overlay #e-lost_reason:not(:empty)');
+  await modal(s).locator('#f-lost_reason').selectOption('fiyat');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.kcol-kaybedildi .kcard:has-text("Fiyat")');
+  await s.click('.kcol-kaybedildi [data-firsat]');
+  await s.waitForSelector('.history li');
+  esit(await s.locator('.history li').count(), 3, 'geçmiş kaydı sayısı');
+  await ekran(s, '12-kanban');
+});
+
+await test('crm: firmaya dönüştür, kayıtlar firmaya taşınır, fırsat kazanıldı olur', async (s) => {
+  await girisYap(s);
+  const m = await adayEkle(s, { ad: 'Dönüşüm Ltd.', calisan: 30, tehlike: 'tehlikeli', yetkili: 'Ali Veli' });
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head');
+  await s.click('[data-sekme="gorusmeler"]');
+  await s.click('[data-action="gorusme-ekle"]');
+  await modal(s).locator('#f-summary').fill('İlk görüşme');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.timeline .tl-item');
+  await s.click('[data-action="donustur"]');
+  await s.click('[data-ok]');
+  await s.waitForSelector('.company-head .pill-success:has-text("Müşteri")');
+  await var_(s.locator('.company-head:has-text("30 çalışan")'), 'çalışan kaydı');
+  await s.click('[data-sekme="gorusmeler"]');
+  await s.waitForSelector('.timeline .tl-item:has-text("İlk görüşme")');
+  await s.click('[data-sekme="firsatlar"]');
+  await s.waitForSelector('#sekme-govde td:has-text("Kazanıldı")');
+  await s.click('[data-sekme="kisiler"]');
+  await s.waitForSelector('#sekme-govde td:has-text("Ali Veli")');
+  await git(s, '#/crm');
+  await s.click('[data-filtre="donusen"]');
+  await s.waitForSelector('#aday-tablo td:has-text("Dönüşüm Ltd.")');
+});
+
+await test('görevler: ekle, tamamla, filtrele, panel kartı', async (s) => {
+  await girisYap(s);
+  await git(s, '#/gorevler');
+  await s.waitForSelector('[data-action="yeni-gorev"]');
+  await s.click('[data-action="yeni-gorev"]');
+  const f = modal(s);
+  await f.locator('#f-title').fill('Müşteriyi ara');
+  await f.locator('button[type=submit]').click();
+  await s.waitForSelector('#gorev-tablo td:has-text("Müşteriyi ara")');
+  await s.locator('[data-bitir]').check();
+  await s.waitForSelector('#gorev-tablo .empty');
+  await s.click('[data-filtre="tamam"]');
+  await s.waitForSelector('#gorev-tablo td:has-text("Müşteriyi ara")');
+  await ekran(s, '13-gorevler');
+});
+
+await test('yetki: satış rolü CRM, fırsat ve görev menüsünü görür; finans görmez', async (s) => {
+  await girisYap(s, 'satis@test.com');
+  await var_(s.locator('.nav-item:has-text("CRM ve potansiyel müşteriler")'), 'crm');
+  await var_(s.locator('.nav-item:has-text("Satış fırsatları")'), 'fırsatlar');
+  await git(s, '#/crm');
+  await var_(s.locator('[data-action="yeni-aday"]'), 'satış aday ekleyebilir');
+  await s.click('.user-btn'); await s.click('[data-kmenu="cikis"]');
+  await s.waitForSelector('#f-email');
+  await s.fill('#f-email', 'finans@test.com'); await s.fill('#f-password', 'GucluSifre123'); await s.click('button[type=submit]');
+  await s.waitForSelector('#kabuk');
+  esit(await s.locator('.nav-item:has-text("CRM ve potansiyel müşteriler")').count(), 0, 'finans CRM görmemeli');
+  await git(s, '#/crm');
+  await var_(s.locator('h3:has-text("Bu sayfayı görme izniniz yok")'), 'finans CRM engeli');
+});
+
+await test('güvenlik: aday adındaki HTML metin olarak görünür', async (s) => {
+  await girisYap(s);
+  const m = await adayEkle(s, { ad: '<img src=x onerror=alert(1)>Aday' });
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head');
+  esit(await s.locator('.company-head img').count(), 0, 'img oluşmamalı');
+  await var_(s.locator('.company-head h1:has-text("<img src=x")'), 'metin olarak');
+});
+
+await test('mobil 375px: kanban ve aday sayfasında sayfa yatay taşmaz', async (s) => {
+  await girisYap(s);
+  const m = await adayEkle(s, { ad: 'Mobil Aday' });
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head');
+  for (const h of ['#/crm', '#/firsatlar', '#/gorevler']) {
+    await git(s, h); await s.waitForTimeout(400);
+    const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (t > 1) throw new Error(`${h} yatay taşma ${t}px`);
+  }
+  await ekran(s, '14-mobil-kanban');
 }, { genislik: 375, yukseklik: 800 });
 
 await tarayici.close(); sunucu.close();

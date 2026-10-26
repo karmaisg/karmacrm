@@ -19,10 +19,13 @@ export function humanError(e) {
   const code = e?.code;
   if (code === '23505') {
     if (msg.includes('companies_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir firma zaten var.';
+    if (msg.includes('leads_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir potansiyel müşteri zaten var.';
+    if (msg.includes('tasks_source_ref_uq')) return 'Bu iş için otomatik görev zaten oluşturulmuş.';
     return 'Bu kayıt zaten mevcut.';
   }
   if (code === '42501' || /row-level security|permission denied/i.test(msg)) return 'Bu işlem için yetkiniz yok.';
   if (code === '23P01') return 'Tarih aralığı mevcut bir kayıtla çakışıyor.';
+  if (code === '23514' && msg.includes('sales_opportunities_check')) return 'Kaybedilen fırsat için kayıp nedeni seçilmelidir.';
   if (code === '23514') return 'Girilen değerlerden biri izin verilen aralığın dışında.';
   if (code === '23503') return 'Bağlantılı kayıt bulunamadı.';
   if (code === 'PGRST116') return 'Kayıt bulunamadı ya da bu işlem için yetkiniz yok.';
@@ -166,5 +169,46 @@ export function createApi(db) {
     addUser: ({ email, adSoyad, rol }) => bir(db.rpc('kullanici_ekle', { p_email: email, p_ad_soyad: adSoyad, p_rol: rol })),
     setPermission: (roleId, module, degerler) =>
       bir(T('role_permissions').update(degerler).eq('role_id', roleId).eq('module', module).select().single()),
+
+    // ----- potansiyel müşteriler (CRM)
+    listLeads: () => hepsiniOku(() => T('leads').select('*').order('id')),
+    getLead: async (id) => {
+      const { data, error } = await T('leads').select('*').eq('id', id).maybeSingle();
+      if (error) throw wrap(error);
+      return data;
+    },
+    /** Potansiyel müşteri + (yetki varsa) ilk satış fırsatı tek işlemde. */
+    createLead: (veri) => bir(db.rpc('potansiyel_olustur', { p_veri: veri })),
+    updateLead: (id, degerler) => bir(T('leads').update(degerler).eq('id', id).select().single()),
+    archiveLead: (id) => bir(T('leads').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    unarchiveLead: (id) => bir(T('leads').update({ archived_at: null }).eq('id', id).select().single()),
+    convertLead: (id) => bir(db.rpc('potansiyel_firmaya_donustur', { p_lead: id })),
+    listContactsByLead: (leadId) => bir(T('contacts').select('*').eq('lead_id', leadId).order('full_name')),
+
+    // ----- satış fırsatları
+    listOpportunities: () => hepsiniOku(() => T('sales_opportunities').select('*').order('id')),
+    createOpportunity: (degerler) => bir(T('sales_opportunities').insert(degerler).select().single()),
+    updateOpportunity: (id, degerler) => bir(T('sales_opportunities').update(degerler).eq('id', id).select().single()),
+    /** Aşama değişimi; "kaybedildi" için neden zorunludur. Geçmişe veri tabanı tetikleyicisi yazar. */
+    moveOpportunity: (id, asama, { neden = null, not = null } = {}) =>
+      bir(T('sales_opportunities').update(asama === 'kaybedildi'
+        ? { stage: asama, lost_reason: neden, lost_note: not }
+        : { stage: asama }).eq('id', id).select().single()),
+    archiveOpportunity: (id) => bir(T('sales_opportunities').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    listStageHistory: (opportunityId) =>
+      bir(T('opportunity_stage_history').select('*').eq('opportunity_id', opportunityId).order('changed_at', { ascending: false })),
+
+    // ----- görüşmeler ve notlar
+    listActivitiesByCompany: (companyId) => bir(T('activities').select('*').eq('company_id', companyId).is('archived_at', null).order('occurred_at', { ascending: false })),
+    listActivitiesByLead: (leadId) => bir(T('activities').select('*').eq('lead_id', leadId).is('archived_at', null).order('occurred_at', { ascending: false })),
+    createActivity: (degerler) => bir(T('activities').insert(degerler).select().single()),
+    updateActivity: (id, degerler) => bir(T('activities').update(degerler).eq('id', id).select().single()),
+    archiveActivity: (id) => bir(T('activities').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+    // ----- görevler
+    listTasks: () => hepsiniOku(() => T('tasks').select('*').order('id')),
+    createTask: (degerler) => bir(T('tasks').insert(degerler).select().single()),
+    updateTask: (id, degerler) => bir(T('tasks').update(degerler).eq('id', id).select().single()),
+    archiveTask: (id) => bir(T('tasks').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
   };
 }

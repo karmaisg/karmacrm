@@ -1,0 +1,535 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama3.sql:77: NOTICE:  PASS | Satış: potansiyel müşteri + ilk fırsat tek işlemde
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:79: NOTICE:  PASS | Ad kırpıldı, kurum otomatik atandı, öncelik varsayılan orta
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:81: NOTICE:  PASS | Puan ve gerekçesi saklandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:84: NOTICE:  PASS | İlk fırsat yeni_aday aşamasında açıldı, beklenen gelir aktarıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:87: NOTICE:  PASS | Aşama geçmişine ilk kayıt düştü
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:89: NOTICE:  PASS | Aynı vergi numarasıyla ikinci potansiyel müşteri reddedilir [duplicate key value violates unique constraint "leads_tax_no_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:90: NOTICE:  PASS | Ad olmadan oluşturulamaz [Firma adı zorunludur.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:92: NOTICE:  PASS | Çalışan sayısı varken tehlike sınıfı zorunlu [Çalışan sayısı girildiyse tehlike sınıfı da seçilmelidir.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:94: NOTICE:  PASS | Yabancı kurumun kullanıcısı satış sorumlusu yapılamaz [Bağlantılı kayıt bu kuruma ait değil (leads.sales_owner).]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 55555555-5555-5555-5555-555555555555
+(1 row)
+
+psql:tests/db_tests_asama3.sql:98: NOTICE:  PASS | Uzman/hekim potansiyel müşteri ekleyemez [Potansiyel müşteri ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:99: NOTICE:  PASS | Uzman/hekim potansiyel müşterileri göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama3.sql:103: NOTICE:  PASS | Finans potansiyel müşteri ekleyemez [Potansiyel müşteri ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama3.sql:106: NOTICE:  PASS | Başka kurum potansiyel müşteriyi göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:107: NOTICE:  PASS | Başka kurum fırsatları göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama3.sql:114: NOTICE:  PASS | Fırsat aşaması ilerletilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:117: NOTICE:  PASS | Geçmişe kullanıcı ve aşamalarla yazıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:119: NOTICE:  PASS | Kayıp nedeni olmadan kaybedildi aşamasına geçilemez [new row for relation "sales_opportunities" violates check constraint "sales_opportunities_]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:121: NOTICE:  PASS | Kayıp nedeniyle kaybedildi olabilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:123: NOTICE:  PASS | Kapanış tarihi otomatik yazıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:125: NOTICE:  PASS | Kayıp fırsat yeniden açılır (ertelendi)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:127: NOTICE:  PASS | Yeniden açılınca kapanış tarihi ve kayıp nedeni temizlendi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:129: NOTICE:  PASS | Geçmişte 4 hareket var (açılış, ilerleme, kayıp, erteleme)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:131: NOTICE:  PASS | Negatif beklenen gelir reddedilir [Beklenen aylık gelir negatif olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:133: NOTICE:  PASS | Geçmiş satırı elle değiştirilemez / silinemez (silme yetkisi yok) [permission denied for table opportunity_stage_history]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:135: NOTICE:  PASS | Fırsat fiziksel olarak silinemez [permission denied for table sales_opportunities]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:137: NOTICE:  PASS | Fırsat başka kurumun firmasına bağlanamaz [Bağlantılı kayıt bu kuruma ait değil (sales_opportunities.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:138: NOTICE:  PASS | Satış (arşiv yetkisi var) fırsatı arşivler
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:140: NOTICE:  PASS | Arşivleyen kullanıcı kaydedildi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:141: NOTICE:  PASS | Arşivden çıkarılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:147: NOTICE:  PASS | Satış: potansiyel müşteriye görüşme ekler
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:148: NOTICE:  PASS | Son temas tarihi güncellendi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:150: NOTICE:  PASS | Daha eski görüşme son temas tarihini geriye almaz
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:151: NOTICE:  PASS | Son temas tarihi hâlâ 20 Ekim
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:153: NOTICE:  PASS | Not türü son temas tarihini etkilemez
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:154: NOTICE:  PASS | Son temas tarihi yine 20 Ekim
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:156: NOTICE:  PASS | Görüşme hiçbir kayda bağlı olamaz [new row for relation "activities" violates check constraint "activities_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:158: NOTICE:  PASS | Görüşme başka kurumun firmasına bağlanamaz [Bağlantılı kayıt bu kuruma ait değil (activities.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama3.sql:164: NOTICE:  PASS | Satış görev ekler
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:165: NOTICE:  PASS | Görev açık, tamamlanma tarihi boş
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:166: NOTICE:  PASS | Görev tamamlanır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:167: NOTICE:  PASS | Tamamlanma tarihi yazıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:168: NOTICE:  PASS | Görev yeniden açılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:169: NOTICE:  PASS | Yeniden açılınca tamamlanma tarihi silindi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:170: NOTICE:  PASS | Başlıksız görev reddedilir [Görev başlığı zorunludur.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:172: NOTICE:  PASS | Görev başka kurumun kullanıcısına atanamaz [Bağlantılı kayıt bu kuruma ait değil (tasks.assignee).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:173: NOTICE:  PASS | Kaynak referanslı görev eklenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:175: NOTICE:  PASS | Aynı kaynak referansıyla ikinci görev açılamaz [duplicate key value violates unique constraint "tasks_source_ref_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 55555555-5555-5555-5555-555555555555
+(1 row)
+
+psql:tests/db_tests_asama3.sql:178: NOTICE:  PASS | Uzman/hekim görevleri görebilir (tasks yetkisi)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama3.sql:185: NOTICE:  PASS | Hazırlık: ikinci potansiyel müşteri
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:189: NOTICE:  PASS | Hazırlık: görüşme ve görev
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:190: NOTICE:  PASS | Dönüşümden önce firma yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:193: NOTICE:  PASS | Satış: potansiyel müşteriyi firmaya dönüştürür
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:196: NOTICE:  PASS | Firma oluştu, müşteri durumunda, bilgiler aktarıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:199: NOTICE:  PASS | Çalışan sayısı ve tehlike sınıfı ilk dönem olarak aktarıldı (bugünden, açık dönem)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:201: NOTICE:  PASS | Potansiyel kayıt firmaya bağlandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:203: NOTICE:  PASS | Yetkili kişi kartı firmaya bağlı olarak oluştu
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:205: NOTICE:  PASS | Açık fırsat kazanıldı yapıldı ve firmaya bağlandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:208: NOTICE:  PASS | Aşama geçmişine dönüşüm hareketi yazıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:211: NOTICE:  PASS | Görüşme ve görev firma kartına taşındı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:213: NOTICE:  PASS | Aynı potansiyel müşteri ikinci kez dönüştürülemez [Bu potansiyel müşteri zaten firmaya dönüştürülmüş.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama3.sql:217: NOTICE:  PASS | Hazırlık: firma 5555555555 numarasını kullanıyor
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama3.sql:220: NOTICE:  PASS | Hazırlık: aynı numaralı potansiyel müşteri
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:222: NOTICE:  PASS | Firma tarafında aynı vergi numarası varsa dönüşüm reddedilir [duplicate key value violates unique constraint "companies_tax_no_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:227: NOTICE:  PASS | Reddedilen dönüşümde hiçbir şey yarım kalmadı (firma/kişi/bağlantı yok)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama3.sql:231: NOTICE:  PASS | Finans dönüştürme yapamaz [Potansiyel müşteriyi dönüştürme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama3.sql:234: NOTICE:  PASS | Başka kurumun kullanıcısı başka kurumun potansiyel müşterisini dönüştüremez [Potansiyel müşteri bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:237: NOTICE:  PASS | Oturumsuz çağrı reddedilir [Oturum bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama3.sql:243: NOTICE:  PASS | Sahip potansiyel müşteriyi arşivler
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:245: NOTICE:  PASS | Arşivleyen kullanıcı kaydedildi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:247: NOTICE:  PASS | Arşivdeki potansiyel müşteri dönüştürülemez [Arşivdeki potansiyel müşteri dönüştürülemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:248: NOTICE:  PASS | Arşivden çıkarılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:253: NOTICE:  PASS | Aynı numaralı yeni aday arşivdeyken açılabilir (arşivde olan aday numarayı bloklamaz)
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama3.sql:256: NOTICE:  PASS | Finans görüşme ekleyemez (contacts yetkisi yok) [new row violates row-level security policy for table "activities"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:259: NOTICE:  PASS | Denetim kaydı: potansiyel müşteri, fırsat, görev değişiklikleri yazıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama3.sql:261: NOTICE:  PASS | Dönüşüm sırasında firma denetim kaydında kullanıcıyla görünür
+ ok 
+----
+ 
+(1 row)
+

@@ -15,6 +15,9 @@ import { firmalarSayfasi } from './pages/firmalar.js';
 import { firmaSayfasi } from './pages/firma.js';
 import { kisilerSayfasi } from './pages/kisiler.js';
 import { kullanicilarSayfasi } from './pages/kullanicilar.js';
+import { crmSayfasi, leadSayfasi } from './pages/crm.js';
+import { firsatlarSayfasi } from './pages/firsatlar.js';
+import { gorevlerSayfasi } from './pages/gorevler.js';
 import { yakindaSayfasi } from './pages/placeholder.js';
 
 const app = {
@@ -42,6 +45,10 @@ function rotaCoz(parcalar) {
   if (ilk === 'firmalar' && ikinci) return { menu: 'firmalar', modul: 'companies', yukle: () => firmaSayfasi(app, ikinci) };
   if (ilk === 'firmalar') return { menu: 'firmalar', modul: 'companies', yukle: () => firmalarSayfasi(app) };
   if (ilk === 'kisiler') return { menu: 'kisiler', modul: 'contacts', yukle: () => kisilerSayfasi(app) };
+  if (ilk === 'crm' && ikinci) return { menu: 'crm', modul: 'crm', yukle: () => leadSayfasi(app, ikinci) };
+  if (ilk === 'crm') return { menu: 'crm', modul: 'crm', yukle: () => crmSayfasi(app) };
+  if (ilk === 'firsatlar') return { menu: 'firsatlar', modul: 'opportunities', yukle: () => firsatlarSayfasi(app) };
+  if (ilk === 'gorevler') return { menu: 'gorevler', modul: 'tasks', yukle: () => gorevlerSayfasi(app) };
   if (ilk === 'kullanicilar') return { menu: 'kullanicilar', modul: 'users', yukle: () => kullanicilarSayfasi(app) };
   const o = menuOgesi(ilk);
   if (o && !o.yapildi) return { menu: o.id, modul: o.modul, yukle: async () => yakindaSayfasi(o.id) };

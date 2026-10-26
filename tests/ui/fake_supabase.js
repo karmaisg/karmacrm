@@ -31,6 +31,7 @@ const tablo = {
   roles, role_permissions,
   users: hesaplar.map((h) => h.row),
   companies: [], company_profiles: [], contacts: [], leads: [],
+  sales_opportunities: [], opportunity_stage_history: [], activities: [], tasks: [],
   settings: [{ key: 'kapasite_dakika', value: 11700, valid_from: '2000-01-01' }],
   service_time_rules: [
     ['is_guvenligi_uzmani', 'az_tehlikeli', 10], ['is_guvenligi_uzmani', 'tehlikeli', 20], ['is_guvenligi_uzmani', 'cok_tehlikeli', 40],
@@ -55,7 +56,10 @@ function kurucu(ad) {
     if (!satirlar) return { data: null, error: hata(`tablo yok: ${ad}`) };
     const eslesen = satirlar.filter((r) => durum.filtre.every(([k, v]) => r[k] === v));
     if (durum.islem === 'insert') {
-      const yeni = { id: uid(), organization_id: ORG, created_at: new Date().toISOString(), archived_at: null, ...durum.yukle };
+      const simdi = new Date().toISOString();
+      const yeni = { id: uid(), organization_id: ORG, created_at: simdi, updated_at: simdi, archived_at: null, ...durum.yukle };
+      if (ad === 'sales_opportunities') { yeni.stage ??= 'yeni_aday'; tablo.opportunity_stage_history.push({ id: uid(), opportunity_id: yeni.id, from_stage: null, to_stage: yeni.stage, changed_at: simdi, changed_by: oturum?.user?.id }); }
+      if (ad === 'tasks') { yeni.status ??= 'acik'; yeni.priority ??= 'orta'; yeni.kind ??= 'diger'; }
       satirlar.push(yeni);
       return { data: kopya(yeni), error: null };
     }
@@ -65,7 +69,14 @@ function kurucu(ad) {
         if (u && u.id === oturum?.user?.id && ('role_id' in durum.yukle || 'is_active' in durum.yukle)) return { data: null, error: hata('Kendi rolünüzü veya durumunuzu değiştiremezsiniz.', 'P0001') };
       }
       if (ad === 'role_permissions' && ['sistem_yoneticisi', 'isletme_sahibi'].some((k) => eslesen[0]?.role_id === rid(k))) return { data: null, error: hata('Sistem yöneticisi ve işletme sahibi yetkileri değiştirilemez.', 'P0001') };
-      eslesen.forEach((r) => Object.assign(r, durum.yukle));
+      if (ad === 'sales_opportunities') {
+        const r0 = eslesen[0];
+        if (r0 && durum.yukle.stage === 'kaybedildi' && !durum.yukle.lost_reason) return { data: null, error: hata('new row violates check constraint "sales_opportunities_check"', '23514') };
+        if (r0 && durum.yukle.stage && durum.yukle.stage !== r0.stage) tablo.opportunity_stage_history.push({ id: uid(), opportunity_id: r0.id, from_stage: r0.stage, to_stage: durum.yukle.stage, changed_at: new Date().toISOString(), changed_by: oturum?.user?.id });
+      }
+      if (ad === 'tasks' && durum.yukle.status === 'tamamlandi') durum.yukle.completed_at = new Date().toISOString();
+      if (ad === 'tasks' && durum.yukle.status && durum.yukle.status !== 'tamamlandi') durum.yukle.completed_at = null;
+      eslesen.forEach((r) => Object.assign(r, durum.yukle, { updated_at: new Date().toISOString() }));
       return durum.tek ? { data: eslesen[0] ? kopya(eslesen[0]) : null, error: eslesen[0] ? null : hata('yok', 'PGRST116') } : { data: kopya(eslesen), error: null };
     }
     let sonuc = kopya(eslesen);
@@ -80,6 +91,7 @@ function kurucu(ad) {
     insert(v) { durum.islem = 'insert'; durum.yukle = v; return q; },
     update(v) { durum.islem = 'update'; durum.yukle = v; return q; },
     eq(k, v) { durum.filtre.push([k, v]); return q; },
+    is(k, v) { durum.filtre.push([k, v]); return q; },
     order(k, o = {}) { durum.sira = { k, artan: o.ascending !== false }; return q; },
     range(a, b) { durum.aralik = [a, b]; return q; },
     single() { durum.tek = 'single'; return q; },
@@ -111,6 +123,36 @@ const rpcler = {
     const yeni = { id: uid(), organization_id: ORG, company_id: p_firma, employee_count: p_calisan_sayisi, hazard_class: p_tehlike, valid_from: p_baslangic, valid_to: null, note: p_not };
     tablo.company_profiles.push(yeni);
     return { data: kopya(yeni) };
+  },
+  potansiyel_olustur({ p_veri }) {
+    if (p_veri.tax_no && tablo.leads.some((l) => !l.archived_at && l.tax_no === p_veri.tax_no)) return { error: hata('duplicate key value violates unique constraint "leads_tax_no_uq"', '23505') };
+    const simdi = new Date().toISOString();
+    const yeni = { id: uid(), organization_id: ORG, created_at: simdi, updated_at: simdi, archived_at: null, converted_company_id: null, last_contact_date: null, ...p_veri };
+    tablo.leads.push(yeni);
+    const rol = tablo.roles.find((r) => r.id === tablo.users.find((u) => u.id === oturum?.user?.id)?.role_id);
+    const izin = tablo.role_permissions.find((x) => x.role_id === rol?.id && x.module === 'opportunities');
+    if (izin?.can_create) {
+      const f = { id: uid(), organization_id: ORG, lead_id: yeni.id, company_id: null, title: yeni.name, stage: 'yeni_aday', expected_monthly: yeni.est_monthly_revenue ?? null, owner_user: yeni.sales_owner ?? null, created_at: simdi, updated_at: simdi, archived_at: null };
+      tablo.sales_opportunities.push(f);
+      tablo.opportunity_stage_history.push({ id: uid(), opportunity_id: f.id, from_stage: null, to_stage: 'yeni_aday', changed_at: simdi, changed_by: oturum?.user?.id });
+    }
+    return { data: kopya(yeni) };
+  },
+  potansiyel_firmaya_donustur({ p_lead }) {
+    const l = tablo.leads.find((x) => x.id === p_lead);
+    if (!l) return { error: hata('Potansiyel müşteri bulunamadı.', 'P0001') };
+    if (l.converted_company_id) return { error: hata('Bu potansiyel müşteri zaten firmaya dönüştürülmüş.', 'P0001') };
+    const simdi = new Date().toISOString();
+    const c = { id: uid(), organization_id: ORG, created_at: simdi, archived_at: null, name: l.name, tax_no: l.tax_no, sector: l.sector, city: l.city, district: l.district, address: l.address, phone: l.phone, email: l.email, website: l.website, current_provider: l.current_provider, customer_status: 'musteri', responsible_user: l.sales_owner, notes: l.notes };
+    tablo.companies.push(c);
+    if (l.employee_count !== null && l.hazard_class) tablo.company_profiles.push({ id: uid(), organization_id: ORG, company_id: c.id, employee_count: l.employee_count, hazard_class: l.hazard_class, valid_from: bugun(), valid_to: null, note: 'Potansiyel müşteriden aktarıldı' });
+    if (l.contact_name && !tablo.contacts.some((k) => k.lead_id === l.id && !k.archived_at)) tablo.contacts.push({ id: uid(), organization_id: ORG, company_id: c.id, lead_id: l.id, full_name: l.contact_name, title: l.contact_title, is_decision_maker: false, archived_at: null, created_at: simdi });
+    tablo.contacts.filter((k) => k.lead_id === l.id && !k.company_id).forEach((k) => { k.company_id = c.id; });
+    tablo.sales_opportunities.filter((f) => f.lead_id === l.id).forEach((f) => { f.company_id ??= c.id; if (!['kazanildi', 'kaybedildi', 'ertelendi'].includes(f.stage) && !f.archived_at) { tablo.opportunity_stage_history.push({ id: uid(), opportunity_id: f.id, from_stage: f.stage, to_stage: 'kazanildi', changed_at: simdi, changed_by: oturum?.user?.id }); f.stage = 'kazanildi'; } });
+    tablo.activities.filter((a) => a.lead_id === l.id && !a.company_id).forEach((a) => { a.company_id = c.id; });
+    tablo.tasks.filter((t) => t.lead_id === l.id && !t.company_id).forEach((t) => { t.company_id = c.id; });
+    l.converted_company_id = c.id;
+    return { data: kopya(c) };
   },
   kullanici_ekle({ p_email, p_ad_soyad, p_rol }) {
     const a = authSadece.find((x) => x.email === p_email.toLowerCase());

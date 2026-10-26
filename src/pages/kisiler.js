@@ -13,8 +13,9 @@ export const telHucre = (t) => (t ? (telHref(t) ? html`<a class="link" href="${t
 export const epostaHucre = (e) => (e ? (mailHref(e) ? html`<a class="link" href="${mailHref(e)}">${e}</a>` : e) : html`<span class="muted">—</span>`);
 
 // ---------------------------------------------------------------- form
-export async function kisiFormuAc(app, { kisi = null, firmaId = null, onDone = null } = {}) {
+export async function kisiFormuAc(app, { kisi = null, firmaId = null, leadId = null, onDone = null } = {}) {
   const duzenle = kisi !== null;
+  const leadModu = leadId !== null && !duzenle;   // potansiyel müşteriye bağlı yeni kişi
   const sabitFirma = firmaId !== null && !duzenle;
   let firmalar = [];
   try { firmalar = await app.api.listCompanies(); }
@@ -32,10 +33,10 @@ export async function kisiFormuAc(app, { kisi = null, firmaId = null, onDone = n
 
   openFormModal({
     baslik: duzenle ? 'Kişiyi düzenle' : 'Yeni kişi',
-    altBaslik: duzenle ? kisi.full_name : 'Firma yetkilisi veya iletişim kişisi ekleyin',
+    altBaslik: duzenle ? kisi.full_name : (leadModu ? 'Potansiyel müşterinin yetkilisi' : 'Firma yetkilisi veya iletişim kişisi ekleyin'),
     gonderEtiketi: duzenle ? 'Değişiklikleri kaydet' : 'Kişiyi ekle',
     govde: html`
-      ${field({ ad: 'company_id', etiket: 'Firma', deger: secilenFirma, secenekler, zorunlu: !potansiyel, pasif: sabitFirma, tam: true,
+      ${leadModu ? '' : field({ ad: 'company_id', etiket: 'Firma', deger: secilenFirma, secenekler, zorunlu: !potansiyel, pasif: sabitFirma, tam: true,
         ipucu: potansiyel ? 'Bu kişi bir potansiyel müşteriye bağlı. Firma seçmeden bırakabilirsiniz.' : '' })}
       ${field({ ad: 'full_name', etiket: 'Ad soyad', deger: v('full_name'), zorunlu: true, maksUzunluk: 120, otomatik: 'off' })}
       ${field({ ad: 'title', etiket: 'Unvan', deger: v('title'), maksUzunluk: 100 })}
@@ -46,8 +47,8 @@ export async function kisiFormuAc(app, { kisi = null, firmaId = null, onDone = n
     async onSubmit(fd) {
       const g = (k) => String(fd.get(k) ?? '').trim();
       const hatalar = {};
-      const firma = sabitFirma ? firmaId : g('company_id');
-      if (!firma && !potansiyel) hatalar.company_id = 'Firma seçin.';
+      const firma = leadModu ? '' : (sabitFirma ? firmaId : g('company_id'));
+      if (!firma && !potansiyel && !leadModu) hatalar.company_id = 'Firma seçin.';
       if (!g('full_name')) hatalar.full_name = 'Ad soyad zorunludur.';
       if (g('email') && !epostaGecerli(g('email'))) hatalar.email = 'Geçerli bir e-posta adresi yazın.';
       if (g('phone') && !telefonGecerli(g('phone'))) hatalar.phone = 'Telefon numarasında yalnızca rakam, boşluk, + ( ) - kullanın (en az 7 rakam).';
@@ -56,6 +57,7 @@ export async function kisiFormuAc(app, { kisi = null, firmaId = null, onDone = n
         company_id: bosIseNull(firma), full_name: g('full_name'), title: bosIseNull(g('title')),
         phone: bosIseNull(g('phone')), email: bosIseNull(g('email')),
         is_decision_maker: fd.get('is_decision_maker') === '1', notes: bosIseNull(g('notes')),
+        ...(leadModu ? { lead_id: leadId } : {}),
       };
       if (duzenle) { await app.api.updateContact(kisi.id, degerler); toast('Kişi güncellendi.'); }
       else { await app.api.createContact(degerler); toast('Kişi eklendi.'); }
@@ -114,7 +116,7 @@ export async function kisilerSayfasi(app) {
 
   const satir = (k) => html`<tr class="${k.archived_at ? 'row-muted' : ''}">
     <td><span class="cell-main">${avatar(k.full_name)}<span><strong>${k.full_name}</strong>${k.is_decision_maker ? html`<small class="tag-ok">Karar verici</small>` : ''}</span></span></td>
-    <td>${k.company_id ? html`<a class="link" href="#/firmalar/${k.company_id}">${firmaAdi.get(k.company_id) ?? 'Firma'}</a>` : pill('Potansiyel müşteri', 'info')}</td>
+    <td>${k.company_id ? html`<a class="link" href="#/firmalar/${k.company_id}">${firmaAdi.get(k.company_id) ?? 'Firma'}</a>` : (k.lead_id && app.can('crm', 'view') ? html`<a class="link" href="#/crm/${k.lead_id}">Potansiyel müşteri</a>` : pill('Potansiyel müşteri', 'info'))}</td>
     <td class="hide-md">${k.title || html`<span class="muted">—</span>`}</td>
     <td class="hide-sm">${telHucre(k.phone)}</td>
     <td class="hide-md">${epostaHucre(k.email)}</td>

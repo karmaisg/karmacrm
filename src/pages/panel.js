@@ -5,6 +5,9 @@ import { avatar, emptyState } from '../ui/components.js';
 import { firmaAylikIhtiyac } from '../lib/hesaplama.js';
 import { profilleriGrupla, guncelProfil, kapasiteDakika } from '../lib/veri.js';
 import { tehlikePill } from './firmalar.js';
+import { huniOzeti, takipDurumu } from '../lib/puanlama.js';
+import { para } from '../lib/format.js';
+import { gorevZamani } from './gorevler.js';
 
 export async function panelSayfasi(app) {
   const ad = ilkAd(app.ctx.user.full_name);
@@ -18,8 +21,11 @@ export async function panelSayfasi(app) {
     };
   }
 
-  const [firmalar, profiller, kurallar, ayarlar] = await Promise.all([
+  const [firmalar, profiller, kurallar, ayarlar, firsatlar, gorevler, adaylar] = await Promise.all([
     app.api.listCompanies(), app.api.listAllProfiles(), app.api.listServiceRules(), app.api.listSettings(),
+    app.can('opportunities', 'view') ? app.api.listOpportunities() : [],
+    app.can('tasks', 'view') ? app.api.listTasks() : [],
+    app.can('crm', 'view') ? app.api.listLeads() : [],
   ]);
   const bugunStr = bugun();
   const ay = ayBasi(bugunStr);
@@ -61,6 +67,22 @@ export async function panelSayfasi(app) {
   const son = [...aktif].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5);
   const eksikSayisi = eksikProfil.length + eksikKural.length + ayortasi.length;
 
+  const huni = huniOzeti(firsatlar);
+  const gecikenTakip = adaylar.filter((l) => !l.archived_at && !l.converted_company_id && takipDurumu(l.next_follow_up_date, bugunStr) === 'gecikmis');
+  const satisKarti = () => (!app.can('opportunities', 'view') && !app.can('crm', 'view') ? '' : html`<section class="card"><h2 class="card-title">Satış özeti</h2>
+    <ul class="list">
+      ${app.can('opportunities', 'view') ? html`<li><a class="link" href="#/firsatlar">Açık satış fırsatı</a><strong>${sayi(huni.acik.adet)} · ${para(huni.acik.tutar)}/ay</strong></li>` : ''}
+      ${app.can('crm', 'view') ? html`<li><a class="link" href="#/crm">Açık potansiyel müşteri</a><strong>${sayi(adaylar.filter((l) => !l.archived_at && !l.converted_company_id).length)}</strong></li>
+        <li><a class="link" href="#/crm">Takibi gecikmiş aday</a><strong>${sayi(gecikenTakip.length)}</strong></li>` : ''}
+    </ul></section>`);
+  const acikGorev = gorevler.filter((g) => !g.archived_at && (g.status === 'acik' || g.status === 'devam_ediyor'));
+  const gorevKarti = () => (!app.can('tasks', 'view') ? '' : html`<section class="card"><h2 class="card-title">Görevler</h2>
+    <ul class="list">
+      <li><a class="link" href="#/gorevler">Açık görev</a><strong>${sayi(acikGorev.length)}</strong></li>
+      <li><a class="link" href="#/gorevler">Bugün vadesi gelen</a><strong>${sayi(acikGorev.filter((g) => gorevZamani(g) === 'bugun').length)}</strong></li>
+      <li><a class="link" href="#/gorevler">Gecikmiş görev</a><strong>${sayi(acikGorev.filter((g) => gorevZamani(g) === 'gecikmis').length)}</strong></li>
+    </ul></section>`);
+
   const govde = !firmalar.length
     ? emptyState({
       simge: 'building', baslik: 'Başlamak için ilk firmanızı ekleyin',
@@ -88,8 +110,7 @@ export async function panelSayfasi(app) {
     const p = guncelProfil(harita.get(f.id), bugunStr);
     return html`<li><a class="cell-main" href="#/firmalar/${f.id}">${avatar(f.name, 'sm')}<span><strong>${f.name}</strong><small>${tarih(String(f.created_at ?? '').slice(0, 10))}</small></span></a>${tehlikePill(p?.hazard_class)}</li>`;
   })}</ul></section>
-      <section class="card card-soon"><h2 class="card-title">Yakında</h2>
-        <p class="muted">Aşama 3'ten itibaren potansiyel müşteri takibi, satış fırsatları, teklif ve sözleşme, tahsilat ve kârlılık göstergeleri bu panelde yer alacak.</p></section>
+      ${satisKarti()}${gorevKarti()}
     </div>`;
 
   return {

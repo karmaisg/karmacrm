@@ -148,3 +148,37 @@ export const TEHLIKE = {
 export const TEHLIKE_SIRASI = ['az_tehlikeli', 'tehlikeli', 'cok_tehlikeli'];
 
 export const MUSTERI_DURUMU = { musteri: 'Müşteri', eski_musteri: 'Eski müşteri' };
+
+// ---------------------------------------------------------------- Aşama 3 eklemeleri
+const NF_TL = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 });
+export const para = (n) => (n === null || n === undefined || n === '' || Number.isNaN(Number(n)) ? '—' : NF_TL.format(Number(n)));
+
+/** ISO zaman damgası -> '25.10.2026 14:30' (tarayıcının yerel saat diliminde). */
+export function tarihSaat(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${tarih(bugun(d))} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Yerel 'YYYY-MM-DDTHH:MM' (datetime-local alanı) -> ISO zaman damgası; boşsa null. */
+export function yerelIso(deger) {
+  if (!deger) return null;
+  const d = new Date(deger);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** ISO zaman damgası -> datetime-local alanının değeri (yerel saat). */
+export function yerelDeger(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${bugun(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** İki 'YYYY-MM-DD' tarihi arasındaki gün farkı (b - a). */
+export function gunFarki(a, b) {
+  const [y1, m1, d1] = String(a).slice(0, 10).split('-').map(Number);
+  const [y2, m2, d2] = String(b).slice(0, 10).split('-').map(Number);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+}

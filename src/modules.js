@@ -57,10 +57,8 @@ export const MENU = [
   { id: 'firmalar', grup: 'genel', modul: 'companies', ad: 'Firmalar', simge: 'building', yapildi: true },
   { id: 'kisiler', grup: 'genel', modul: 'contacts', ad: 'Kişiler', simge: 'contact', yapildi: true },
 
-  { id: 'crm', grup: 'satis', modul: 'crm', ad: 'CRM ve potansiyel müşteriler', simge: 'target', asama: 3,
-    aciklama: 'Potansiyel müşteri kayıtları, kaynak takibi ve puanlama.' },
-  { id: 'firsatlar', grup: 'satis', modul: 'opportunities', ad: 'Satış fırsatları', simge: 'kanban', asama: 3,
-    aciklama: 'Kanban görünümünde satış aşamaları. Her taşıma tarih ve kullanıcıyla kaydedilir.' },
+  { id: 'crm', grup: 'satis', modul: 'crm', ad: 'CRM ve potansiyel müşteriler', simge: 'target', yapildi: true },
+  { id: 'firsatlar', grup: 'satis', modul: 'opportunities', ad: 'Satış fırsatları', simge: 'kanban', yapildi: true },
   { id: 'teklifler', grup: 'satis', modul: 'offers', ad: 'Teklifler', simge: 'file', asama: 4,
     aciklama: 'Kişi başı veya sabit fiyatlı teklifler, anlık kârlılık hesabı ve PDF çıktısı.' },
   { id: 'sozlesmeler', grup: 'satis', modul: 'contracts', ad: 'Sözleşmeler ve yenilemeler', simge: 'contract', asama: 4,
@@ -76,8 +74,7 @@ export const MENU = [
     aciklama: 'Fiilî çalışma, yol ve bekleme süreleri; zaman çakışması kontrolü.' },
   { id: 'kapasite', grup: 'operasyon', modul: 'capacity', ad: 'Kapasite analizi', simge: 'gauge', asama: 5,
     aciklama: 'Teorik yük ve fiilî süreye göre uzman ve hekim doluluk oranları.' },
-  { id: 'gorevler', grup: 'operasyon', modul: 'tasks', ad: 'Hatırlatmalar ve görevler', simge: 'checksq', asama: 3,
-    aciklama: 'Görevler, hatırlatmalar ve günlük iş listesi.' },
+  { id: 'gorevler', grup: 'operasyon', modul: 'tasks', ad: 'Hatırlatmalar ve görevler', simge: 'checksq', yapildi: true },
 
   { id: 'tahsilat', grup: 'finans', modul: 'invoices', ad: 'Gelirler ve tahsilatlar', simge: 'wallet', asama: 6,
     aciklama: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi.' },

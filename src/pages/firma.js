@@ -12,11 +12,17 @@ import { humanError } from '../lib/api.js';
 import { tehlikePill, durumPill, firmaFormuAc } from './firmalar.js';
 import { kisiFormuAc, kisiArsivle, kisiArsivdenCikar, kisiEylemDugmeleri, telHucre, epostaHucre } from './kisiler.js';
 import { MENU } from '../modules.js';
+import { gorusmeFormuAc, zamanCizelgesi, gorusmeArsivle } from './gorusmeler.js';
+import { firsatFormuAc, asamaPill } from './firsatlar.js';
+import { gorevFormuAc } from './gorevler.js';
+import { para } from '../lib/format.js';
 
 const SEKMELER = [
   { id: 'genel', ad: 'Genel bilgiler' },
+  { id: 'gorusmeler', ad: 'Görüşmeler' },
   { id: 'kisiler', ad: 'Kişiler' },
   { id: 'calisan', ad: 'Çalışan sayısı' },
+  { id: 'firsatlar', ad: 'Fırsatlar' },
   { id: 'teklifler', ad: 'Teklifler', asama: 4 },
   { id: 'sozlesmeler', ad: 'Sözleşmeler', asama: 5 },
   { id: 'atamalar', ad: 'Atamalar', asama: 6 },
@@ -29,13 +35,15 @@ const bilgi = (etiket, deger) => html`<div class="kv"><dt>${etiket}</dt><dd>${de
 const hatirla = { id: null, sekme: 'genel' };
 
 export async function firmaSayfasi(app, id) {
-  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler] = await Promise.all([
+  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler, gorusmeler, tumFirsatlar] = await Promise.all([
     app.api.getCompany(id),
     app.api.listProfiles(id),
     app.can('contacts', 'view') ? app.api.listContactsByCompany(id) : Promise.resolve([]),
     app.api.listServiceRules(),
     app.api.listSettings(),
     app.api.listOrgMembers().catch(() => []),
+    app.can('contacts', 'view') ? app.api.listActivitiesByCompany(id) : Promise.resolve([]),
+    app.can('opportunities', 'view') ? app.api.listOpportunities() : Promise.resolve([]),
   ]);
   if (!firma) {
     return {
@@ -52,6 +60,8 @@ export async function firmaSayfasi(app, id) {
   const profilEkleyebilir = app.can('companies', 'edit');
   const kisiEkleyebilir = app.can('contacts', 'create');
   const guncel = guncelProfil(profiller, bugun());
+  const firsatlar = tumFirsatlar.filter((f) => f.company_id === id && !f.archived_at);
+  const kisiAdi = new Map(kisiler.map((k) => [k.id, k.full_name]));
   const web = safeUrl(firma.website);
 
   // ---------------------------------------------------------------- sekmeler
@@ -117,6 +127,18 @@ export async function firmaSayfasi(app, id) {
     </section>${profiller.length ? teorikKart() : ''}`;
   };
 
+  const gorusmeSekmesi = () => html`<section class="card"><div class="card-head"><h2 class="card-title">Görüşme geçmişi</h2>
+    ${app.can('contacts', 'create') ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="gorusme-ekle">${icon('plus', 16)} Görüşme / not ekle</button>` : ''}
+    ${app.can('tasks', 'create') ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="gorev-ekle">${icon('plus', 16)} Görev ekle</button>` : ''}</div>
+    ${app.can('contacts', 'view') ? zamanCizelgesi(app, gorusmeler, { kisiAdi, kullaniciAdi: uyeAdi }) : emptyState({ simge: 'lock', baslik: 'Görüşmeleri görme izniniz yok' })}</section>`;
+
+  const firsatSekmesi = () => html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Satış fırsatları</h2>
+    ${app.can('opportunities', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="firsat-ekle">${icon('plus', 16)} Fırsat ekle</button>` : ''}</div>
+    ${firsatlar.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Fırsat</th><th scope="col">Aşama</th><th scope="col">Beklenen gelir</th></tr></thead>
+      <tbody>${firsatlar.map((f) => html`<tr><td><strong>${f.title}</strong></td><td>${asamaPill(f.stage)}</td><td>${para(f.expected_monthly)}<small class="muted">/ay</small></td></tr>`)}</tbody></table></div>
+      <p class="fine pad">Aşamayı değiştirmek için <a class="link" href="#/firsatlar">Satış fırsatları</a> panosunu kullanın.</p>`
+    : emptyState({ simge: 'kanban', baslik: 'Bu firma için fırsat yok', metin: 'Mevcut müşteriye ek hizmet satışı için fırsat açabilirsiniz.' })}</section>`;
+
   const beklemede = (s) => emptyState({
     simge: MENU.find((m) => m.id === ({ teklifler: 'teklifler', sozlesmeler: 'sozlesmeler', atamalar: 'atamalar', faturalar: 'faturalar' }[s.id]))?.simge ?? 'info',
     baslik: `${s.ad} Aşama ${s.asama}'te eklenecek`,
@@ -161,6 +183,8 @@ export async function firmaSayfasi(app, id) {
     const s = SEKMELER.find((x) => x.id === durum.sekme);
     if (s.asama) return beklemede(s);
     if (s.id === 'kisiler') return kisilerSekmesi();
+    if (s.id === 'gorusmeler') return gorusmeSekmesi();
+    if (s.id === 'firsatlar') return firsatSekmesi();
     if (s.id === 'calisan') return calisanSekmesi();
     return genel();
   }
@@ -249,6 +273,16 @@ export async function firmaSayfasi(app, id) {
           else if (eylem === 'arsiv') await arsivIslemi();
           else if (eylem === 'profil-ekle') profilFormu();
           else if (eylem === 'kisi-ekle') kisiFormuAc(app, { firmaId: firma.id });
+          else if (eylem === 'gorusme-ekle') gorusmeFormuAc(app, { companyId: firma.id, kisiler });
+          else if (eylem === 'firsat-ekle') firsatFormuAc(app, { companyId: firma.id });
+          else if (eylem === 'gorev-ekle') gorevFormuAc(app, { companyId: firma.id });
+          return;
+        }
+        const gr = e.target.closest('[data-gorusme-eylem]');
+        if (gr) {
+          const k = gorusmeler.find((x) => x.id === gr.dataset.id); if (!k) return;
+          if (gr.dataset.gorusmeEylem === 'duzenle') gorusmeFormuAc(app, { kayit: k, companyId: firma.id, kisiler });
+          else if (await gorusmeArsivle(app, k)) app.yenile();
           return;
         }
         const d = e.target.closest('[data-kisi-eylem]');

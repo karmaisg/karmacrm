@@ -10,9 +10,10 @@ Tek işletme için çalışır; veri modeli ileride SaaS'a geçişe hazırdır (
 
 | Aşama | Konu | Durum |
 |---|---|---|
-| 1 | Mimari, veri modeli, hesaplama motoru | **Tamam, onayınızı bekliyor** |
-| 2 | Giriş, roller, firma kartları, kişiler | Sırada |
-| 3–10 | CRM, teklif, sözleşme, personel, gelir/gider, kârlılık, panel, yapay zekâ, yayın | Planlandı |
+| 1 | Mimari, veri modeli, hesaplama motoru | Tamam, onaylandı |
+| 2 | Giriş, roller, firma kartları, kişiler | Tamam, onaylandı |
+| 3 | CRM, potansiyel müşteri, satış fırsatları, görüşmeler, görevler | **Tamam, onayınızı bekliyor** |
+| 4–10 | Teklif, sözleşme, personel, gelir/gider, kârlılık, panel, yapay zekâ, yayın | Planlandı |
 
 ## Mimari
 
@@ -29,21 +30,27 @@ Tek işletme için çalışır; veri modeli ileride SaaS'a geçişe hazırdır (
 
 ```
 karmacrm/
+├─ index.html                Uygulama girişi (CSP burada)
 ├─ supabase/
 │  ├─ 01_sema.sql            Tablolar, RLS, denetim, tarihçe kısıtları (33 tablo)
-│  └─ 02_ilk_kurulum.sql     İlk kurum + ilk kullanıcı (bir kez çalıştırılır)
+│  ├─ 02_ilk_kurulum.sql     İlk kurum + ilk kullanıcı (bir kez)
+│  ├─ 03_asama2.sql          Aşama 2 fonksiyonları ve korumaları (bir kez)
+│  └─ 04_asama3.sql          Aşama 3: CRM, fırsat, görev fonksiyonları (bir kez)
 ├─ src/
-│  ├─ lib/hesaplama.js       Hesaplama motoru (saf fonksiyonlar, arayüzden bağımsız)
-│  └─ styles/tokens.css      Tasarım değişkenleri (Gurizon CRM görünümü)
+│  ├─ main.js                Açılış, oturum, yönlendirme
+│  ├─ config.js              Supabase adresi ve anon anahtarı (gizli değildir)
+│  ├─ modules.js             Menü ve modül tanımları
+│  ├─ lib/                   api.js (Supabase), hesaplama.js, format.js, veri.js, router.js
+│  ├─ pages/                 auth, panel, firmalar, firma, kisiler, kullanicilar, crm, firsatlar, gorevler, gorusmeler, placeholder
+│  ├─ ui/                    components.js, shell.js (kenar menü/üst çubuk/arama), icons.js
+│  └─ styles/                tokens.css, app.css
 ├─ tests/
 │  ├─ hesaplama.test.js      Motor testleri (Node)
-│  ├─ db_tests.sql           Veri tabanı testleri (PostgreSQL)
+│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql   Veri tabanı testleri (PostgreSQL)
+│  ├─ ui/                    Arayüz testleri (Playwright + sahte Supabase istemcisi)
 │  ├─ supabase_stub.sql      Yalnızca yerel test için Supabase taklidi
-│  └─ db_test_cikti.txt      Son DB test çıktısı
-└─ docs/
-   ├─ 01-kurulum-rehberi.md  Adım adım Supabase/GitHub kurulumu
-   ├─ 02-yetki-matrisi.md    6 rol × 21 modül
-   └─ 03-veri-modeli.md      Tablolar, ilişkiler, kurallar
+│  └─ db_test_cikti*.txt     Son DB test çıktıları
+└─ docs/                     Kurulum, yayın, yetki matrisi, veri modeli
 ```
 
 ## Testleri çalıştırma
@@ -59,7 +66,17 @@ Veri tabanı testleri yerel bir PostgreSQL 16 gerektirir (Supabase'e dokunmaz):
 ```
 psql -d osgb -f tests/supabase_stub.sql
 psql -d osgb -f supabase/01_sema.sql
+psql -d osgb -f supabase/03_asama2.sql
+psql -d osgb -f supabase/04_asama3.sql
 psql -d osgb -f tests/db_tests.sql
+psql -d osgb -f tests/db_tests_asama2.sql
+psql -d osgb -f tests/db_tests_asama3.sql
+```
+
+Arayüz testleri (Node + Playwright; gerçek Supabase'e bağlanmaz, sahte istemci kullanır):
+
+```
+node tests/ui/ui.test.mjs
 ```
 
 ## Gizli bilgiler

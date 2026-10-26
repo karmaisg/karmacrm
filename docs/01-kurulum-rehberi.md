@@ -123,3 +123,15 @@ Tarayıcıdaki uygulama güvenlik nedeniyle giriş hesabı **oluşturamaz**. İk
 2. Uygulamada **Kullanıcılar ve yetkiler > Kullanıcı ekle**: aynı e-postayı, ad soyadı ve rolü yazın.
 
 Hesabı Supabase'de açmadan 2. adımı yaparsanız "hesabı bulunamadı" uyarısı alırsınız.
+
+
+---
+
+## Aşama 3 kurulumu (CRM, satış fırsatları, görüşmeler, görevler)
+
+1. Supabase > **SQL Editor** > **New query**.
+2. `supabase/04_asama3.sql` dosyasının **tamamını** yapıştırıp **Run** deyin. Beklenen: "Success. No rows returned".
+3. (Önce `03_asama2.sql` çalıştırılmış olmalıdır.) Dosya tekrar çalıştırılırsa zarar vermez.
+4. GitHub'daki dosyaları yeni sürümle değiştirin (zip içindeki tüm klasörü yeniden yükleyin).
+
+Bu dosya: potansiyel müşteri + ilk satış fırsatını tek işlemde oluşturan fonksiyon, potansiyel müşteriyi firmaya dönüştüren fonksiyon (kişi, görüşme, fırsat ve görevleri firmaya taşır), fırsat kapanış/kayıp nedeni ve görev tamamlanma tarihlerini otomatik tutan tetikleyiciler, son temas tarihinin otomatik güncellenmesi ve kurumlar arası bağlantı korumalarını ekler.
