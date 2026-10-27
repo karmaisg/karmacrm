@@ -112,3 +112,11 @@ users.role_id -> roles
 - Tetikleyiciler: fırsat kapanış tarihi ve kayıp nedeni temizliği, görev tamamlanma tarihi, görüşme eklenince adayın son temas tarihi, kurumlar arası bağlantı koruması (aday, fırsat, görüşme, görev).
 - Aşama geçmişi (`opportunity_stage_history`) her taşımada kullanıcı ve zamanla otomatik yazılır; "kaybedildi" için kayıp nedeni zorunludur.
 - Potansiyel müşteri puanı (0-100): firma büyüklüğü 30 + tehlike sınıfı 20 + kaynak 20 + tahmini gelir 30. Ağırlıklar şimdilik kodda sabittir (`src/lib/puanlama.js`); Aşama 10'da ayarlardan değiştirilebilir olacak. Girilmeyen bilgi 0 puan sayılır ve "veri eksik" işaretlenir.
+
+## Aşama 4 ile eklenenler
+
+- Tablolar (01_sema'da vardı, 05'te kurallandı): `offers`, `offer_items`, `contracts`, `contract_prices`.
+- Teklif durumları: taslak → onay bekliyor/gönderildi → görüşülüyor → kabul/ret/süresi doldu. Gönderildikten sonra fiyat alanları kilitlidir; değişiklik için kopyalanır.
+- Sözleşme: aynı firmada tarihleri çakışan iki aktif sözleşme olamaz (veri tabanı kısıtı). Sona eren/feshedilen sözleşme değiştirilemez. Fiyat geçmişi silinmez, yalnızca yeni dönem eklenir.
+- Fonksiyonlar: `teklif_kopyala`, `teklif_kabul_et`, `sozlesme_olustur`, `sozlesme_yenile`, `sozlesme_fiyat_ekle`, `sozlesme_yenileme_gorevleri`.
+- Yenileme uyarıları: bitişe 90/60/30 gün kala her eşik için bir görev üretilir (tekrar üretilmez). Giriş yapıldığında çalışır.

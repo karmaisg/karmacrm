@@ -14,6 +14,8 @@ import { kisiFormuAc, kisiArsivle, kisiArsivdenCikar, kisiEylemDugmeleri, telHuc
 import { MENU } from '../modules.js';
 import { gorusmeFormuAc, zamanCizelgesi, gorusmeArsivle } from './gorusmeler.js';
 import { firsatFormuAc, asamaPill } from './firsatlar.js';
+import { teklifFormuAc, teklifPill } from './teklifler.js';
+import { sozlesmeFormuAc, firmaTeklifleri, firmaSozlesmeleri } from './sozlesmeler.js';
 import { gorevFormuAc } from './gorevler.js';
 import { para } from '../lib/format.js';
 
@@ -23,8 +25,8 @@ const SEKMELER = [
   { id: 'kisiler', ad: 'Kişiler' },
   { id: 'calisan', ad: 'Çalışan sayısı' },
   { id: 'firsatlar', ad: 'Fırsatlar' },
-  { id: 'teklifler', ad: 'Teklifler', asama: 4 },
-  { id: 'sozlesmeler', ad: 'Sözleşmeler', asama: 5 },
+  { id: 'teklifler', ad: 'Teklifler' },
+  { id: 'sozlesmeler', ad: 'Sözleşmeler' },
   { id: 'atamalar', ad: 'Atamalar', asama: 6 },
   { id: 'faturalar', ad: 'Faturalar', asama: 8 },
 ];
@@ -35,7 +37,7 @@ const bilgi = (etiket, deger) => html`<div class="kv"><dt>${etiket}</dt><dd>${de
 const hatirla = { id: null, sekme: 'genel' };
 
 export async function firmaSayfasi(app, id) {
-  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler, gorusmeler, tumFirsatlar] = await Promise.all([
+  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler, gorusmeler, tumFirsatlar, tumTeklifler, tumSozlesmeler] = await Promise.all([
     app.api.getCompany(id),
     app.api.listProfiles(id),
     app.can('contacts', 'view') ? app.api.listContactsByCompany(id) : Promise.resolve([]),
@@ -44,6 +46,8 @@ export async function firmaSayfasi(app, id) {
     app.api.listOrgMembers().catch(() => []),
     app.can('contacts', 'view') ? app.api.listActivitiesByCompany(id) : Promise.resolve([]),
     app.can('opportunities', 'view') ? app.api.listOpportunities() : Promise.resolve([]),
+    app.can('offers', 'view') ? app.api.listOffers() : Promise.resolve([]),
+    app.can('contracts', 'view') ? app.api.listContracts() : Promise.resolve([]),
   ]);
   if (!firma) {
     return {
@@ -139,6 +143,13 @@ export async function firmaSayfasi(app, id) {
       <p class="fine pad">Aşamayı değiştirmek için <a class="link" href="#/firsatlar">Satış fırsatları</a> panosunu kullanın.</p>`
     : emptyState({ simge: 'kanban', baslik: 'Bu firma için fırsat yok', metin: 'Mevcut müşteriye ek hizmet satışı için fırsat açabilirsiniz.' })}</section>`;
 
+  const teklifSekmesi = () => html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Teklifler</h2>
+    ${app.can('offers', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="teklif-yeni">${icon('plus', 16)} Yeni teklif</button>` : ''}</div>
+    ${firmaTeklifleri(app, tumTeklifler.filter((o) => o.company_id === id), teklifPill)}</section>`;
+  const sozlesmeSekmesi = () => html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Sözleşmeler</h2>
+    ${app.can('contracts', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="sozlesme-yeni">${icon('plus', 16)} Sözleşme ekle</button>` : ''}</div>
+    ${firmaSozlesmeleri(app, tumSozlesmeler.filter((c) => c.company_id === id))}</section>`;
+
   const beklemede = (s) => emptyState({
     simge: MENU.find((m) => m.id === ({ teklifler: 'teklifler', sozlesmeler: 'sozlesmeler', atamalar: 'atamalar', faturalar: 'faturalar' }[s.id]))?.simge ?? 'info',
     baslik: `${s.ad} Aşama ${s.asama}'te eklenecek`,
@@ -185,6 +196,8 @@ export async function firmaSayfasi(app, id) {
     if (s.id === 'kisiler') return kisilerSekmesi();
     if (s.id === 'gorusmeler') return gorusmeSekmesi();
     if (s.id === 'firsatlar') return firsatSekmesi();
+    if (s.id === 'teklifler') return app.can('offers', 'view') ? teklifSekmesi() : emptyState({ simge: 'lock', baslik: 'Teklifleri görme izniniz yok' });
+    if (s.id === 'sozlesmeler') return app.can('contracts', 'view') ? sozlesmeSekmesi() : emptyState({ simge: 'lock', baslik: 'Sözleşmeleri görme izniniz yok' });
     if (s.id === 'calisan') return calisanSekmesi();
     return genel();
   }
@@ -275,6 +288,8 @@ export async function firmaSayfasi(app, id) {
           else if (eylem === 'kisi-ekle') kisiFormuAc(app, { firmaId: firma.id });
           else if (eylem === 'gorusme-ekle') gorusmeFormuAc(app, { companyId: firma.id, kisiler });
           else if (eylem === 'firsat-ekle') firsatFormuAc(app, { companyId: firma.id });
+          else if (eylem === 'teklif-yeni') teklifFormuAc(app, { companyId: firma.id });
+          else if (eylem === 'sozlesme-yeni') sozlesmeFormuAc(app, { companyId: firma.id });
           else if (eylem === 'gorev-ekle') gorevFormuAc(app, { companyId: firma.id });
           return;
         }

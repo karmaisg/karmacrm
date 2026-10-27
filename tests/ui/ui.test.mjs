@@ -92,7 +92,8 @@ await test('giriş: başarılı giriş, boş panel ve menü', async (s) => {
   if (!/^(Günaydın|İyi günler|İyi akşamlar|İyi geceler), Barış$/.test(h1)) throw new Error(`karşılama: ${h1}`);
   await var_(s.locator('.empty h3:has-text("ilk firmanızı")'), 'boş durum');
   await var_(s.locator('.nav-item:has-text("Kullanıcılar ve yetkiler")'), 'kullanıcılar menüsü');
-  await var_(s.locator('.nav-item:has-text("Teklifler") .nav-tag:has-text("Aşama 4")'), 'aşama etiketi');
+  await var_(s.locator('.nav-item:has-text("Uzmanlar") .nav-tag:has-text("Aşama 5")'), 'aşama etiketi');
+  esit(await s.locator('.nav-item:has-text("Teklifler") .nav-tag').count(), 0, 'teklifler artık hazır');
   await ekran(s, '02-panel-bos');
 });
 
@@ -321,8 +322,8 @@ await test('kabuk: koyu tema kalıcı, yer imi arama, çıkış', async (s) => {
 
 await test('kabuk: yakında sayfası ve olmayan adres', async (s) => {
   await girisYap(s);
-  await git(s, '#/teklifler');
-  await var_(s.locator('h3:has-text("Aşama 4")'), 'yakında');
+  await git(s, '#/uzmanlar');
+  await var_(s.locator('h3:has-text("Aşama 5")'), 'yakında');
   await git(s, '#/yok-boyle-sayfa');
   await var_(s.locator('h3:has-text("Bu adreste sayfa yok")'), '404');
 });
@@ -543,6 +544,266 @@ await test('mobil 375px: kanban ve aday sayfasında sayfa yatay taşmaz', async 
     if (t > 1) throw new Error(`${h} yatay taşma ${t}px`);
   }
   await ekran(s, '14-mobil-kanban');
+}, { genislik: 375, yukseklik: 800 });
+
+
+async function teklifDoldur(s, { calisan = 30, tehlike = 'tehlikeli', birim = '1000', uzman = '', hekim = '', diger = '', indirim = '' }) {
+  const m = modal(s);
+  await m.locator('#f-employee_count').fill(String(calisan));
+  await m.locator('#f-hazard_class').selectOption(tehlike);
+  await m.locator('#f-unit_price').fill(birim);
+  if (uzman) await m.locator('#f-est_expert_cost').fill(uzman);
+  if (hekim) await m.locator('#f-est_physician_cost').fill(hekim);
+  if (diger) await m.locator('#f-est_travel_other_cost').fill(diger);
+  if (indirim) await m.locator('#f-discount_pct').fill(indirim);
+  return m;
+}
+async function teklifOlustur(s, firmaAdi, secenek = {}) {
+  await git(s, '#/teklifler');
+  await s.waitForSelector('[data-action="yeni-teklif"]');
+  await s.click('[data-action="yeni-teklif"]');
+  await s.waitForSelector('#f-company_id');
+  const m = modal(s);
+  await m.locator('#f-company_id').selectOption({ label: firmaAdi });
+  await teklifDoldur(s, secenek);
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head h1:has-text("TKL-")');
+}
+
+await test('teklif: canlı kârlılık, marj eşiği uyarısı, taslak oluşur', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Teklif A.Ş.', vergi: '1111111111', calisan: 30, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head h1:has-text("Teklif")');
+  await git(s, '#/teklifler');
+  await var_(s.locator('.empty h3:has-text("Henüz teklif yok")'), 'boş durum');
+  await s.click('[data-action="yeni-teklif"]');
+  await s.waitForSelector('#f-company_id');
+  const m = modal(s);
+  await m.locator('#f-company_id').selectOption({ label: 'Teklif A.Ş.' });
+  // firma seçilince çalışan sayısı ve tehlike otomatik gelir
+  esit(await m.locator('#f-employee_count').inputValue(), '30', 'otomatik çalışan');
+  esit(await m.locator('#f-hazard_class').inputValue(), 'tehlikeli', 'otomatik tehlike');
+  await m.locator('#f-unit_price').fill('1000');
+  await m.locator('#f-est_expert_cost').fill('10000');
+  await m.locator('#f-est_physician_cost').fill('5000');
+  let ozet = await m.locator('#hesap-alani').innerText();
+  if (!ozet.includes('%50,0')) throw new Error(`marj 50 olmalı: ${ozet}`);
+  if (ozet.includes('Eşiğin altında')) throw new Error('eşik uyarısı olmamalı');
+  await m.locator('#f-est_expert_cost').fill('25000');
+  ozet = await m.locator('#hesap-alani').innerText();
+  if (!ozet.includes('Eşiğin altında')) throw new Error(`eşik uyarısı bekleniyordu: ${ozet}`);
+  await ekran(s, '15-teklif-formu');
+  await m.locator('#f-pricing').selectOption('sabit_aylik');
+  if (!(await m.locator('[data-field="unit_price"]').isHidden())) throw new Error('kişi başı alan gizlenmeli');
+  await m.locator('#f-fixed_monthly_price').fill('40000');
+  ozet = await m.locator('#hesap-alani').innerText();
+  if (!ozet.includes('40.000')) throw new Error(`sabit fiyat hesabı: ${ozet}`);
+  await m.locator('#f-pricing').selectOption('kisi_basi');
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head h1:has-text("TKL-")');
+  await var_(s.locator('.company-meta .pill:has-text("Taslak")'), 'taslak durumu');
+  await var_(s.locator('.pill:has-text("Eşiğin altında")'), 'kârlılık kartı uyarısı');
+  await var_(s.locator('h2:has-text("Fiyat senaryoları")'), 'senaryolar');
+  await ekran(s, '16-teklif-sayfasi');
+});
+
+await test('teklif: form doğrulaması Türkçe alan hataları verir', async (s) => {
+  await girisYap(s);
+  await git(s, '#/teklifler');
+  await s.click('[data-action="yeni-teklif"]');
+  await s.waitForSelector('#f-company_id');
+  await modal(s).locator('button[type=submit]').click();
+  esit((await s.textContent('#e-company_id')).trim(), 'Bir firma veya potansiyel müşteri seçin.', 'kimin için');
+  esit((await s.textContent('#e-hazard_class')).trim(), 'Tehlike sınıfını seçin.', 'tehlike');
+  esit((await s.textContent('#e-unit_price')).trim(), 'Kişi başı fiyatı girin (0 veya üstü).', 'fiyat');
+});
+
+await test('teklif: gönder, fiyat kilitlenir, kopyala, ek kalem, arşivle', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Kilit Ltd.', vergi: '2222222222', calisan: 10, tehlike: 'az_tehlikeli' });
+  await s.waitForSelector('.company-head');
+  await teklifOlustur(s, 'Kilit Ltd.', { calisan: 10, tehlike: 'az_tehlikeli', birim: '800', uzman: '2000' });
+  // taslakta kalem eklenir
+  await s.click('[data-action="kalem-ekle"]');
+  await modal(s).locator('#f-description').fill('Yıllık eğitim paketi');
+  await modal(s).locator('#f-unit_price').fill('3000');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('td:has-text("Yıllık eğitim paketi")');
+  await s.click('[data-gecis="gonderildi"]');
+  await s.waitForSelector('.company-meta .pill:has-text("Gönderildi")');
+  await var_(s.locator('.notice-info:has-text("fiyat bilgileri değiştirilemez")'), 'kilit uyarısı');
+  esit(await s.locator('[data-action="duzenle"]').count(), 0, 'düzenle düğmesi');
+  esit(await s.locator('[data-action="kalem-ekle"]').count(), 0, 'kalem ekle düğmesi');
+  await s.click('[data-action="kopyala"]');
+  await s.waitForSelector('.company-meta .pill:has-text("Taslak")');
+  await var_(s.locator('td:has-text("Yıllık eğitim paketi")'), 'kalem kopyalandı');
+  await s.click('[data-action="arsiv"]');
+  await s.click('[data-ok]');
+  await s.waitForSelector('.notice-warn:has-text("arşivde")');
+  await git(s, '#/teklifler');
+  await s.waitForSelector('#teklif-tablo tbody tr');
+  esit(await s.locator('#teklif-tablo tbody tr').count(), 1, 'arşivsiz tek teklif');
+  await s.click('[data-filtre="arsiv"]');
+  esit(await s.locator('#teklif-tablo tbody tr').count(), 1, 'arşiv listesi');
+});
+
+await test('teklif kabul: sözleşme + fiyat dönemi, yenileme, fiyat geçmişi, çakışma', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Sözleşme A.Ş.', vergi: '3333333333', calisan: 20, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head');
+  await teklifOlustur(s, 'Sözleşme A.Ş.', { calisan: 20, tehlike: 'tehlikeli', birim: '1000', indirim: '10', uzman: '4000' });
+  await s.click('[data-gecis="gonderildi"]');
+  await s.waitForSelector('[data-action="kabul"]');
+  await s.click('[data-action="kabul"]');
+  await s.waitForSelector('#f-baslangic');
+  await modal(s).locator('#f-odeme').fill('Her ay 5\'ine kadar');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head .pill:has-text("Aktif")');
+  await s.waitForSelector('.kv-list');
+  const bilgi = await s.locator('#sayfa').innerText();
+  if (!/₺900(,00)? \/ kişi/.test(bilgi)) throw new Error('indirim fiyata işlenmeli (900 TL / kişi)');
+  if (!bilgi.includes('18.000')) throw new Error('aylık tutar 18.000 olmalı (20 kişi x 900)');
+  await var_(s.locator('dd:has-text("Her ay 5\'ine kadar")'), 'ödeme koşulu');
+  // teklif sayfasından sözleşmeye bağlantı
+  await s.click('a:has-text("TKL-")');
+  await s.waitForSelector('.company-meta .pill:has-text("Kabul edildi")');
+  await var_(s.locator('.notice-ok:has-text("sözleşmeye çevrildi")'), 'bağlantı');
+  esit(await s.locator('[data-action="kabul"]').count(), 0, 'tekrar kabul yok');
+  await s.click('.notice-ok a');
+  await s.waitForSelector('.company-head .pill:has-text("Aktif")');
+  // yeni fiyat dönemi
+  await s.click('[data-action="fiyat"]');
+  await modal(s).locator('#f-baslangic').fill(await s.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); }));
+  await modal(s).locator('#f-unit_price').fill('1200');
+  await modal(s).locator('#f-not').fill('TÜFE artışı');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.timeline .tl-item:nth-child(2)');
+  await var_(s.locator('.tl-item:has-text("TÜFE artışı")'), 'fiyat notu');
+  esit(await s.locator('.timeline .tl-item').count(), 2, 'iki fiyat dönemi');
+  // aynı fiyat başlangıcı reddedilir
+  await s.click('[data-action="fiyat"]');
+  await modal(s).locator('#f-baslangic').fill('2020-01-01');
+  await modal(s).locator('#f-unit_price').fill('1');
+  await modal(s).locator('button[type=submit]').click();
+  await var_(s.locator('#e-baslangic:has-text("sonra olmalıdır")'), 'tarih hatası');
+  await modal(s).locator('.btn[data-close]').click();
+  // yenileme
+  await s.click('[data-action="yenile"]');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('a:has-text("önceki dönem")');
+  await var_(s.locator('a:has-text("önceki dönem")'), 'zincir');
+  await s.click('a:has-text("önceki dönem")');
+  await s.waitForSelector('.company-head .pill:has-text("Yenilendi")');
+  esit(await s.locator('[data-action="yenile"]').count(), 0, 'yenilenmiş sözleşme yenilenemez');
+  await var_(s.locator('.notice-ok:has-text("yenilendi")'), 'yeni dönem bağlantısı');
+  await ekran(s, '17-sozlesme-sayfasi');
+  // firma kartı sekmeleri
+  await git(s, '#/firmalar'); await s.click('#firma-tablo tbody tr a');
+  await s.waitForSelector('.company-head');
+  await s.click('[data-sekme="teklifler"]');
+  await s.waitForSelector('#sekme-govde td:has-text("Kabul edildi")');
+  await s.click('[data-sekme="sozlesmeler"]');
+  await s.waitForSelector('#sekme-govde tbody tr');
+  esit(await s.locator('#sekme-govde tbody tr').count(), 2, 'iki dönem');
+  // elle sözleşme çakışması
+  await s.click('[data-action="sozlesme-yeni"]');
+  await modal(s).locator('#f-baslangic').fill(await s.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 400); return d.toISOString().slice(0, 10); }));
+  await modal(s).locator('#f-bitis').fill(await s.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 500); return d.toISOString().slice(0, 10); }));
+  await modal(s).locator('#f-unit_price').fill('500');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForTimeout(400);
+  if (!(await s.locator('.form-error:has-text("zaten aktif bir sözleşmesi var")').count())) throw new Error('çakışma mesajı: ' + JSON.stringify(await s.locator('.modal-overlay').allInnerTexts()) + ' / ' + s.url());
+});
+
+await test('sözleşme: bitiş uyarısı 90/60/30, görev üretimi, panel kartı, fesih', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Yaklaşan A.Ş.', vergi: '4444444444', calisan: 10, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head');
+  const url = s.url();
+  await s.click('[data-sekme="sozlesmeler"]');
+  await s.click('[data-action="sozlesme-yeni"]');
+  const bit = await s.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 25); return d.toISOString().slice(0, 10); });
+  const bas = await s.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 340); return d.toISOString().slice(0, 10); });
+  await modal(s).locator('#f-baslangic').fill(bas);
+  await modal(s).locator('#f-bitis').fill(bit);
+  await modal(s).locator('#f-unit_price').fill('700');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head .pill:has-text("gün kaldı")');
+  await var_(s.locator('.notice-warn:has-text("bitişine 25 gün kaldı")'), 'uyarı');
+  await git(s, '#/sozlesmeler');
+  await s.waitForSelector('#sozlesme-tablo tbody tr');
+  await var_(s.locator('.kpi:has-text("90 gün içinde bitecek") .kpi-v:text-is("1")'), 'kpi');
+  await var_(s.locator('.kpi:has-text("7.000")'), 'aylık gelir 10 x 700');
+  await s.click('[data-filtre="yaklasan"]');
+  esit(await s.locator('#sozlesme-tablo tbody tr').count(), 1, 'yaklaşan');
+  // giriş sonrası üretilen yenileme görevi (sayfa yenilenince createRenewalTasks tekrar çalışır)
+  await s.click('.user-btn'); await s.click('[data-kmenu="cikis"]'); await s.waitForSelector('#f-email');
+  await s.fill('#f-email', 'sahip@test.com'); await s.fill('#f-password', 'GucluSifre123'); await s.click('button[type=submit]'); await s.waitForSelector('#kabuk');
+  await git(s, '#/gorevler'); await s.waitForSelector('#sayfa h1');
+  await s.waitForTimeout(300);
+  const sayiGorev = await s.evaluate(() => globalThis.__fake.tablo.tasks.filter((t) => t.title.includes('yenileme')).length);
+  esit(sayiGorev, 1, 'tek yenileme görevi (tekrar üretilmez)');
+  await git(s, '#/panel');
+  await s.waitForSelector('h2:has-text("Teklif ve sözleşmeler")');
+  await var_(s.locator('li:has-text("90 gün içinde bitecek sözleşme") strong:text-is("1")'), 'panel');
+  // fesih
+  await git(s, '#/sozlesmeler'); await s.click('#sozlesme-tablo tbody tr a');
+  await s.waitForSelector('[data-action="fesih"]');
+  await s.click('[data-action="fesih"]'); await s.click('[data-ok]');
+  await s.waitForSelector('.company-head .pill:has-text("Feshedildi")');
+  esit(await s.locator('[data-action="fiyat"]').count(), 0, 'fesihten sonra fiyat dönemi yok');
+  void url;
+});
+
+
+await test('yetki: satış menüde teklif ve sözleşmeyi görür, finans görmez; satış yeni sözleşme düğmesi görmez', async (s) => {
+  await girisYap(s, 'satis@test.com');
+  await var_(s.locator('.nav-item:has-text("Teklifler")'), 'satış teklif menüsü');
+  await git(s, '#/teklifler');
+  await var_(s.locator('[data-action="yeni-teklif"]'), 'satış teklif oluşturur');
+  await git(s, '#/sozlesmeler');
+  await s.waitForSelector('h1:has-text("Sözleşmeler")');
+  esit(await s.locator('[data-action="yeni-sozlesme"]').count(), 0, 'satış sözleşme oluşturamaz (varsayılan matris: yalnız görüntüleme)');
+});
+
+await test('yetki: finans teklif sayfasına giremez', async (s) => {
+  await girisYap(s, 'finans@test.com');
+  esit(await s.locator('.nav-item:has-text("Teklifler")').count(), 0, 'finans menüsü');
+  await git(s, '#/teklifler');
+  await var_(s.locator('h3:has-text("görme izniniz yok")'), 'yetkisiz');
+});
+
+await test('güvenlik: teklif açıklaması ve kalem adındaki HTML metin olarak görünür', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Xss A.Ş.', vergi: '6666666666', calisan: 10, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head');
+  await git(s, '#/teklifler'); await s.click('[data-action="yeni-teklif"]');
+  await s.waitForSelector('#f-company_id');
+  const m = modal(s);
+  await m.locator('#f-company_id').selectOption({ label: 'Xss A.Ş.' });
+  await m.locator('#f-unit_price').fill('100');
+  await m.locator('#f-description').fill('<img src=x onerror=window.__xss=1>');
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head h1:has-text("TKL-")');
+  await var_(s.locator('.prewrap:has-text("<img src=x")'), 'metin olarak');
+  esit(await s.evaluate(() => window.__xss ?? 0), 0, 'xss çalışmamalı');
+});
+
+await test('mobil 375px: teklif ve sözleşme sayfalarında yatay taşma yok', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Mobil Teklif A.Ş.', vergi: '7777777777', calisan: 10, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head');
+  await teklifOlustur(s, 'Mobil Teklif A.Ş.', { calisan: 10, tehlike: 'tehlikeli', birim: '900', uzman: '1000' });
+  for (const h of ['#/teklifler', '#/sozlesmeler']) {
+    await git(s, h); await s.waitForTimeout(300);
+    const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (t > 1) throw new Error(`${h} yatay taşma ${t}px`);
+  }
+  await s.click('[data-action="yeni-teklif"]').catch(() => {});
+  await s.waitForTimeout(300);
+  const t2 = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (t2 > 1) throw new Error(`form yatay taşma ${t2}px`);
+  await ekran(s, '18-mobil-teklif');
 }, { genislik: 375, yukseklik: 800 });
 
 await tarayici.close(); sunucu.close();

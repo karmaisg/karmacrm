@@ -59,9 +59,9 @@ export const MENU = [
 
   { id: 'crm', grup: 'satis', modul: 'crm', ad: 'CRM ve potansiyel müşteriler', simge: 'target', yapildi: true },
   { id: 'firsatlar', grup: 'satis', modul: 'opportunities', ad: 'Satış fırsatları', simge: 'kanban', yapildi: true },
-  { id: 'teklifler', grup: 'satis', modul: 'offers', ad: 'Teklifler', simge: 'file', asama: 4,
+  { id: 'teklifler', grup: 'satis', modul: 'offers', ad: 'Teklifler', simge: 'file', yapildi: true,
     aciklama: 'Kişi başı veya sabit fiyatlı teklifler, anlık kârlılık hesabı ve PDF çıktısı.' },
-  { id: 'sozlesmeler', grup: 'satis', modul: 'contracts', ad: 'Sözleşmeler ve yenilemeler', simge: 'contract', asama: 4,
+  { id: 'sozlesmeler', grup: 'satis', modul: 'contracts', ad: 'Sözleşmeler ve yenilemeler', simge: 'contract', yapildi: true,
     aciklama: 'Sözleşme dönemleri, fiyat geçmişi ve 90/60/30 gün yenileme uyarıları.' },
 
   { id: 'uzmanlar', grup: 'operasyon', modul: 'staff', ad: 'Uzmanlar', simge: 'shield', asama: 5,

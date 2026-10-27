@@ -8,6 +8,8 @@ import { firmaFormuAc } from '../pages/firmalar.js';
 import { kisiFormuAc } from '../pages/kisiler.js';
 import { leadFormuAc } from '../pages/crm.js';
 import { gorevFormuAc } from '../pages/gorevler.js';
+import { teklifFormuAc } from '../pages/teklifler.js';
+import { sozlesmeFormuAc } from '../pages/sozlesmeler.js';
 import { field } from './components.js';
 
 const DEPO = { tema: 'osgb-tema', menu: 'osgb-menu-dar' };
@@ -34,6 +36,8 @@ export function kabukKur(app) {
     app.can('companies', 'create') && { id: 'yeni-firma', ad: 'Yeni firma', simge: 'building' },
     app.can('contacts', 'create') && { id: 'yeni-kisi', ad: 'Yeni kişi', simge: 'contact' },
     app.can('crm', 'create') && { id: 'yeni-aday', ad: 'Yeni potansiyel müşteri', simge: 'target' },
+    app.can('offers', 'create') && { id: 'yeni-teklif', ad: 'Yeni teklif', simge: 'file' },
+    app.can('contracts', 'create') && { id: 'yeni-sozlesme', ad: 'Yeni sözleşme', simge: 'contract' },
     app.can('tasks', 'create') && { id: 'yeni-gorev', ad: 'Yeni görev', simge: 'checksq' },
   ].filter(Boolean);
 
@@ -107,6 +111,8 @@ export function kabukKur(app) {
       if (d.dataset.yeni === 'yeni-firma') firmaFormuAc(app);
       else if (d.dataset.yeni === 'yeni-aday') leadFormuAc(app);
       else if (d.dataset.yeni === 'yeni-gorev') gorevFormuAc(app);
+      else if (d.dataset.yeni === 'yeni-teklif') teklifFormuAc(app);
+      else if (d.dataset.yeni === 'yeni-sozlesme') sozlesmeFormuAc(app);
       else kisiFormuAc(app);
     });
   }

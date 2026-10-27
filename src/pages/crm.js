@@ -16,6 +16,8 @@ import { kisiFormuAc, kisiArsivle, kisiArsivdenCikar, kisiEylemDugmeleri, telHuc
 import { gorusmeFormuAc, zamanCizelgesi, gorusmeArsivle } from './gorusmeler.js';
 import { firsatFormuAc, asamaPill } from './firsatlar.js';
 import { gorevFormuAc } from './gorevler.js';
+import { teklifFormuAc, teklifPill } from './teklifler.js';
+import { firmaTeklifleri } from './sozlesmeler.js';
 import { GOREV_DURUMLARI } from '../lib/puanlama.js';
 
 const SAYFA_BASI = 25;
@@ -259,7 +261,7 @@ export async function crmSayfasi(app) {
 // ---------------------------------------------------------------- aday kartı
 const SEKMELER = [
   { id: 'genel', ad: 'Genel bilgiler' }, { id: 'gorusmeler', ad: 'Görüşmeler' }, { id: 'kisiler', ad: 'Kişiler' },
-  { id: 'firsatlar', ad: 'Fırsatlar' }, { id: 'gorevler', ad: 'Görevler' },
+  { id: 'firsatlar', ad: 'Fırsatlar' }, { id: 'teklifler', ad: 'Teklifler' }, { id: 'gorevler', ad: 'Görevler' },
 ];
 const bilgi = (e, d) => html`<div class="kv"><dt>${e}</dt><dd>${d || html`<span class="muted">—</span>`}</dd></div>`;
 
@@ -271,11 +273,12 @@ export async function leadSayfasi(app, id) {
     return { baslik: 'Potansiyel müşteri bulunamadı', altBaslik: '', eylemler: html`<a class="btn btn-secondary" href="#/crm">${icon('arrowL', 18)} Listeye dön</a>`,
       govde: emptyState({ simge: 'target', baslik: 'Bu kayıt yok ya da erişim izniniz yok' }) };
   }
-  const [gorusmeler, kisiler, firsatlar, gorevler] = await Promise.all([
+  const [gorusmeler, kisiler, firsatlar, gorevler, tumTeklifler] = await Promise.all([
     app.can('contacts', 'view') ? app.api.listActivitiesByLead(id) : [],
     app.can('contacts', 'view') ? app.api.listContactsByLead(id) : [],
     app.can('opportunities', 'view') ? app.api.listOpportunities() : [],
     app.can('tasks', 'view') ? app.api.listTasks() : [],
+    app.can('offers', 'view') ? app.api.listOffers() : [],
   ]);
   const uyeAdi = new Map(uyeler.map((u) => [u.id, u.full_name]));
   const kisiAdi = new Map(kisiler.map((k) => [k.id, k.full_name]));
@@ -335,6 +338,12 @@ export async function leadSayfasi(app, id) {
       <p class="fine pad">Aşamayı değiştirmek için <a class="link" href="#/firsatlar">Satış fırsatları</a> panosunu kullanın.</p>`
     : emptyState({ simge: 'kanban', baslik: 'Bu aday için fırsat yok' })}</section>`;
 
+  const benimTeklifler = tumTeklifler.filter((o) => o.lead_id === id);
+  const teklifSekmesi = () => html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Teklifler</h2>
+    ${app.can('offers', 'create') && !donustu ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="teklif-yeni">${icon('plus', 16)} Yeni teklif</button>` : ''}</div>
+    ${firmaTeklifleri(app, benimTeklifler, teklifPill)}
+    ${donustu ? html`<p class="fine pad">Aday firmaya dönüştüğünde teklifler firma kartına taşınır.</p>` : ''}</section>`;
+
   const gorevSekmesi = () => html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Görevler</h2>
     ${app.can('tasks', 'create') ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="gorev-ekle">${icon('plus', 16)} Görev ekle</button>` : ''}</div>
     ${benimGorevler.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Görev</th><th scope="col">Durum</th><th scope="col">Vade</th></tr></thead>
@@ -342,8 +351,8 @@ export async function leadSayfasi(app, id) {
       <p class="fine pad">Görevi tamamlamak için <a class="link" href="#/gorevler">Görevler</a> sayfasını kullanın.</p>`
     : emptyState({ simge: 'checksq', baslik: 'Bu aday için görev yok' })}</section>`;
 
-  const sekmeGovdesi = () => ({ genel, gorusmeler: gorusmeSekmesi, kisiler: kisiSekmesi, firsatlar: firsatSekmesi, gorevler: gorevSekmesi }[durum.sekme])();
-  const sayac = { gorusmeler: gorusmeler.length, kisiler: kisiler.filter((k) => !k.archived_at).length, firsatlar: benimFirsatlar.length, gorevler: benimGorevler.length };
+  const sekmeGovdesi = () => ({ genel, gorusmeler: gorusmeSekmesi, kisiler: kisiSekmesi, firsatlar: firsatSekmesi, teklifler: teklifSekmesi, gorevler: gorevSekmesi }[durum.sekme])();
+  const sayac = { gorusmeler: gorusmeler.length, kisiler: kisiler.filter((k) => !k.archived_at).length, firsatlar: benimFirsatlar.length, teklifler: benimTeklifler.filter((o) => !o.archived_at).length, gorevler: benimGorevler.length };
   const sekmeCubugu = () => html`<div class="tabs" role="tablist" aria-label="Potansiyel müşteri bölümleri">${SEKMELER.map((s) => html`<button type="button" role="tab" class="tab ${durum.sekme === s.id ? 'tab-on' : ''}" aria-selected="${durum.sekme === s.id}" data-sekme="${s.id}">${s.ad}${sayac[s.id] ? html` <span class="chip-n">${sayac[s.id]}</span>` : ''}</button>`)}</div>`;
 
   async function donustur() {
@@ -387,6 +396,7 @@ export async function leadSayfasi(app, id) {
           else if (x === 'gorusme-ekle') gorusmeFormuAc(app, { leadId: lead.id, kisiler });
           else if (x === 'kisi-ekle') kisiFormuAc(app, { leadId: lead.id });
           else if (x === 'firsat-ekle') firsatFormuAc(app, { leadId: lead.id });
+          else if (x === 'teklif-yeni') teklifFormuAc(app, { leadId: lead.id });
           else if (x === 'gorev-ekle') gorevFormuAc(app, { leadId: lead.id });
           return;
         }

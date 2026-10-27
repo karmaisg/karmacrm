@@ -20,10 +20,12 @@ export function humanError(e) {
   if (code === '23505') {
     if (msg.includes('companies_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir firma zaten var.';
     if (msg.includes('leads_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir potansiyel müşteri zaten var.';
+    if (msg.includes('offers_no_uq')) return 'Bu teklif numarası zaten kullanılıyor.';
     if (msg.includes('tasks_source_ref_uq')) return 'Bu iş için otomatik görev zaten oluşturulmuş.';
     return 'Bu kayıt zaten mevcut.';
   }
   if (code === '42501' || /row-level security|permission denied/i.test(msg)) return 'Bu işlem için yetkiniz yok.';
+  if (code === '23P01' && msg.includes('contracts_aktif_cakisma')) return 'Bu firmanın aynı tarihlerde zaten aktif bir sözleşmesi var.';
   if (code === '23P01') return 'Tarih aralığı mevcut bir kayıtla çakışıyor.';
   if (code === '23514' && msg.includes('sales_opportunities_check')) return 'Kaybedilen fırsat için kayıp nedeni seçilmelidir.';
   if (code === '23514') return 'Girilen değerlerden biri izin verilen aralığın dışında.';
@@ -210,5 +212,43 @@ export function createApi(db) {
     createTask: (degerler) => bir(T('tasks').insert(degerler).select().single()),
     updateTask: (id, degerler) => bir(T('tasks').update(degerler).eq('id', id).select().single()),
     archiveTask: (id) => bir(T('tasks').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+    // ----- teklifler
+    listOffers: () => hepsiniOku(() => T('offers').select('*').order('id')),
+    createOffer: (degerler) => bir(T('offers').insert(degerler).select().single()),
+    updateOffer: (id, degerler) => bir(T('offers').update(degerler).eq('id', id).select().single()),
+    setOfferStatus: (id, durum) => bir(T('offers').update({ status: durum }).eq('id', id).select().single()),
+    archiveOffer: (id) => bir(T('offers').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    listOfferItems: (offerId) => bir(T('offer_items').select('*').eq('offer_id', offerId).is('archived_at', null).order('created_at')),
+    createOfferItem: (degerler) => bir(T('offer_items').insert(degerler).select().single()),
+    archiveOfferItem: (id) => bir(T('offer_items').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    copyOffer: (id) => bir(db.rpc('teklif_kopyala', { p_offer: id })),
+    acceptOffer: ({ id, baslangic, bitis, odeme, yenileme, fiyatGuncelleme }) => bir(db.rpc('teklif_kabul_et', {
+      p_offer: id, p_baslangic: baslangic, p_bitis: bitis, p_odeme: odeme ?? null, p_yenileme: yenileme ?? null, p_fiyat_guncelleme: fiyatGuncelleme ?? null,
+    })),
+
+    // ----- sözleşmeler
+    listContracts: () => hepsiniOku(() => T('contracts').select('*').order('id')),
+    getContract: async (id) => {
+      const { data, error } = await T('contracts').select('*').eq('id', id).maybeSingle();
+      if (error) throw wrap(error);
+      return data;
+    },
+    listAllContractPrices: () => hepsiniOku(() => T('contract_prices').select('*').order('id')),
+    listContractPrices: (contractId) => bir(T('contract_prices').select('*').eq('contract_id', contractId).order('valid_from', { ascending: false })),
+    createContract: (k) => bir(db.rpc('sozlesme_olustur', {
+      p_firma: k.firma, p_baslangic: k.baslangic, p_bitis: k.bitis, p_fiyatlama: k.fiyatlama, p_birim: k.birim ?? null, p_sabit: k.sabit ?? null,
+      p_kdv_modu: k.kdvModu ?? 'kdv_haric', p_kdv_orani: k.kdvOrani ?? 20, p_durum: k.durum ?? 'aktif',
+      p_uzman: k.uzman ?? true, p_hekim: k.hekim ?? true, p_odeme: k.odeme ?? null, p_yenileme: k.yenileme ?? null,
+      p_fiyat_guncelleme: k.fiyatGuncelleme ?? null, p_teklif: k.teklif ?? null, p_not: k.not ?? null,
+    })),
+    updateContract: (id, degerler) => bir(T('contracts').update(degerler).eq('id', id).select().single()),
+    archiveContract: (id) => bir(T('contracts').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    addContractPrice: (k) => bir(db.rpc('sozlesme_fiyat_ekle', {
+      p_contract: k.contractId, p_fiyatlama: k.fiyatlama, p_birim: k.birim ?? null, p_sabit: k.sabit ?? null,
+      p_kdv_modu: k.kdvModu, p_kdv_orani: k.kdvOrani, p_baslangic: k.baslangic, p_not: k.not ?? null,
+    })),
+    renewContract: ({ id, baslangic, bitis, not }) => bir(db.rpc('sozlesme_yenile', { p_contract: id, p_baslangic: baslangic, p_bitis: bitis, p_fiyat_notu: not ?? null })),
+    createRenewalTasks: () => bir(db.rpc('sozlesme_yenileme_gorevleri')),
   };
 }

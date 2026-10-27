@@ -8,7 +8,7 @@ const rid = (k) => roles.find((r) => r.key === k).id;
 const MODULLER = ['dashboard', 'crm', 'companies', 'contacts', 'opportunities', 'offers', 'contracts', 'staff', 'assignments', 'time', 'invoices', 'expenses', 'payroll', 'staff_profit', 'company_profit', 'capacity', 'reports', 'tasks', 'import_export', 'users', 'settings'];
 const matris = {
   sistem_yoneticisi: () => [1, 1, 1, 1], isletme_sahibi: () => [1, 1, 1, 1],
-  satis: (m) => (['dashboard', 'crm', 'companies', 'contacts', 'opportunities', 'offers', 'contracts', 'tasks'].includes(m) ? [1, 1, 1, 0] : [0, 0, 0, 0]),
+  satis: (m) => (m === 'contracts' ? [1, 0, 0, 0] : ['dashboard', 'crm', 'companies', 'contacts', 'opportunities', 'offers', 'tasks'].includes(m) ? [1, 1, 1, 0] : [0, 0, 0, 0]),
   operasyon: (m) => (['dashboard', 'companies', 'contacts', 'staff', 'assignments', 'time', 'capacity', 'tasks'].includes(m) ? [1, 1, 1, 0] : [0, 0, 0, 0]),
   finans: (m) => (['dashboard', 'companies', 'invoices', 'expenses'].includes(m) ? [1, 1, 1, 0] : [0, 0, 0, 0]),
   uzman_hekim: (m) => (['time'].includes(m) ? [1, 1, 0, 0] : [0, 0, 0, 0]),
@@ -32,7 +32,8 @@ const tablo = {
   users: hesaplar.map((h) => h.row),
   companies: [], company_profiles: [], contacts: [], leads: [],
   sales_opportunities: [], opportunity_stage_history: [], activities: [], tasks: [],
-  settings: [{ key: 'kapasite_dakika', value: 11700, valid_from: '2000-01-01' }],
+  offers: [], offer_items: [], contracts: [], contract_prices: [],
+  settings: [{ key: 'kapasite_dakika', value: 11700, valid_from: '2000-01-01' }, { key: 'marj_esigi_yuzde', value: 20, valid_from: '2000-01-01' }, { key: 'varsayilan_kdv_orani', value: 20, valid_from: '2000-01-01' }],
   service_time_rules: [
     ['is_guvenligi_uzmani', 'az_tehlikeli', 10], ['is_guvenligi_uzmani', 'tehlikeli', 20], ['is_guvenligi_uzmani', 'cok_tehlikeli', 40],
     ['isyeri_hekimi', 'az_tehlikeli', 5], ['isyeri_hekimi', 'tehlikeli', 10], ['isyeri_hekimi', 'cok_tehlikeli', 15],
@@ -60,6 +61,11 @@ function kurucu(ad) {
       const yeni = { id: uid(), organization_id: ORG, created_at: simdi, updated_at: simdi, archived_at: null, ...durum.yukle };
       if (ad === 'sales_opportunities') { yeni.stage ??= 'yeni_aday'; tablo.opportunity_stage_history.push({ id: uid(), opportunity_id: yeni.id, from_stage: null, to_stage: yeni.stage, changed_at: simdi, changed_by: oturum?.user?.id }); }
       if (ad === 'tasks') { yeni.status ??= 'acik'; yeni.priority ??= 'orta'; yeni.kind ??= 'diger'; }
+      if (ad === 'offers') {
+        yeni.status = 'taslak'; yeni.offer_date = bugun(); yeni.created_by = oturum?.user?.id;
+        yeni.offer_no = `TKL-${yeni.offer_date.slice(0, 4)}-${String(tablo.offers.length + 1).padStart(4, '0')}`;
+        if (!yeni.company_id === !yeni.lead_id) return { data: null, error: hata('Teklif için firma veya potansiyel müşteriden yalnızca biri seçilmelidir.', 'P0001') };
+      }
       satirlar.push(yeni);
       return { data: kopya(yeni), error: null };
     }
@@ -74,6 +80,14 @@ function kurucu(ad) {
         if (r0 && durum.yukle.stage === 'kaybedildi' && !durum.yukle.lost_reason) return { data: null, error: hata('new row violates check constraint "sales_opportunities_check"', '23514') };
         if (r0 && durum.yukle.stage && durum.yukle.stage !== r0.stage) tablo.opportunity_stage_history.push({ id: uid(), opportunity_id: r0.id, from_stage: r0.stage, to_stage: durum.yukle.stage, changed_at: new Date().toISOString(), changed_by: oturum?.user?.id });
       }
+      if (ad === 'offers' && eslesen[0]) {
+        const o = eslesen[0], y = durum.yukle;
+        const GEC = { taslak: ['onay_bekliyor', 'gonderildi'], onay_bekliyor: ['taslak', 'gonderildi'], gonderildi: ['gorusuluyor', 'kabul_edildi', 'reddedildi', 'suresi_doldu'], gorusuluyor: ['gonderildi', 'kabul_edildi', 'reddedildi', 'suresi_doldu'], suresi_doldu: ['gonderildi', 'reddedildi'] };
+        if (y.status && y.status !== o.status && !(GEC[o.status] ?? []).includes(y.status)) return { data: null, error: hata('Teklif durumu bu şekilde değiştirilemez.', 'P0001') };
+        const kilit = !['taslak', 'onay_bekliyor'].includes(o.status);
+        if (kilit && ['unit_price', 'fixed_monthly_price', 'employee_count', 'discount_pct', 'vat_rate', 'pricing'].some((k) => k in y && y[k] !== o[k])) return { data: null, error: hata('Gönderilmiş teklifin fiyat bilgileri değiştirilemez.', 'P0001') };
+      }
+      if (ad === 'contracts' && eslesen[0] && ['sona_erdi', 'feshedildi', 'yenilendi'].includes(eslesen[0].status) && !('archived_at' in durum.yukle)) return { data: null, error: hata('Sona ermiş sözleşme değiştirilemez.', 'P0001') };
       if (ad === 'tasks' && durum.yukle.status === 'tamamlandi') durum.yukle.completed_at = new Date().toISOString();
       if (ad === 'tasks' && durum.yukle.status && durum.yukle.status !== 'tamamlandi') durum.yukle.completed_at = null;
       eslesen.forEach((r) => Object.assign(r, durum.yukle, { updated_at: new Date().toISOString() }));
@@ -153,6 +167,74 @@ const rpcler = {
     tablo.tasks.filter((t) => t.lead_id === l.id && !t.company_id).forEach((t) => { t.company_id = c.id; });
     l.converted_company_id = c.id;
     return { data: kopya(c) };
+  },
+  teklif_kopyala({ p_offer }) {
+    const o = tablo.offers.find((x) => x.id === p_offer);
+    if (!o) return { error: hata('Teklif bulunamadı.', 'P0001') };
+    const yeni = { ...o, id: uid(), status: 'taslak', offer_date: bugun(), created_at: new Date().toISOString(), archived_at: null, source_offer_id: o.id };
+    yeni.offer_no = `TKL-${yeni.offer_date.slice(0, 4)}-${String(tablo.offers.length + 1).padStart(4, '0')}`;
+    tablo.offers.push(yeni);
+    tablo.offer_items.filter((k) => k.offer_id === o.id && !k.archived_at).forEach((k) => tablo.offer_items.push({ ...k, id: uid(), offer_id: yeni.id }));
+    return { data: kopya(yeni) };
+  },
+  teklif_kabul_et({ p_offer, p_baslangic, p_bitis, p_odeme, p_yenileme, p_fiyat_guncelleme }) {
+    const o = tablo.offers.find((x) => x.id === p_offer);
+    if (!o) return { error: hata('Teklif bulunamadı.', 'P0001') };
+    if (!['gonderildi', 'gorusuluyor'].includes(o.status)) return { error: hata('Yalnızca gönderilmiş teklif kabul edilebilir.', 'P0001') };
+    if (!o.company_id) return { error: hata('Teklifi kabul etmeden önce potansiyel müşteriyi firmaya dönüştürün.', 'P0001') };
+    if (tablo.contracts.some((c) => c.company_id === o.company_id && !c.archived_at && ['aktif'].includes(c.status) && c.start_date <= p_bitis && c.end_date >= p_baslangic)) return { error: hata('violates exclusion constraint "contracts_aktif_cakisma"', '23P01') };
+    o.status = 'kabul_edildi';
+    const simdi = new Date().toISOString();
+    const c = { id: uid(), organization_id: ORG, company_id: o.company_id, offer_id: o.id, previous_contract_id: null, start_date: p_baslangic, end_date: p_bitis, status: 'aktif', expert_service: true, physician_service: true, payment_terms: p_odeme, renewal_terms: p_yenileme, price_update_terms: p_fiyat_guncelleme, owner_user: oturum?.user?.id, created_at: simdi, updated_at: simdi, archived_at: null };
+    tablo.contracts.push(c);
+    const indirim = 1 - Number(o.discount_pct ?? 0) / 100;
+    const birim = o.pricing === 'kisi_basi' ? Math.round(Number(o.unit_price) * indirim * 100) / 100 : null;
+    const sabit = o.pricing === 'kisi_basi' ? null : Math.round(Number(o.fixed_monthly_price) * indirim * 100) / 100;
+    tablo.contract_prices.push({ id: uid(), organization_id: ORG, contract_id: c.id, pricing: o.pricing, unit_price: birim, fixed_monthly_price: sabit, vat_mode: o.vat_mode, vat_rate: o.vat_rate, valid_from: p_baslangic, valid_to: null, note: null, created_at: simdi });
+    if (o.opportunity_id) { const f = tablo.sales_opportunities.find((x) => x.id === o.opportunity_id); if (f) f.stage = 'kazanildi'; }
+    return { data: kopya(c) };
+  },
+  sozlesme_olustur(a) {
+    if (!tablo.companies.some((c) => c.id === a.p_firma)) return { error: hata('Firma bulunamadı.', 'P0001') };
+    if (a.p_durum === 'aktif' && tablo.contracts.some((c) => c.company_id === a.p_firma && !c.archived_at && c.status === 'aktif' && c.start_date <= a.p_bitis && c.end_date >= a.p_baslangic)) return { error: hata('conflicting key value violates exclusion constraint "contracts_aktif_cakisma"', '23P01') };
+    const simdi = new Date().toISOString();
+    const c = { id: uid(), organization_id: ORG, company_id: a.p_firma, offer_id: a.p_teklif ?? null, previous_contract_id: null, start_date: a.p_baslangic, end_date: a.p_bitis, status: a.p_durum, expert_service: a.p_uzman, physician_service: a.p_hekim, payment_terms: a.p_odeme, renewal_terms: a.p_yenileme, price_update_terms: a.p_fiyat_guncelleme, owner_user: oturum?.user?.id, created_at: simdi, updated_at: simdi, archived_at: null };
+    tablo.contracts.push(c);
+    tablo.contract_prices.push({ id: uid(), organization_id: ORG, contract_id: c.id, pricing: a.p_fiyatlama, unit_price: a.p_birim, fixed_monthly_price: a.p_sabit, vat_mode: a.p_kdv_modu, vat_rate: a.p_kdv_orani, valid_from: a.p_baslangic, valid_to: null, note: a.p_not, created_at: simdi });
+    return { data: kopya(c) };
+  },
+  sozlesme_fiyat_ekle(a) {
+    const acik = tablo.contract_prices.find((p) => p.contract_id === a.p_contract && !p.valid_to);
+    if (acik) {
+      if (a.p_baslangic <= acik.valid_from) return { error: hata('Yeni fiyat dönemi mevcut fiyatın başlangıcından sonra olmalıdır.', 'P0001') };
+      const d = new Date(`${a.p_baslangic}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 1); acik.valid_to = d.toISOString().slice(0, 10);
+    }
+    const yeni = { id: uid(), organization_id: ORG, contract_id: a.p_contract, pricing: a.p_fiyatlama, unit_price: a.p_birim, fixed_monthly_price: a.p_sabit, vat_mode: a.p_kdv_modu, vat_rate: a.p_kdv_orani, valid_from: a.p_baslangic, valid_to: null, note: a.p_not, created_at: new Date().toISOString() };
+    tablo.contract_prices.push(yeni);
+    return { data: kopya(yeni) };
+  },
+  sozlesme_yenile(a) {
+    const c = tablo.contracts.find((x) => x.id === a.p_contract);
+    if (!c || c.status !== 'aktif') return { error: hata('Yalnızca aktif sözleşme yenilenebilir.', 'P0001') };
+    c.status = 'yenilendi';
+    const simdi = new Date().toISOString();
+    const y = { ...c, id: uid(), previous_contract_id: c.id, start_date: a.p_baslangic, end_date: a.p_bitis, status: 'aktif', created_at: simdi, archived_at: null };
+    tablo.contracts.push(y);
+    const son = tablo.contract_prices.filter((p) => p.contract_id === c.id).sort((p, q) => (p.valid_from < q.valid_from ? 1 : -1))[0];
+    if (son) tablo.contract_prices.push({ ...son, id: uid(), contract_id: y.id, valid_from: a.p_baslangic, valid_to: null, note: a.p_fiyat_notu });
+    return { data: kopya(y) };
+  },
+  sozlesme_yenileme_gorevleri() {
+    const bugunS = bugun(); let n = 0;
+    for (const c of tablo.contracts.filter((x) => x.status === 'aktif' && !x.archived_at)) {
+      const gun = Math.round((new Date(`${c.end_date}T00:00:00Z`) - new Date(`${bugunS}T00:00:00Z`)) / 86400000);
+      const esik = [30, 60, 90].find((e) => gun <= e && gun >= 0);
+      if (!esik) continue;
+      const ref = `sozlesme:${c.id}:${esik}`;
+      if (tablo.tasks.some((t) => t.source_ref === ref)) continue;
+      tablo.tasks.push({ id: uid(), organization_id: ORG, company_id: c.company_id, title: 'Sözleşme yenileme görüşmesi', status: 'acik', priority: 'yuksek', kind: 'yenileme', source_ref: ref, due_at: null, created_at: new Date().toISOString(), archived_at: null }); n += 1;
+    }
+    return { data: n };
   },
   kullanici_ekle({ p_email, p_ad_soyad, p_rol }) {
     const a = authSadece.find((x) => x.email === p_email.toLowerCase());

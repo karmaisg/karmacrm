@@ -135,3 +135,17 @@ Hesabı Supabase'de açmadan 2. adımı yaparsanız "hesabı bulunamadı" uyarı
 4. GitHub'daki dosyaları yeni sürümle değiştirin (zip içindeki tüm klasörü yeniden yükleyin).
 
 Bu dosya: potansiyel müşteri + ilk satış fırsatını tek işlemde oluşturan fonksiyon, potansiyel müşteriyi firmaya dönüştüren fonksiyon (kişi, görüşme, fırsat ve görevleri firmaya taşır), fırsat kapanış/kayıp nedeni ve görev tamamlanma tarihlerini otomatik tutan tetikleyiciler, son temas tarihinin otomatik güncellenmesi ve kurumlar arası bağlantı korumalarını ekler.
+
+
+---
+
+## Aşama 4 kurulumu (teklifler ve sözleşmeler)
+
+1. Supabase > **SQL Editor** > **New query**.
+2. `supabase/05_asama4.sql` dosyasının **tamamını** yapıştırıp **Run** deyin. Beklenen: "Success. No rows returned".
+3. (Önce `04_asama3.sql` çalıştırılmış olmalıdır.) Dosya tekrar çalıştırılırsa zarar vermez.
+4. GitHub'daki dosyaları yeni sürümle değiştirin (zip içindeki tüm klasörü yeniden yükleyin).
+
+Bu dosya: teklif numarası (TKL-2026-0001), teklif durum geçiş kuralları (gönderilen teklifin fiyatı kilitlenir), teklif kopyalama, teklifi kabul edip sözleşmeye çevirme (indirim fiyata işlenir, fırsat "kazanıldı" olur), sözleşme dönemleri, aynı firmada tarih çakışan aktif sözleşmeyi engelleme, değiştirilemez fiyat geçmişi, sözleşme yenileme ve 90/60/30 gün yenileme görevi üretimini ekler.
+
+Önemli: varsayılan yetki matrisinde **Satış** rolü teklifleri oluşturup düzenleyebilir ama sözleşmeleri yalnızca görüntüler. Teklifi kabul edip sözleşme oluşturmak için İşletme sahibi/Sistem yöneticisi kullanın ya da Kullanıcılar > Yetkiler ekranından Satış rolüne "sözleşme oluştur/düzenle" yetkisi verin.

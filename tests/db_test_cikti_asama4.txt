@@ -1,0 +1,560 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama4.sql:89: NOTICE:  PASS | Satış: kişi başı fiyatlı teklif taslak olarak açılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:91: NOTICE:  PASS | Teklif numarası otomatik: TKL-<yıl>-0001
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:94: NOTICE:  PASS | İkinci teklif (potansiyel müşteriye bağlı, sabit fiyat)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:96: NOTICE:  PASS | İkinci teklif 0002 numarasını aldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:98: NOTICE:  PASS | Teklif firma veya potansiyel müşteri olmadan açılamaz [new row for relation "offers" violates check constraint "offers_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:100: NOTICE:  PASS | Kişi başı fiyatlamada birim fiyat zorunlu [Kişi başı fiyatlamada birim fiyat zorunludur ve negatif olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:102: NOTICE:  PASS | Sabit fiyatlamada aylık tutar zorunlu [Sabit aylık fiyatlamada aylık tutar zorunludur ve negatif olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:104: NOTICE:  PASS | KDV oranı 100'ü aşamaz [KDV oranı 0 ile 100 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:106: NOTICE:  PASS | Negatif maliyet reddedilir [Tahmini maliyetler negatif olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:108: NOTICE:  PASS | Geçerlilik tarihi teklif tarihinden önce olamaz [Geçerlilik tarihi teklif tarihinden önce olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:110: NOTICE:  PASS | Yeni teklif gönderilmiş olarak açılamaz [Yeni teklif taslak olarak başlar.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:112: NOTICE:  PASS | Yabancı kurumun firmasına teklif açılamaz [Bağlantılı kayıt bu kuruma ait değil (offers.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:115: NOTICE:  PASS | Teklif kalemi eklenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:117: NOTICE:  PASS | Kalem miktarı sıfır olamaz [Miktar sıfırdan büyük olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:121: NOTICE:  PASS | Taslak teklif doğrudan kabul edilemez [Geçersiz teklif durumu geçişi: taslak → kabul_edildi]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:122: NOTICE:  PASS | Taslak teklif gönderilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:124: NOTICE:  PASS | Gönderilmiş teklifin fiyatı değiştirilemez [Gönderilmiş teklifin fiyat bilgileri değiştirilemez. Teklifi kopyalayıp yeni sürüm hazırla]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:126: NOTICE:  PASS | Gönderilmiş teklifin indirimi değiştirilemez [Gönderilmiş teklifin fiyat bilgileri değiştirilemez. Teklifi kopyalayıp yeni sürüm hazırla]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:128: NOTICE:  PASS | Gönderilmiş teklife kalem eklenemez [Gönderilmiş teklifin kalemleri değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:130: NOTICE:  PASS | Teklif numarası değiştirilemez [Teklif numarası değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:132: NOTICE:  PASS | Gönderilmiş tekliste açıklama/geçerlilik notu güncellenebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:133: NOTICE:  PASS | Gönderilen teklif görüşülüyor aşamasına geçer
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:134: NOTICE:  PASS | Görüşülen teklif geri gönderildiye dönebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:138: NOTICE:  PASS | Teklif yeni taslak sürüm olarak kopyalanır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:142: NOTICE:  PASS | Kopya taslak, yeni numaralı, aynı fiyat ve kalemlerle
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:144: NOTICE:  PASS | Kopyanın fiyatı değiştirilebilir (taslak)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:145: NOTICE:  PASS | Eski teklif etkilenmedi
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 55555555-5555-5555-5555-555555555555
+(1 row)
+
+psql:tests/db_tests_asama4.sql:148: NOTICE:  PASS | Uzman/hekim teklifleri göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:149: NOTICE:  PASS | Uzman/hekim teklif kopyalayamaz [Teklif ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama4.sql:151: NOTICE:  PASS | Başka kurum teklifleri göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:152: NOTICE:  PASS | Başka kurum teklifi kopyalayamaz [Teklif bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama4.sql:159: NOTICE:  PASS | Satış (sözleşme yetkisi yok) teklifi kabul edemez [Sözleşme ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama4.sql:163: NOTICE:  PASS | Taslak teklif kabul edilemez [Yalnızca gönderilmiş veya görüşülen teklif kabul edilebilir (şu an: taslak).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:165: NOTICE:  PASS | İkinci teklif gönderilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:167: NOTICE:  PASS | Firmaya dönüşmemiş adayın teklifi kabul edilemez [Önce potansiyel müşteriyi firmaya dönüştürün.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:169: NOTICE:  PASS | Bitiş başlangıçtan önce olamaz [Bitiş tarihi başlangıçtan önce olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:172: NOTICE:  PASS | Teklif kabul edilir, sözleşme oluşur
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:173: NOTICE:  PASS | Teklif kabul_edildi oldu
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:176: NOTICE:  PASS | Sözleşme aktif ve tekliflerle bağlantılı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:179: NOTICE:  PASS | İlk fiyat dönemi: %10 indirim fiyata işlendi (500 -> 450)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:181: NOTICE:  PASS | Kabul edilmiş teklif sonradan değiştirilemez (yeniden kabul edilemez)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:183: NOTICE:  PASS | Aynı teklif ikinci kez kabul edilemez [Yalnızca gönderilmiş veya görüşülen teklif kabul edilebilir (şu an: kabul_edildi).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:187: NOTICE:  PASS | Aday firmaya dönüştürülür
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:189: NOTICE:  PASS | Adayın teklifi firmaya bağlandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:191: NOTICE:  PASS | Aday teklifi kabul edilir (fırsat kazanıldı olur)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:193: NOTICE:  PASS | Sabit fiyat ve KDV dahil modu sözleşmeye aktarıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:195: NOTICE:  PASS | Fırsat kazanıldı ve firmaya bağlandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:201: NOTICE:  PASS | Aynı firmada çakışan ikinci aktif sözleşme açılamaz [conflicting key value violates exclusion constraint "contracts_aktif_cakisma"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:203: NOTICE:  PASS | Çakışmayan taslak sözleşme açılabilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:205: NOTICE:  PASS | Bitiş tarihi başlangıçtan önce olamaz [Bitiş tarihi başlangıçtan önce olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:207: NOTICE:  PASS | Kişi başı sözleşmede birim fiyat zorunlu [Kişi başı fiyatlamada birim fiyat zorunludur ve negatif olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:209: NOTICE:  PASS | Yabancı firmaya sözleşme açılamaz [Bağlantılı kayıt bu kuruma ait değil (contracts.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:211: NOTICE:  PASS | Sözleşmenin firması değiştirilemez [Sözleşmenin firması değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:213: NOTICE:  PASS | Sözleşme aktiften taslağa dönemez [Geçersiz sözleşme durumu geçişi: aktif → taslak]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:217: NOTICE:  PASS | Fiyat artışı: yeni dönem açılır, eski dönem kapanır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:219: NOTICE:  PASS | Eski fiyat korunuyor: 450, bitiş = yeni başlangıçtan bir gün önce
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:221: NOTICE:  PASS | Yeni fiyat 520 açık dönemde
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:223: NOTICE:  PASS | Geçmiş fiyat tutarı değiştirilemez [Geçmiş fiyat kayıtları değiştirilemez; yeni fiyat dönemi ekleyin.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:225: NOTICE:  PASS | Yeni fiyat dönemi mevcut başlangıçtan önce olamaz [Yeni fiyat dönemi, mevcut fiyatın başlangıcından (2027-02-03) sonra olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:227: NOTICE:  PASS | Sözleşme bitişinden sonraki tarihte fiyat dönemi açılamaz [Fiyat dönemi sözleşme bitişinden sonra başlayamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:229: NOTICE:  PASS | Negatif fiyat reddedilir [Kişi başı fiyatlamada birim fiyat zorunludur ve negatif olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:230: NOTICE:  PASS | Fiyat geçmişinde 2 dönem var
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:234: NOTICE:  PASS | Sözleşme başlangıcından önceye yenileme yapılamaz [Yenileme başlangıcı, önceki sözleşmenin başlangıcından sonra olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:236: NOTICE:  PASS | Sözleşme yenilenir (bitişten önce)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:239: NOTICE:  PASS | Önceki sözleşme "yenilendi" oldu, yenisi aktif ve zincirli
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:241: NOTICE:  PASS | Yeni sözleşme önceki sözleşmenin son fiyatıyla başladı (520)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:243: NOTICE:  PASS | Önceki sözleşmenin açık fiyat dönemi kapandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:245: NOTICE:  PASS | Aynı sözleşme ikinci kez yenilenemez [Yalnızca aktif sözleşme yenilenebilir (şu an: yenilendi).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:247: NOTICE:  PASS | Yenilenmiş sözleşmeye fiyat eklenemez [Sona ermiş sözleşmenin fiyatı değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:249: NOTICE:  PASS | Sona ermiş sözleşmenin tarihleri değiştirilemez [Sona ermiş sözleşmenin tarihleri değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:253: NOTICE:  PASS | Yakında biten sözleşme (45 gün) ve uzak olan (200 gün)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:254: NOTICE:  PASS | Uyarı görevi üretildi: 1 adet (60 gün eşiği)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:256: NOTICE:  PASS | Görev başlığı firma adını ve eşiği içeriyor
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:257: NOTICE:  PASS | Aynı eşik için ikinci kez görev üretilmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:258: NOTICE:  PASS | Aktif olan diğer sözleşmenin (364 gün) görevi yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:260: NOTICE:  PASS | Yenilenince açık yenileme görevi tamamlanır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:261: NOTICE:  PASS | Yenileme görevi tamamlandı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama4.sql:265: NOTICE:  PASS | Satış sözleşmeleri görebilir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:267: NOTICE:  PASS | Satış sözleşme oluşturamaz [Sözleşme ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:269: NOTICE:  PASS | Satış fiyat ekleyemez [Sözleşmeyi düzenleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:271: NOTICE:  PASS | Satış sözleşmeyi doğrudan güncelleyemez (RLS) [satır güncellenemedi (RLS)]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama4.sql:273: NOTICE:  PASS | Finans sözleşmeleri görebilir ama teklifleri göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama4.sql:275: NOTICE:  PASS | Başka kurum sözleşme ve fiyatları göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:277: NOTICE:  PASS | Başka kurum sözleşme yenileyemez [Sözleşme bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama4.sql:282: NOTICE:  PASS | Denetim kaydı: teklif ve sözleşme değişiklikleri yazıldı
+ ok 
+----
+ 
+(1 row)
+

@@ -65,7 +65,7 @@ svg { flex: none; }
 .topbar-sag { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .menu-wrap { position: relative; }
 .menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-card); padding: 6px; z-index: 40; }
-.menu[hidden] { display: none; }
+.menu[hidden], .field[hidden] { display: none; }
 .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 0; background: none; border-radius: 10px; text-align: left; font-weight: 600; font-size: 14px; }
 .menu-item:hover { background: var(--surface-2); }
 .menu-baslik { display: flex; flex-direction: column; padding: 8px 12px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; overflow-wrap: anywhere; }
@@ -101,6 +101,9 @@ svg { flex: none; }
 .kv dt { color: var(--text-2); font-size: var(--fs-sm); }
 .kv dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }
 .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.kpi-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 18px; }
+.action-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.block { display: block; }
 .kpi { display: flex; gap: 14px; align-items: flex-start; }
 .kpi-ic { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--primary-50); color: var(--primary); }
 .kpi-l { color: var(--text-2); font-size: var(--fs-sm); font-weight: 600; }
@@ -264,6 +267,7 @@ svg { flex: none; }
   .hide-sm { display: none; }
   h1 { font-size: 24px; }
 }
+@media (max-width: 900px) { .kpi-grid-3 { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .kpi-grid { grid-template-columns: 1fr; } .auth-card { padding: 24px; } .bars li { grid-template-columns: 90px 1fr 30px; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
@@ -321,3 +325,12 @@ svg { flex: none; }
 .chk { width: 44px; }
 .block { display: block; }
 @media (max-width: 720px) { .toolbar-ozet { margin-left: 0; width: 100%; } .tl-item { grid-template-columns: 34px 1fr; } .tl-act { grid-column: 2; } }
+
+/* Yazdırma / PDF çıktısı: menü ve düğmeler gizlenir, teklif sayfası sade kalır */
+@media print {
+  .sidebar, .topbar, .page-actions, .action-row, .back-link, .toast-alan, [data-action], [data-kalem-sil], .tabs { display: none !important; }
+  .shell { display: block; }
+  body { background: #fff; }
+  .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  .grid-2 { display: block; }
+}

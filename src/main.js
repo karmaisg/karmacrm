@@ -18,6 +18,8 @@ import { kullanicilarSayfasi } from './pages/kullanicilar.js';
 import { crmSayfasi, leadSayfasi } from './pages/crm.js';
 import { firsatlarSayfasi } from './pages/firsatlar.js';
 import { gorevlerSayfasi } from './pages/gorevler.js';
+import { tekliflerSayfasi, teklifSayfasi } from './pages/teklifler.js';
+import { sozlesmelerSayfasi, sozlesmeSayfasi } from './pages/sozlesmeler.js';
 import { yakindaSayfasi } from './pages/placeholder.js';
 
 const app = {
@@ -49,6 +51,10 @@ function rotaCoz(parcalar) {
   if (ilk === 'crm') return { menu: 'crm', modul: 'crm', yukle: () => crmSayfasi(app) };
   if (ilk === 'firsatlar') return { menu: 'firsatlar', modul: 'opportunities', yukle: () => firsatlarSayfasi(app) };
   if (ilk === 'gorevler') return { menu: 'gorevler', modul: 'tasks', yukle: () => gorevlerSayfasi(app) };
+  if (ilk === 'teklifler' && ikinci) return { menu: 'teklifler', modul: 'offers', yukle: () => teklifSayfasi(app, ikinci) };
+  if (ilk === 'teklifler') return { menu: 'teklifler', modul: 'offers', yukle: () => tekliflerSayfasi(app) };
+  if (ilk === 'sozlesmeler' && ikinci) return { menu: 'sozlesmeler', modul: 'contracts', yukle: () => sozlesmeSayfasi(app, ikinci) };
+  if (ilk === 'sozlesmeler') return { menu: 'sozlesmeler', modul: 'contracts', yukle: () => sozlesmelerSayfasi(app) };
   if (ilk === 'kullanicilar') return { menu: 'kullanicilar', modul: 'users', yukle: () => kullanicilarSayfasi(app) };
   const o = menuOgesi(ilk);
   if (o && !o.yapildi) return { menu: o.id, modul: o.modul, yukle: async () => yakindaSayfasi(o.id) };
@@ -127,6 +133,8 @@ async function uygulamayiBaslat(oturum) {
   kullaniciId = oturum.user.id;
   aramaOnbellegiTemizle();
   kabuk = kabukKur(app);
+  // 90/60/30 gün yenileme görevleri sessizce üretilir (yetkisi olmayan veya hata alan kullanıcıyı etkilemez).
+  if (app.can('contracts', 'view') && app.can('tasks', 'create')) app.api.createRenewalTasks().catch((e) => console.warn('yenileme görevleri', e));
   if (!location.hash || location.hash === '#') git('panel');
   await sayfayiCiz();
 }
