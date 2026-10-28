@@ -163,3 +163,17 @@ Bu dosya: teklif numarası (TKL-2026-0001), teklif durum geçiş kuralları (gö
 Bu dosya: görevlendirme hizmet payı denetiminin düzeltilmiş hali (ardışık dönemleri çakışıyormuş gibi saymaz), görevlendirmenin türünün personelle uyumu, başlamış görevlendirmenin payının geçmişi bozmaması (pay değişimi için yeni dönem açılır), açık görevlendirmesi olan personelin arşivlenememesi, zaman kaydında İstanbul saatine göre otomatik tarih, gelecek tarihli ve 24 saati aşan kaydın engellenmesi, uzman/hekim rolünün yalnızca kendi kayıtlarını görmesi, personel maliyet dönemi ve kullanıcı-personel bağlama fonksiyonlarını ekler.
 
 Uzman veya hekimin kendi hesabıyla zaman girebilmesi için: Uzmanlar (veya İşyeri hekimleri) > personel sayfası > **Giriş hesabı** bölümünden personel kaydını kullanıcıya bağlayın.
+
+
+---
+
+## Aşama 6 kurulumu (faturalar, tahsilatlar, giderler)
+
+1. Supabase > **SQL Editor** > **New query**.
+2. `supabase/07_asama6.sql` dosyasının **tamamını** yapıştırıp **Run** deyin. Beklenen: "Success. No rows returned".
+3. (Önce `06_asama5.sql` çalıştırılmış olmalıdır.) Dosya tekrar çalıştırılırsa zarar vermez.
+4. GitHub'daki dosyaları yeni sürümle değiştirin (zip içindeki tüm klasörü yeniden yükleyin).
+
+Bu dosya: fatura numarasını otomatik verme (F-2026-0001), vade/firma/sözleşme doğrulaması, bir sözleşme için bir hizmet dönemine tek fatura, tahsilatı olan faturanın arşivlenememesi, tahsilatta gelecek tarih engeli, fatura tamamen ödenince açık "tahsilat takibi" görevinin kapanması, gider kuralları (ortak gider firmaya bağlanmaz, doğrudan gider tam olarak bir firmaya ya da personele bağlanır, maaş kategorisi maaş yetkisi ister) ve `fatura_kaydet`, `donem_faturalari_olustur`, `tahsilat_gecikme_gorevleri`, `gider_kaydet` fonksiyonlarını ekler.
+
+Kullanım: **Gelirler ve tahsilatlar** sayfasında "Aylık faturaları oluştur" ile aktif sözleşmelerin o ayki faturaları tek tıkla üretilir; kişi başı sözleşmelerde tutar, o tarihte geçerli çalışan sayısıyla hesaplanır. Vadesi geçen faturalar için giriş yapıldığında görev üretilir (Finans veya İşletme sahibi girişinde).

@@ -22,6 +22,9 @@ export function humanError(e) {
     if (msg.includes('leads_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir potansiyel müşteri zaten var.';
     if (msg.includes('offers_no_uq')) return 'Bu teklif numarası zaten kullanılıyor.';
     if (msg.includes('tasks_source_ref_uq')) return 'Bu iş için otomatik görev zaten oluşturulmuş.';
+    if (msg.includes('invoices_organization_id_invoice_no_key')) return 'Bu fatura numarası zaten kullanılıyor.';
+    if (msg.includes('invoices_donem_uq')) return 'Bu sözleşme için bu hizmet dönemine zaten fatura kesilmiş.';
+    if (msg.includes('expense_categories_organization_id_name_key')) return 'Bu isimde bir gider kategorisi zaten var.';
     return 'Bu kayıt zaten mevcut.';
   }
   if (code === '42501' || /row-level security|permission denied/i.test(msg)) return 'Bu işlem için yetkiniz yok.';
@@ -279,5 +282,30 @@ export function createApi(db) {
     createTimeEntry: (degerler) => bir(T('time_entries').insert(degerler).select().single()),
     updateTimeEntry: (id, degerler) => bir(T('time_entries').update(degerler).eq('id', id).select().single()),
     archiveTimeEntry: (id) => bir(T('time_entries').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+    // ----- faturalar ve tahsilatlar
+    listInvoices: () => hepsiniOku(() => T('invoices').select('*').order('id')),
+    listInvoiceItems: (invoiceId) => bir(T('invoice_items').select('*').eq('invoice_id', invoiceId).is('archived_at', null).order('created_at')),
+    listPayments: () => hepsiniOku(() => T('payments').select('*').order('id')),
+    saveInvoice: (k) => bir(db.rpc('fatura_kaydet', {
+      p_id: k.id ?? null, p_firma: k.firma ?? null, p_sozlesme: k.sozlesme ?? null, p_no: k.no ?? null, p_tarih: k.tarih, p_vade: k.vade, p_donem: k.donem ?? null,
+      p_tutar: k.tutar, p_kdv_modu: k.kdvModu, p_kdv_orani: k.kdvOrani, p_aciklama: k.aciklama ?? null, p_not: k.not ?? null,
+    })),
+    generateInvoices: ({ donem, tarih, vadeGun }) => bir(db.rpc('donem_faturalari_olustur', { p_donem: donem, p_fatura_tarihi: tarih ?? null, p_vade_gun: vadeGun ?? 30 })),
+    setInvoiceFlag: (id, flag) => bir(T('invoices').update({ flag: flag ?? null }).eq('id', id).select().single()),
+    archiveInvoice: (id) => bir(T('invoices').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    addPayment: (degerler) => bir(T('payments').insert(degerler).select().single()),
+    archivePayment: (id) => bir(T('payments').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    createOverdueTasks: () => bir(db.rpc('tahsilat_gecikme_gorevleri')),
+
+    // ----- giderler
+    listExpenseCategories: () => bir(T('expense_categories').select('*').order('sort_order').order('name')),
+    createExpenseCategory: (degerler) => bir(T('expense_categories').insert(degerler).select().single()),
+    listExpenses: () => hepsiniOku(() => T('expenses').select('*').order('id')),
+    saveExpense: (k) => bir(db.rpc('gider_kaydet', {
+      p_id: k.id ?? null, p_kategori: k.kategori, p_tarih: k.tarih, p_tutar: k.tutar, p_kdv_modu: k.kdvModu, p_kdv_orani: k.kdvOrani,
+      p_tur: k.tur, p_firma: k.firma ?? null, p_personel: k.personel ?? null, p_odendi: !!k.odendi, p_aciklama: k.aciklama ?? null,
+    })),
+    archiveExpense: (id) => bir(T('expenses').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
   };
 }

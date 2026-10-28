@@ -129,3 +129,13 @@ users.role_id -> roles
 - Zaman kaydı: başlangıç/bitiş, dakika kırılımı (saha, yol, bekleme, rapor, idari); aynı personelde çakışma veri tabanı kısıtıyla engellenir; `work_date` başlangıçtan (İstanbul saati) otomatik atanır.
 - Uzman/hekim rolü (`uzman_hekim`): yalnızca kendi zaman kayıtlarını ve görevlendirmelerini görür; personel kaydı kullanıcıya `personel_kullanici_bagla` ile bağlanır.
 - Personel maliyeti (`employee_costs`) yalnızca maaş (`payroll`) yetkisi olanlarca görülür; `personel_listesi` ad, tür ve kapasiteyi (hassas olmayan alanlar) diğer operasyon rollerine açar.
+
+
+## Aşama 6 ile eklenenler
+
+- Tablolar (01_sema'da vardı, 07'de kurallandı): `invoices`, `invoice_items`, `payments`, `expense_categories`, `expenses`; `invoice_balances` görünümü bakiyeyi hesaplar (saklanmaz).
+- Tutarlar: faturada KDV hariç + KDV = KDV dahil (veri tabanı hesaplar). Tahsilat tutarı KDV dahildir; bir faturaya birden çok kısmi tahsilat girilebilir. Fazla tahsilat engellenmez, uyarı olarak gösterilir. Tahsilat iptal edilirse (arşiv) toplamdan çıkar.
+- Fatura numarası boşsa `F-<yıl>-<sıra>` otomatik verilir; aynı sözleşme + hizmet dönemi için tek (arşivde olmayan) fatura kesilebilir.
+- Tahsil durumu: tahsil edilmedi / kısmi / tahsil edildi (hesaplanır); itirazlı ve takip gerekiyor elle işaretlenir. Vade gecikmesi İstanbul gününe göre hesaplanır.
+- Gider: KDV hariç tutar esas alınır (kâr hesabı için). Ortak gider firmaya/personele bağlanmaz; doğrudan gider tam olarak birine bağlanır. Ortak giderin dağıtımı Aşama 7'de yapılır; dağıtımı yapılmış havuz, dağıtılan tutarın altına düşürülemez.
+- Maaş/personel maliyeti kategorisindeki giderler yalnızca maaş (`payroll`) yetkisi olanlarca görülür, eklenir ve değiştirilir.
