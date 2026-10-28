@@ -80,9 +80,9 @@ export const MENU = [
     aciklama: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi.' },
   { id: 'giderler', grup: 'finans', modul: 'expenses', ad: 'Giderler', simge: 'receipt', yapildi: true,
     aciklama: 'Doğrudan ve ortak giderler; KDV hariç ve dahil tutarlar.' },
-  { id: 'personel-karlilik', grup: 'finans', modul: 'staff_profit', ad: 'Personel kârlılığı', simge: 'trend', asama: 7,
+  { id: 'personel-karlilik', grup: 'finans', modul: 'staff_profit', ad: 'Personel kârlılığı', simge: 'trend', yapildi: true,
     aciklama: 'Uzman ve hekim bazında gelir, maliyet ve katkı kârı.' },
-  { id: 'firma-karlilik', grup: 'finans', modul: 'company_profit', ad: 'Firma kârlılığı', simge: 'bars', asama: 7,
+  { id: 'firma-karlilik', grup: 'finans', modul: 'company_profit', ad: 'Firma kârlılığı', simge: 'bars', yapildi: true,
     aciklama: 'Firma bazında katkı kârı, ortak gider payı ve vergi öncesi kâr katkısı.' },
 
   { id: 'raporlar', grup: 'yonetim', modul: 'reports', ad: 'Raporlar', simge: 'bars', asama: 8,

@@ -1,0 +1,320 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama7.sql:78: NOTICE:  PASS | Finans: kira için gelir oranı ölçütü
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:79: NOTICE:  PASS | Kural açık dönemli
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:81: NOTICE:  PASS | Aynı ölçüt tekrar: değişiklik yok
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:82: NOTICE:  PASS | Hâlâ tek kural
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:84: NOTICE:  PASS | Ölçüt değişimi: fiili süre, 1 Eylül'den
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:85: NOTICE:  PASS | Eski dönem 31 Ağustos'ta kapandı, yenisi açık
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:87: NOTICE:  PASS | Eski tarihe ölçüt eklenemez [Yeni ölçüt, mevcut ölçütün başlangıcından (01.09.2026) sonra olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:89: NOTICE:  PASS | Ayın 1'i olmayan tarih reddedilir [Ölçüt ayın 1'inden itibaren geçerli olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:91: NOTICE:  PASS | Maaş kategorisi için ölçüt tanımlanamaz [Bu kategori için dağıtım ölçütü tanımlanamaz (maaş ve vergi kategorileri dağıtılmaz).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:93: NOTICE:  PASS | Kurumlar vergisi kategorisi için ölçüt tanımlanamaz [Bu kategori için dağıtım ölçütü tanımlanamaz (maaş ve vergi kategorileri dağıtılmaz).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:95: NOTICE:  PASS | Başka kurumun kategorisi reddedilir [Bu kategori için dağıtım ölçütü tanımlanamaz (maaş ve vergi kategorileri dağıtılmaz).]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama7.sql:98: NOTICE:  PASS | Satış: ölçüt değiştiremez [Dağıtım ölçütünü değiştirme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:100: NOTICE:  PASS | Satış: kural tablosuna doğrudan ekleyemez [new row violates row-level security policy for table "allocation_rules"]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama7.sql:110: NOTICE:  PASS | Kira dağıtımı kaydedilir (7.000 + 5.000 = 12.000 havuz)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:111: NOTICE:  PASS | Dönem ayın 1'ine yuvarlandı, 2 satır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:113: NOTICE:  PASS | Yeniden kaydet (idempotent): 6.000 + 6.000
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:114: NOTICE:  PASS | Satır sayısı artmadı, ölçüt güncellendi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:116: NOTICE:  PASS | Yeniden dağıtım: sırayla artış/azalış havuzu geçici aşmaz (9.000 + 3.000)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:118: NOTICE:  PASS | Havuzu aşan dağıtım reddedilir (12.000 + 1) [Dağıtılan toplam (12000.01) ilgili ortak gider havuzunu (12000.00) aşıyor.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:119: NOTICE:  PASS | Reddedilen işlem eskiyi bozmadı (işlem geri alındı)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:121: NOTICE:  PASS | Azaltılmış dağıtım serbest (havuzun altında)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:122: NOTICE:  PASS | Listede olmayan firma 0'a çekildi, silinmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:124: NOTICE:  PASS | Ortak gider kategorisi olmayan (maaş) dağıtılamaz [Bu kategori dağıtılamaz (maaş ve vergi kategorileri dağıtılmaz).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:126: NOTICE:  PASS | Negatif tutar reddedilir [Dağıtım tutarı negatif olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:128: NOTICE:  PASS | Başka kurumun firması reddedilir [Bağlantılı kayıt bu kuruma ait değil (overhead_allocations.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:130: NOTICE:  PASS | Liste olmayan veri reddedilir [Dağıtım satırları liste olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:132: NOTICE:  PASS | Yakıt havuzu (600) ayrı kategori olarak dağıtılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:134: NOTICE:  PASS | Yakıt havuzu (600) aşılamaz: 600.01 [Dağıtılan toplam (600.01) ilgili ortak gider havuzunu (600.00) aşıyor.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:136: NOTICE:  PASS | Kasım havuzu (777) boşken dağıtım aşılamaz [Dağıtılan toplam (1.00) ilgili ortak gider havuzunu (0) aşıyor.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:138: NOTICE:  PASS | Kasım dağıtımı havuz kadar (777)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:142: NOTICE:  PASS | Dağıtılmış kira havuzu (5.000) altına düşürülemez: kira 2.000 kaydı arşivlenemez [Bu değişiklik, ilgili dönemde yapılmış ortak gider dağıtımının (5000.00) altına düşüyor. Ö]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama7.sql:145: NOTICE:  PASS | Satış: dağıtım kaydedemez [Gider dağıtımını kaydetme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:146: NOTICE:  PASS | Satış: dağıtımları göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama7.sql:148: NOTICE:  PASS | Başka kurum: dağıtımları göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:149: NOTICE:  PASS | Başka kurum: bizim kurallarımızı görmez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama7.sql:168: NOTICE:  PASS | Finans doğrudan tablodan görevlendirme göremez (beklenen)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:170: NOTICE:  PASS | Finans: girdileri alır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:172: NOTICE:  PASS | Ekim: 1 görevlendirme (Kasım'da başlayan dahil değil), 1 zaman kaydı (Eylül dışı), 1 personel
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:173: NOTICE:  PASS | Zaman kaydında not veya saat alanı yok (en az alan)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:174: NOTICE:  PASS | Başka kurumun personeli/atamaları gelmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:175: NOTICE:  PASS | Hesaplanan dakika alanları doğru
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama7.sql:177: NOTICE:  PASS | Satış: girdileri alamaz [Kârlılık verilerini görüntüleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama7.sql:179: NOTICE:  PASS | Başka kurum yalnız kendi verisini alır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:182: NOTICE:  PASS | Dağıtım değişiklikleri denetim kaydına düştü
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama7.sql:183: NOTICE:  PASS | Silme yetkisi yok (fiziksel silme)
+ ok 
+----
+ 
+(1 row)
+

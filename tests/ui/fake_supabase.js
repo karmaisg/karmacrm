@@ -37,7 +37,7 @@ const tablo = {
   sales_opportunities: [], opportunity_stage_history: [], activities: [], tasks: [],
   offers: [], offer_items: [], contracts: [], contract_prices: [],
   employees: [], employee_costs: [], assignments: [], time_entries: [],
-  invoices: [], invoice_items: [], payments: [], expenses: [],
+  invoices: [], invoice_items: [], payments: [], expenses: [], allocation_rules: [], overhead_allocations: [],
   expense_categories: [['Kira', 'isletme', 'ortak', false], ['Araç yakıtı', 'isletme', 'ortak', false], ['Uzman maaşları', 'personel', 'dogrudan', true]]
     .map(([name, nature, tur, payroll], i) => ({ id: uid(), organization_id: ORG, name, nature, default_cost_type: tur, is_payroll: payroll, is_income_tax: false, sort_order: i + 1 })),
   settings: [{ key: 'kapasite_dakika', value: 11700, valid_from: '2000-01-01' }, { key: 'marj_esigi_yuzde', value: 20, valid_from: '2000-01-01' }, { key: 'varsayilan_kdv_orani', value: 20, valid_from: '2000-01-01' }],
@@ -414,6 +414,36 @@ const rpcler = {
     if (a.p_id) { const e = tablo.expenses.find((x) => x.id === a.p_id); if (!e) return { error: hata('Gider bulunamadı.', 'P0001') }; Object.assign(e, alanlar, { updated_at: simdi }); return { data: kopya(e) }; }
     const e = { id: uid(), organization_id: ORG, created_at: simdi, updated_at: simdi, archived_at: null, ...alanlar };
     tablo.expenses.push(e); return { data: kopya(e) };
+  },
+  karlilik_girdileri({ p_ay }) {
+    const bas = `${p_ay.slice(0, 7)}-01`; const bit = new Date(Date.UTC(Number(bas.slice(0, 4)), Number(bas.slice(5, 7)), 0)).toISOString().slice(0, 10);
+    return { data: {
+      atamalar: tablo.assignments.filter((a) => !a.archived_at && a.valid_from <= bit && (!a.valid_to || a.valid_to >= bas)).map((a) => ({ id: a.id, company_id: a.company_id, employee_id: a.employee_id, staff_type: a.staff_type, share_pct: a.share_pct, valid_from: a.valid_from, valid_to: a.valid_to, archived_at: null })),
+      zaman: tablo.time_entries.filter((t) => !t.archived_at && t.work_date >= bas && t.work_date <= bit).map((t) => ({ employee_id: t.employee_id, company_id: t.company_id, work_date: t.work_date, activity_type: t.activity_type, onsite_minutes: t.onsite_minutes, reporting_minutes: t.reporting_minutes, archived_at: null })),
+      personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
+    } };
+  },
+  dagitim_olcutu_ayarla({ p_kategori, p_olcut, p_baslangic }) {
+    const acik = tablo.allocation_rules.find((r) => r.category_id === p_kategori && !r.valid_to);
+    if (acik) {
+      if (acik.basis === p_olcut) return { data: kopya(acik) };
+      if (p_baslangic <= acik.valid_from) return { error: hata('Yeni ölçüt, mevcut ölçütün başlangıcından sonra olmalıdır.', 'P0001') };
+      const d = new Date(`${p_baslangic}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 1); acik.valid_to = d.toISOString().slice(0, 10);
+    }
+    const y = { id: uid(), organization_id: ORG, category_id: p_kategori, basis: p_olcut, valid_from: p_baslangic, valid_to: null };
+    tablo.allocation_rules.push(y); return { data: kopya(y) };
+  },
+  ortak_gider_dagitimini_kaydet({ p_donem, p_kategori, p_olcut, p_satirlar }) {
+    const donem = `${p_donem.slice(0, 7)}-01`;
+    const havuz = tablo.expenses.filter((e) => !e.archived_at && e.category_id === p_kategori && e.cost_type === 'ortak' && e.expense_date.slice(0, 7) === donem.slice(0, 7)).reduce((t, e) => t + Number(e.amount_excl_vat), 0);
+    const toplam = p_satirlar.reduce((t, x) => t + Number(x.amount), 0);
+    if (toplam > havuz + 0.005) return { error: hata(`Dağıtılan toplam (${toplam}) ilgili ortak gider havuzunu (${havuz}) aşıyor.`, 'P0001') };
+    tablo.overhead_allocations.filter((a) => a.category_id === p_kategori && a.period === donem && !a.archived_at).forEach((a) => { a.amount = 0; a.basis = p_olcut; });
+    for (const x of p_satirlar) {
+      const var_ = tablo.overhead_allocations.find((a) => a.category_id === p_kategori && a.period === donem && a.company_id === x.company_id && !a.archived_at);
+      if (var_) { var_.amount = Number(x.amount); var_.basis = p_olcut; } else tablo.overhead_allocations.push({ id: uid(), organization_id: ORG, period: donem, category_id: p_kategori, company_id: x.company_id, basis: p_olcut, amount: Number(x.amount), archived_at: null });
+    }
+    return { data: p_satirlar.length };
   },
   kullanici_ekle({ p_email, p_ad_soyad, p_rol }) {
     const a = authSadece.find((x) => x.email === p_email.toLowerCase());

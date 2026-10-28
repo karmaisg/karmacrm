@@ -307,5 +307,13 @@ export function createApi(db) {
       p_tur: k.tur, p_firma: k.firma ?? null, p_personel: k.personel ?? null, p_odendi: !!k.odendi, p_aciklama: k.aciklama ?? null,
     })),
     archiveExpense: (id) => bir(T('expenses').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+    // ----- kârlılık
+    listAllEmployeeCosts: () => hepsiniOku(() => T('employee_costs').select('*').order('id')),
+    listAllocationRules: () => bir(T('allocation_rules').select('*').order('valid_from')),
+    listAllocations: (bas, bit) => hepsiniOku(() => T('overhead_allocations').select('*').gte('period', bas).lte('period', bit).order('id')),
+    getProfitInputs: (ay) => bir(db.rpc('karlilik_girdileri', { p_ay: ay })),
+    setAllocationBasis: ({ kategori, olcut, baslangic }) => bir(db.rpc('dagitim_olcutu_ayarla', { p_kategori: kategori, p_olcut: olcut, p_baslangic: baslangic })),
+    saveAllocation: ({ donem, kategori, olcut, satirlar }) => bir(db.rpc('ortak_gider_dagitimini_kaydet', { p_donem: donem, p_kategori: kategori, p_olcut: olcut, p_satirlar: satirlar })),
   };
 }

@@ -139,3 +139,11 @@ users.role_id -> roles
 - Tahsil durumu: tahsil edilmedi / kısmi / tahsil edildi (hesaplanır); itirazlı ve takip gerekiyor elle işaretlenir. Vade gecikmesi İstanbul gününe göre hesaplanır.
 - Gider: KDV hariç tutar esas alınır (kâr hesabı için). Ortak gider firmaya/personele bağlanmaz; doğrudan gider tam olarak birine bağlanır. Ortak giderin dağıtımı Aşama 7'de yapılır; dağıtımı yapılmış havuz, dağıtılan tutarın altına düşürülemez.
 - Maaş/personel maliyeti kategorisindeki giderler yalnızca maaş (`payroll`) yetkisi olanlarca görülür, eklenir ve değiştirilir.
+
+## Aşama 7 ile eklenenler
+
+- Yeni tablo yok; `allocation_rules` (ortak gider ölçütü, tarihçeli) ve `overhead_allocations` (kaydedilmiş dağıtım) kullanılır. Aynı dönem + kategori + firma için tek aktif dağıtım satırı vardır.
+- `dagitim_olcutu_ayarla`: ölçütü ayın 1'inden itibaren değiştirir, eski kuralı bir gün öncesinde kapatır.
+- `ortak_gider_dagitimini_kaydet`: bir dönem ve kategori için firma bazlı dağıtımı kaydeder; toplam, ortak gider havuzunu aşamaz.
+- `karlilik_girdileri(ay)`: görevlendirme/zaman gibi doğrudan okuma yetkisi olmayan finans rolü için, kârlılık hesabında gereken asgari alanları döndürür (yalnızca firma veya personel kârlılığı görüntüleme yetkisiyle).
+- Hesap tarayıcıda yapılır (`src/lib/karlilik.js`); veri tabanına hesaplanmış kâr yazılmaz, yalnızca kaydedilen ortak gider dağıtımı saklanır.

@@ -339,3 +339,8 @@ svg { flex: none; }
 .main-col, .page, #sayfa, .card, .card-flush { min-width: 0; }
 .card-flush { max-width: 100%; }
 td .cell-main { min-width: 0; }
+
+/* Aşama 7: kârlılık tabloları */
+.neg { color: var(--danger); }
+.table tfoot th, .table tfoot td { border-top: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
+.pad-t { margin-top: 18px; }

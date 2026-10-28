@@ -40,7 +40,8 @@ karmacrm/
 │  ├─ 04_asama3.sql          Aşama 3: CRM, fırsat, görev fonksiyonları (bir kez)
 │  ├─ 05_asama4.sql          Aşama 4: teklif, sözleşme kuralları ve fonksiyonları (bir kez)
 │  ├─ 06_asama5.sql          Aşama 5: personel, görevlendirme, zaman kaydı kuralları (bir kez)
-│  └─ 07_asama6.sql          Aşama 6: fatura, tahsilat, gider kuralları ve fonksiyonları (bir kez)
+│  ├─ 07_asama6.sql          Aşama 6: fatura, tahsilat, gider kuralları ve fonksiyonları (bir kez)
+│  └─ 08_asama7.sql          Aşama 7: kârlılık girdileri, ortak gider dağıtımı ve ölçüt fonksiyonları (bir kez)
 ├─ src/
 │  ├─ main.js                Açılış, oturum, yönlendirme
 │  ├─ config.js              Supabase adresi ve anon anahtarı (gizli değildir)
@@ -76,6 +77,8 @@ psql -d osgb -f supabase/04_asama3.sql
 psql -d osgb -f supabase/05_asama4.sql
 psql -d osgb -f supabase/06_asama5.sql
 psql -d osgb -f supabase/07_asama6.sql
+psql -d osgb -f supabase/08_asama7.sql
+psql -d osgb -f tests/db_tests_asama7.sql
 psql -d osgb -f tests/db_tests.sql
 psql -d osgb -f tests/db_tests_asama2.sql
 psql -d osgb -f tests/db_tests_asama3.sql

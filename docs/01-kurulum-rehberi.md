@@ -177,3 +177,16 @@ Uzman veya hekimin kendi hesabıyla zaman girebilmesi için: Uzmanlar (veya İş
 Bu dosya: fatura numarasını otomatik verme (F-2026-0001), vade/firma/sözleşme doğrulaması, bir sözleşme için bir hizmet dönemine tek fatura, tahsilatı olan faturanın arşivlenememesi, tahsilatta gelecek tarih engeli, fatura tamamen ödenince açık "tahsilat takibi" görevinin kapanması, gider kuralları (ortak gider firmaya bağlanmaz, doğrudan gider tam olarak bir firmaya ya da personele bağlanır, maaş kategorisi maaş yetkisi ister) ve `fatura_kaydet`, `donem_faturalari_olustur`, `tahsilat_gecikme_gorevleri`, `gider_kaydet` fonksiyonlarını ekler.
 
 Kullanım: **Gelirler ve tahsilatlar** sayfasında "Aylık faturaları oluştur" ile aktif sözleşmelerin o ayki faturaları tek tıkla üretilir; kişi başı sözleşmelerde tutar, o tarihte geçerli çalışan sayısıyla hesaplanır. Vadesi geçen faturalar için giriş yapıldığında görev üretilir (Finans veya İşletme sahibi girişinde).
+
+---
+
+## Aşama 7 kurulumu (personel ve firma kârlılığı, ortak gider dağıtımı)
+
+1. Supabase > **SQL Editor** > **New query**.
+2. `supabase/08_asama7.sql` dosyasının **tamamını** yapıştırıp **Run** deyin. Beklenen: "Success. No rows returned".
+3. (Önce `06_asama5.sql` ve `07_asama6.sql` çalıştırılmış olmalıdır; sırayla 01, 03, 04, 05, 06, 07, 08.) Dosya tekrar çalıştırılırsa zarar vermez.
+4. GitHub'daki dosyaları yeni sürümle değiştirin, tarayıcıda Ctrl+F5 yapın.
+
+Kullanım: **Firma kârlılığı** ve **Personel kârlılığı** sayfaları aylık çalışır. Gelir, fatura hizmet dönemine göre KDV hariç alınır; personel maliyeti o ayın başında geçerli maliyet kaydından gelir. "Teorik" yöntem maliyeti görevlendirme payına, "fiili" yöntem girilen saha+rapor dakikasına göre firmalara dağıtır; kullanılmayan kısım "boşta kapasite" olarak firmalara yüklenmez. Ortak giderler kategori başına seçtiğiniz ölçüte göre (gelir oranı, fiili süre, müşteri/personel/ziyaret sayısı) dağıtılır; "Dağıtımı kaydet" ile o ayın değerleri dondurulur. Sayfalar maaş, gider ve fatura görüntüleme yetkilerini birlikte ister.
+
+Bu sayılar yönetim tahminidir; resmî muhasebe veya vergi hesabı yerine geçmez. Maaş kategorisindeki giderler, personel maliyetiyle çift sayılmaması için hesaba katılmaz (uyarı çıkar).
