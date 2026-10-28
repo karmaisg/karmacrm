@@ -1,0 +1,517 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 56565656-5656-5656-5656-565656565656
+(1 row)
+
+psql:tests/db_tests_asama5.sql:85: NOTICE:  PASS | Operasyon: uzman kaydı açar
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:86: NOTICE:  PASS | Ad soyad kırpılır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:88: NOTICE:  PASS | Operasyon: hekim kaydı açar
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:89: NOTICE:  PASS | İkinci uzman
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:90: NOTICE:  PASS | Boş ad reddedilir [Ad soyad zorunludur.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:92: NOTICE:  PASS | Ayrılış tarihi başlangıçtan önce olamaz [Ayrılış tarihi işe başlama tarihinden önce olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:93: NOTICE:  PASS | Kapasite sıfır olamaz [new row for relation "employees" violates check constraint "employees_monthly_capacity_min]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:94: NOTICE:  PASS | Uzman/hekim kayıtları listelenir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:101: NOTICE:  PASS | Uzman, Demir Çelik'e %60 payla görevlendirilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:104: NOTICE:  PASS | İkinci uzman aynı firmada %40 alır (toplam 100)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:107: NOTICE:  PASS | Aynı firmada uzman payları %100'ü aşamaz [Bu firmada aynı dönemde is_guvenligi_uzmani hizmet payı toplamı %100'ü aşıyor (mevcut: 100]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:110: NOTICE:  PASS | Hekim aynı firmada ayrı hizmet türü olarak %100 alabilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:113: NOTICE:  PASS | Görevlendirme türü personelin türüyle uyuşmalı [Görevlendirme türü personelin türüyle (is_guvenligi_uzmani) aynı olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:116: NOTICE:  PASS | Aynı personel aynı firmada çakışan dönemde tekrar görevlendirilemez [Bu firmada aynı dönemde is_guvenligi_uzmani hizmet payı toplamı %100'ü aşıyor (mevcut: 100]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:118: NOTICE:  PASS | Pay 100'ü aşamaz [Bu firmada aynı dönemde is_guvenligi_uzmani hizmet payı toplamı %100'ü aşıyor (mevcut: 0).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:121: NOTICE:  PASS | Yabancı kurumun personeli görevlendirilemez [Bağlantılı kayıt bu kuruma ait değil (assignments.employee_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:124: NOTICE:  PASS | Yabancı kurumun firmasına görevlendirme yapılamaz [Bağlantılı kayıt bu kuruma ait değil (assignments.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:126: NOTICE:  PASS | Başlamış görevlendirmenin payı doğrudan değiştirilemez [Başlamış görevlendirmenin payı ve başlangıcı değiştirilemez. "Payı değiştir" ile yeni döne]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:128: NOTICE:  PASS | Başlamış görevlendirmenin firması değiştirilemez [Görevlendirmenin firması, personeli ve türü değiştirilemez; yenisini oluşturun.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:130: NOTICE:  PASS | Başlamış görevlendirmenin notu güncellenebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:132: NOTICE:  PASS | Pay değiştir: %60 -> %50 (yarından itibaren)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:136: NOTICE:  PASS | Eski dönem dün kapandı, yeni dönem %50 ile açık
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:138: NOTICE:  PASS | Pay değiştirirken başlangıç eski başlangıçtan sonra olmalı [Yeni dönem, mevcut dönemin başlangıcından sonra olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:140: NOTICE:  PASS | Gelecekteki görevlendirmenin payı doğrudan değiştirilebilir
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama5.sql:143: NOTICE:  PASS | Açık görevlendirmesi olan personel arşivlenemez [Açık görevlendirmesi olan personel arşivlenemez. Önce görevlendirmelerini bitirin.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 56565656-5656-5656-5656-565656565656
+(1 row)
+
+psql:tests/db_tests_asama5.sql:146: NOTICE:  PASS | Görevlendirmesi olan personelin hizmet türü değiştirilemez [Görevlendirmesi veya zaman kaydı olan personelin hizmet türü değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:148: NOTICE:  PASS | Görevlendirme arşivlenir (operasyon arşivleyebilir)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:151: NOTICE:  PASS | Arşivlenen payın yerine yeni pay girilebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:154: NOTICE:  PASS | Bugün 60+40 doluyken bir kişi daha %5 eklenemez [Bu firmada aynı dönemde is_guvenligi_uzmani hizmet payı toplamı %100'ü aşıyor (mevcut: 100]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:155: NOTICE:  PASS | Ardışık dönemler çakışıyormuş gibi sayılmaz: bugün 60+40, yarından itibaren 45+40 (hepsi <=100)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:158: NOTICE:  PASS | Aynı personele çakışan ikinci görevlendirme reddedilir [conflicting key value violates exclusion constraint "assignments_company_id_employee_id_st]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:159: NOTICE:  PASS | Fiziksel silme yok [permission denied for table assignments]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:167: NOTICE:  PASS | Zaman kaydı girilir (ziyaret, 3 saat: 150 dk saha + 30 yol)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:169: NOTICE:  PASS | Çalışma tarihi başlangıç anından otomatik atanır (girilen 2000-01-01 yok sayılır)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:170: NOTICE:  PASS | Toplam dakika otomatik hesaplanır (180)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:174: NOTICE:  PASS | Aynı personelde çakışan zaman kaydı reddedilir [conflicting key value violates exclusion constraint "time_entries_employee_id_tstzrange_ex]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:178: NOTICE:  PASS | Başka personelin aynı saatteki kaydı çakışmaz
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:182: NOTICE:  PASS | Bitişi başka kaydın başlangıcına denk gelen kayıt çakışmaz (12:00-13:00)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:186: NOTICE:  PASS | Dakika kırılımı toplam süreyi aşamaz [new row for relation "time_entries" violates check constraint "time_entries_check1"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:189: NOTICE:  PASS | Bitiş başlangıçtan sonra olmalı [new row for relation "time_entries" violates check constraint "time_entries_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:192: NOTICE:  PASS | Gelecek tarihli kayıt girilemez [Gelecek tarihli zaman kaydı girilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:195: NOTICE:  PASS | 24 saatten uzun kayıt girilemez [Tek kayıt 24 saatten uzun olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:198: NOTICE:  PASS | Faaliyet türü boş olamaz [Faaliyet türü zorunludur.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:201: NOTICE:  PASS | Yabancı kurumun personeline zaman kaydı girilemez [Bağlantılı kayıt bu kuruma ait değil (time_entries.employee_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:203: NOTICE:  PASS | Kaydın personeli sonradan değiştirilemez [Zaman kaydının personeli değiştirilemez; kaydı arşivleyip yenisini girin.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:204: NOTICE:  PASS | Kayıt düzeltilir (not eklenir)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:205: NOTICE:  PASS | Zaman kaydı arşivlenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:209: NOTICE:  PASS | Arşivlenen kaydın saatine yeni kayıt girilebilir
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 55555555-5555-5555-5555-555555555555
+(1 row)
+
+psql:tests/db_tests_asama5.sql:221: NOTICE:  PASS | Uzman yalnızca kendi zaman kayıtlarını görür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:223: NOTICE:  PASS | Uzman yalnızca kendi görevlendirmelerini görür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:227: NOTICE:  PASS | Uzman kendi adına zaman kaydı girer
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:230: NOTICE:  PASS | Uzman başkası adına zaman kaydı giremez [Yalnızca kendi adınıza zaman kaydı girebilirsiniz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:232: NOTICE:  PASS | Uzman başkasının kaydını güncelleyemez (0 satır)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:233: NOTICE:  PASS | personel_listesi uzmana yalnızca kendini verir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:234: NOTICE:  PASS | Uzman personel tablosunu doğrudan göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:237: NOTICE:  PASS | Uzman görevlendirme ekleyemez [new row violates row-level security policy for table "assignments"]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama5.sql:244: NOTICE:  PASS | Satış personel listesinde adları görür (capacity yetkisi), maliyeti göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:245: NOTICE:  PASS | Satış zaman kayıtlarını göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:246: NOTICE:  PASS | Satış personel kaydı açamaz [new row violates row-level security policy for table "employees"]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama5.sql:250: NOTICE:  PASS | Finans personel maliyeti dönemi açar
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:251: NOTICE:  PASS | Toplam maliyet 65000
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:253: NOTICE:  PASS | Yeni maliyet dönemi eskisini kapatır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:255: NOTICE:  PASS | Eski dönem 30 Haziran'da kapandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:257: NOTICE:  PASS | Maliyet dönemi geriye dönük çakışamaz [Yeni dönem, mevcut dönemin başlangıcından sonra olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:259: NOTICE:  PASS | Negatif maliyet reddedilir [Tutarlar negatif olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 56565656-5656-5656-5656-565656565656
+(1 row)
+
+psql:tests/db_tests_asama5.sql:262: NOTICE:  PASS | Operasyon personel maliyetini giremez [Personel maliyeti girme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:263: NOTICE:  PASS | Operasyon personel maliyetini göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:266: NOTICE:  PASS | Operasyon kullanıcı bağlayamaz (kullanıcı yetkisi yok) [Personeli kullanıcıya bağlama yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama5.sql:269: NOTICE:  PASS | Sahip hekimi uzman2 kullanıcısına bağlar
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:272: NOTICE:  PASS | Bağ kuruldu, eski bağ (uzman2 -> Can Uzman) çözüldü
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:273: NOTICE:  PASS | Bağı kaldırma
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:275: NOTICE:  PASS | Yabancı kurumun kullanıcısı bağlanamaz [Kullanıcı bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:277: NOTICE:  PASS | Pay değiştir: kurumlar arası kayıt görünmez [Görevlendirme bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama5.sql:280: NOTICE:  PASS | Yabancı kurum bizim personelimizi göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:281: NOTICE:  PASS | Yabancı kurum bizim zaman/görevlendirme kayıtlarımızı göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:282: NOTICE:  PASS | personel_listesi yabancıya yalnızca kendi kurumunu verir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama5.sql:287: NOTICE:  PASS | Denetim kaydı: personel ve zaman kayıtları yazıldı
+ ok 
+----
+ 
+(1 row)
+

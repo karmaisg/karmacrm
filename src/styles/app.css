@@ -132,13 +132,13 @@ svg { flex: none; }
 .search-field { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 220px; max-width: 420px; min-height: 44px; padding: 0 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-control); color: var(--text-3); }
 .search-field input { flex: 1; min-width: 0; border: 0; background: none; outline: 0; color: var(--text); }
 .search-field:focus-within { border-color: var(--info); box-shadow: 0 0 0 3px var(--info-50); }
-.select-inline select { min-height: 40px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); padding: 0 12px; }
+.select-inline select { max-width: 100%; min-height: 40px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); padding: 0 12px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { display: inline-flex; gap: 8px; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); }
 .chip-on { background: var(--primary-50); border-color: var(--primary); color: var(--primary); }
 .chip-n { display: inline-block; min-width: 22px; text-align: center; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: 700; }
 .chip-on .chip-n { background: var(--surface); }
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; position: relative; }
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--text-2); background: var(--surface-2); padding: 12px 16px; white-space: nowrap; font-weight: 700; }
 .table td { padding: 12px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
@@ -334,3 +334,8 @@ svg { flex: none; }
   .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
   .grid-2 { display: block; }
 }
+
+@media (max-width: 720px) { .toolbar { padding: 12px 16px; } .toolbar .search-field { min-width: 0; flex-basis: 100%; max-width: none; } .toolbar .select-inline { flex: 1 1 100%; } .toolbar .select-inline select { width: 100%; } }
+.main-col, .page, #sayfa, .card, .card-flush { min-width: 0; }
+.card-flush { max-width: 100%; }
+td .cell-main { min-width: 0; }

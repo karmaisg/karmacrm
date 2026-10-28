@@ -17,7 +17,10 @@ import { firsatFormuAc, asamaPill } from './firsatlar.js';
 import { teklifFormuAc, teklifPill } from './teklifler.js';
 import { sozlesmeFormuAc, firmaTeklifleri, firmaSozlesmeleri } from './sozlesmeler.js';
 import { gorevFormuAc } from './gorevler.js';
+import { gorevlendirmeFormuAc, gorevlendirmeDurumu, gorevlendirmeEylemleri, gorevlendirmeEylemiYurut } from './gorevlendirmeler.js';
+import { PERSONEL_TURU, aktifMi, kapsamPayi, sureMetni } from '../lib/operasyon.js';
 import { para } from '../lib/format.js';
+import { faturaFormuAc, faturaDetayAc, firmaFaturalari } from './faturalar.js';
 
 const SEKMELER = [
   { id: 'genel', ad: 'Genel bilgiler' },
@@ -27,8 +30,8 @@ const SEKMELER = [
   { id: 'firsatlar', ad: 'Fırsatlar' },
   { id: 'teklifler', ad: 'Teklifler' },
   { id: 'sozlesmeler', ad: 'Sözleşmeler' },
-  { id: 'atamalar', ad: 'Atamalar', asama: 6 },
-  { id: 'faturalar', ad: 'Faturalar', asama: 8 },
+  { id: 'atamalar', ad: 'Görevlendirme' },
+  { id: 'faturalar', ad: 'Faturalar' },
 ];
 
 const bilgi = (etiket, deger) => html`<div class="kv"><dt>${etiket}</dt><dd>${deger || html`<span class="muted">—</span>`}</dd></div>`;
@@ -37,7 +40,7 @@ const bilgi = (etiket, deger) => html`<div class="kv"><dt>${etiket}</dt><dd>${de
 const hatirla = { id: null, sekme: 'genel' };
 
 export async function firmaSayfasi(app, id) {
-  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler, gorusmeler, tumFirsatlar, tumTeklifler, tumSozlesmeler] = await Promise.all([
+  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler, gorusmeler, tumFirsatlar, tumTeklifler, tumSozlesmeler, tumAtamalar, personelListesi, tumFaturalar, tumTahsilatlar] = await Promise.all([
     app.api.getCompany(id),
     app.api.listProfiles(id),
     app.can('contacts', 'view') ? app.api.listContactsByCompany(id) : Promise.resolve([]),
@@ -48,6 +51,10 @@ export async function firmaSayfasi(app, id) {
     app.can('opportunities', 'view') ? app.api.listOpportunities() : Promise.resolve([]),
     app.can('offers', 'view') ? app.api.listOffers() : Promise.resolve([]),
     app.can('contracts', 'view') ? app.api.listContracts() : Promise.resolve([]),
+    app.can('assignments', 'view') ? app.api.listAssignments() : Promise.resolve([]),
+    app.can('assignments', 'view') ? app.api.listStaff().catch(() => []) : Promise.resolve([]),
+    app.can('invoices', 'view') ? app.api.listInvoices() : Promise.resolve([]),
+    app.can('invoices', 'view') ? app.api.listPayments() : Promise.resolve([]),
   ]);
   if (!firma) {
     return {
@@ -150,6 +157,36 @@ export async function firmaSayfasi(app, id) {
     ${app.can('contracts', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="sozlesme-yeni">${icon('plus', 16)} Sözleşme ekle</button>` : ''}</div>
     ${firmaSozlesmeleri(app, tumSozlesmeler.filter((c) => c.company_id === id))}</section>`;
 
+  const firmaFaturalariListesi = tumFaturalar.filter((f) => f.company_id === id);
+  const faturaSekmesi = () => {
+    const l = firmaFaturalariListesi.map((f) => f.id);
+    return html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Faturalar ve tahsilatlar</h2>
+      ${app.can('invoices', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="fatura-yeni">${icon('plus', 16)} Fatura ekle</button>` : ''}</div>
+      ${firmaFaturalari(app, firmaFaturalariListesi, tumTahsilatlar.filter((p) => l.includes(p.invoice_id)))}</section>`;
+  };
+
+  const personelAdi = new Map(personelListesi.map((p) => [p.id, p.full_name]));
+  const firmaAtamalari = tumAtamalar.filter((a) => a.company_id === id);
+  const gorevSekmesi = () => {
+    if (!app.can('assignments', 'view')) return emptyState({ simge: 'lock', baslik: 'Görevlendirmeleri görme izniniz yok' });
+    const bugunStr = bugun();
+    const ihtiyac = firmaAylikIhtiyac({ profiller, kurallar, ay: ayBasi(bugunStr) });
+    const tur = (t) => {
+      const pay = kapsamPayi(tumAtamalar, id, t, bugunStr);
+      const toplam = t === 'is_guvenligi_uzmani' ? ihtiyac.uzmanDakika : ihtiyac.hekimDakika;
+      return html`<div class="kv"><dt>${PERSONEL_TURU[t]}</dt><dd>%${sayi(pay)} görevlendirildi ${pay < 100 ? pill(pay === 0 ? 'Görevli yok' : 'Eksik pay', 'warning') : pill('Tam', 'success')}
+        <small class="block muted">${toplam === null || toplam === undefined ? 'Teorik süre hesaplanamadı' : `Aylık ihtiyaç ${sureMetni(toplam)}${pay < 100 ? ` · boşta ${sureMetni(Math.round(toplam * (100 - pay) / 100))}` : ''}`}</small></dd></div>`;
+    };
+    const sirali = [...firmaAtamalari].sort((a, b) => String(b.valid_from).localeCompare(String(a.valid_from)));
+    return html`<section class="card card-flush"><div class="card-head"><div><h2 class="card-title">Uzman ve hekim görevlendirmesi</h2>
+      <p class="card-sub">Teorik hizmet süresi bu paylara göre kişilere dağıtılır.</p></div>
+      ${app.can('assignments', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="gv-yeni">${icon('plus', 16)} Görevlendir</button>` : ''}</div>
+      <dl class="kv-list pad">${tur('is_guvenligi_uzmani')}${tur('isyeri_hekimi')}</dl>
+      ${sirali.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Personel</th><th scope="col" class="num">Pay</th><th scope="col">Dönem</th><th scope="col">Durum</th><th scope="col"><span class="sr-only">Eylemler</span></th></tr></thead><tbody>
+        ${sirali.map((a) => html`<tr class="${a.archived_at ? 'row-muted' : ''}"><td>${personelAdi.get(a.employee_id) ? html`<a class="link" href="#/personel/${a.employee_id}">${personelAdi.get(a.employee_id)}</a>` : 'Personel'} <small class="muted">${PERSONEL_TURU[a.staff_type]}</small></td><td class="num">%${sayi(Number(a.share_pct))}</td><td>${tarih(a.valid_from)} – ${a.valid_to ? tarih(a.valid_to) : 'devam'}</td><td>${gorevlendirmeDurumu(a, bugunStr)}</td><td class="actions">${gorevlendirmeEylemleri(app, a, bugunStr)}</td></tr>`)}</tbody></table></div>`
+        : emptyState({ simge: 'briefcase', baslik: 'Bu firmaya görevlendirme yapılmamış' })}</section>`;
+  };
+
   const beklemede = (s) => emptyState({
     simge: MENU.find((m) => m.id === ({ teklifler: 'teklifler', sozlesmeler: 'sozlesmeler', atamalar: 'atamalar', faturalar: 'faturalar' }[s.id]))?.simge ?? 'info',
     baslik: `${s.ad} Aşama ${s.asama}'te eklenecek`,
@@ -179,7 +216,7 @@ export async function firmaSayfasi(app, id) {
     return html`<p class="card-sub">${ayAdi(durum.ay)} · ${sayi(sonuc.profil.employee_count)} çalışan · ${TEHLIKE[sonuc.profil.hazard_class]}</p>
       <div class="stats">${kutu('İş güvenliği uzmanı', sonuc.uzmanDakika)}${kutu('İşyeri hekimi', sonuc.hekimDakika)}</div>
       ${sonuc.eksik ? html`<div class="notice notice-warn" role="status">${sonuc.eksik}</div>` : ''}
-      <p class="fine">Bu değer firmanın toplam teorik ihtiyacıdır. Kişilere dağıtım Aşama 6'da yapılır. Kapasite: kişi başı ayda ${sayi(kap)} dk.</p>`;
+      <p class="fine">Bu değer firmanın toplam teorik ihtiyacıdır. Kişilere dağıtım Görevlendirme sekmesindeki paylara göre yapılır. Kapasite: kişi başı ayda ${sayi(kap)} dk.</p>`;
   }
 
   function teorikKart() {
@@ -198,7 +235,9 @@ export async function firmaSayfasi(app, id) {
     if (s.id === 'firsatlar') return firsatSekmesi();
     if (s.id === 'teklifler') return app.can('offers', 'view') ? teklifSekmesi() : emptyState({ simge: 'lock', baslik: 'Teklifleri görme izniniz yok' });
     if (s.id === 'sozlesmeler') return app.can('contracts', 'view') ? sozlesmeSekmesi() : emptyState({ simge: 'lock', baslik: 'Sözleşmeleri görme izniniz yok' });
+    if (s.id === 'faturalar') return app.can('invoices', 'view') ? faturaSekmesi() : emptyState({ simge: 'lock', baslik: 'Faturaları görme izniniz yok' });
     if (s.id === 'calisan') return calisanSekmesi();
+    if (s.id === 'atamalar') return gorevSekmesi();
     return genel();
   }
 
@@ -291,6 +330,16 @@ export async function firmaSayfasi(app, id) {
           else if (eylem === 'teklif-yeni') teklifFormuAc(app, { companyId: firma.id });
           else if (eylem === 'sozlesme-yeni') sozlesmeFormuAc(app, { companyId: firma.id });
           else if (eylem === 'gorev-ekle') gorevFormuAc(app, { companyId: firma.id });
+          else if (eylem === 'fatura-yeni') faturaFormuAc(app, { companyId: firma.id });
+          else if (eylem === 'gv-yeni') gorevlendirmeFormuAc(app, { companyId: firma.id });
+          return;
+        }
+        const fd = e.target.closest('[data-fatura-detay]');
+        if (fd) { const f = firmaFaturalariListesi.find((x) => x.id === fd.dataset.faturaDetay); if (f) faturaDetayAc(app, f, { firmaAdi: firma.name }); return; }
+        const gv = e.target.closest('[data-gv-eylem]');
+        if (gv) {
+          const a = firmaAtamalari.find((x) => x.id === gv.dataset.id);
+          if (a) gorevlendirmeEylemiYurut(app, gv.dataset.gvEylem, a, `${firma.name} / ${personelAdi.get(a.employee_id) ?? 'Personel'}`);
           return;
         }
         const gr = e.target.closest('[data-gorusme-eylem]');

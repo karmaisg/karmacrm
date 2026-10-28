@@ -22,10 +22,15 @@ export function humanError(e) {
     if (msg.includes('leads_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir potansiyel müşteri zaten var.';
     if (msg.includes('offers_no_uq')) return 'Bu teklif numarası zaten kullanılıyor.';
     if (msg.includes('tasks_source_ref_uq')) return 'Bu iş için otomatik görev zaten oluşturulmuş.';
+    if (msg.includes('invoices_organization_id_invoice_no_key')) return 'Bu fatura numarası zaten kullanılıyor.';
+    if (msg.includes('invoices_donem_uq')) return 'Bu sözleşme için bu hizmet dönemine zaten fatura kesilmiş.';
+    if (msg.includes('expense_categories_organization_id_name_key')) return 'Bu isimde bir gider kategorisi zaten var.';
     return 'Bu kayıt zaten mevcut.';
   }
   if (code === '42501' || /row-level security|permission denied/i.test(msg)) return 'Bu işlem için yetkiniz yok.';
   if (code === '23P01' && msg.includes('contracts_aktif_cakisma')) return 'Bu firmanın aynı tarihlerde zaten aktif bir sözleşmesi var.';
+  if (code === '23P01' && msg.includes('time_entries')) return 'Bu personelin seçilen saatlerde başka bir zaman kaydı var. Saatleri kontrol edin.';
+  if (code === '23P01' && msg.includes('assignments')) return 'Bu personel bu firmada aynı dönemde zaten görevlendirilmiş.';
   if (code === '23P01') return 'Tarih aralığı mevcut bir kayıtla çakışıyor.';
   if (code === '23514' && msg.includes('sales_opportunities_check')) return 'Kaybedilen fırsat için kayıp nedeni seçilmelidir.';
   if (code === '23514') return 'Girilen değerlerden biri izin verilen aralığın dışında.';
@@ -250,5 +255,57 @@ export function createApi(db) {
     })),
     renewContract: ({ id, baslangic, bitis, not }) => bir(db.rpc('sozlesme_yenile', { p_contract: id, p_baslangic: baslangic, p_bitis: bitis, p_fiyat_notu: not ?? null })),
     createRenewalTasks: () => bir(db.rpc('sozlesme_yenileme_gorevleri')),
+
+    // ----- personel (uzman / hekim)
+    /** Ad, tür ve kapasite (hassas olmayan alanlar): staff, atama, zaman ve kapasite yetkisi olanlar okur. */
+    listStaff: () => bir(db.rpc('personel_listesi')),
+    listEmployees: () => hepsiniOku(() => T('employees').select('*').order('id')),
+    createEmployee: (degerler) => bir(T('employees').insert(degerler).select().single()),
+    updateEmployee: (id, degerler) => bir(T('employees').update(degerler).eq('id', id).select().single()),
+    archiveEmployee: (id) => bir(T('employees').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    unarchiveEmployee: (id) => bir(T('employees').update({ archived_at: null }).eq('id', id).select().single()),
+    linkEmployeeUser: (employeeId, userId) => bir(db.rpc('personel_kullanici_bagla', { p_employee: employeeId, p_user: userId ?? null })),
+    listEmployeeCosts: (employeeId) => bir(T('employee_costs').select('*').eq('employee_id', employeeId).order('valid_from', { ascending: false })),
+    addEmployeeCost: ({ employeeId, brut, sgk, diger, baslangic }) => bir(db.rpc('personel_maliyeti_ekle', {
+      p_employee: employeeId, p_brut: brut, p_sgk: sgk, p_diger: diger, p_baslangic: baslangic,
+    })),
+
+    // ----- görevlendirmeler
+    listAssignments: () => hepsiniOku(() => T('assignments').select('*').order('id')),
+    createAssignment: (degerler) => bir(T('assignments').insert(degerler).select().single()),
+    updateAssignment: (id, degerler) => bir(T('assignments').update(degerler).eq('id', id).select().single()),
+    changeAssignment: ({ id, pay, baslangic, not }) => bir(db.rpc('gorevlendirme_degistir', { p_id: id, p_pay: pay, p_baslangic: baslangic, p_not: not ?? null })),
+    archiveAssignment: (id) => bir(T('assignments').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+    // ----- zaman kayıtları (tarih aralığı: work_date dahil)
+    listTimeEntries: (bas, bit) => hepsiniOku(() => T('time_entries').select('*').gte('work_date', bas).lte('work_date', bit).order('id')),
+    createTimeEntry: (degerler) => bir(T('time_entries').insert(degerler).select().single()),
+    updateTimeEntry: (id, degerler) => bir(T('time_entries').update(degerler).eq('id', id).select().single()),
+    archiveTimeEntry: (id) => bir(T('time_entries').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+    // ----- faturalar ve tahsilatlar
+    listInvoices: () => hepsiniOku(() => T('invoices').select('*').order('id')),
+    listInvoiceItems: (invoiceId) => bir(T('invoice_items').select('*').eq('invoice_id', invoiceId).is('archived_at', null).order('created_at')),
+    listPayments: () => hepsiniOku(() => T('payments').select('*').order('id')),
+    saveInvoice: (k) => bir(db.rpc('fatura_kaydet', {
+      p_id: k.id ?? null, p_firma: k.firma ?? null, p_sozlesme: k.sozlesme ?? null, p_no: k.no ?? null, p_tarih: k.tarih, p_vade: k.vade, p_donem: k.donem ?? null,
+      p_tutar: k.tutar, p_kdv_modu: k.kdvModu, p_kdv_orani: k.kdvOrani, p_aciklama: k.aciklama ?? null, p_not: k.not ?? null,
+    })),
+    generateInvoices: ({ donem, tarih, vadeGun }) => bir(db.rpc('donem_faturalari_olustur', { p_donem: donem, p_fatura_tarihi: tarih ?? null, p_vade_gun: vadeGun ?? 30 })),
+    setInvoiceFlag: (id, flag) => bir(T('invoices').update({ flag: flag ?? null }).eq('id', id).select().single()),
+    archiveInvoice: (id) => bir(T('invoices').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    addPayment: (degerler) => bir(T('payments').insert(degerler).select().single()),
+    archivePayment: (id) => bir(T('payments').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    createOverdueTasks: () => bir(db.rpc('tahsilat_gecikme_gorevleri')),
+
+    // ----- giderler
+    listExpenseCategories: () => bir(T('expense_categories').select('*').order('sort_order').order('name')),
+    createExpenseCategory: (degerler) => bir(T('expense_categories').insert(degerler).select().single()),
+    listExpenses: () => hepsiniOku(() => T('expenses').select('*').order('id')),
+    saveExpense: (k) => bir(db.rpc('gider_kaydet', {
+      p_id: k.id ?? null, p_kategori: k.kategori, p_tarih: k.tarih, p_tutar: k.tutar, p_kdv_modu: k.kdvModu, p_kdv_orani: k.kdvOrani,
+      p_tur: k.tur, p_firma: k.firma ?? null, p_personel: k.personel ?? null, p_odendi: !!k.odendi, p_aciklama: k.aciklama ?? null,
+    })),
+    archiveExpense: (id) => bir(T('expenses').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
   };
 }

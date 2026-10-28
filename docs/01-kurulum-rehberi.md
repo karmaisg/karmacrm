@@ -149,3 +149,31 @@ Bu dosya: potansiyel müşteri + ilk satış fırsatını tek işlemde oluştura
 Bu dosya: teklif numarası (TKL-2026-0001), teklif durum geçiş kuralları (gönderilen teklifin fiyatı kilitlenir), teklif kopyalama, teklifi kabul edip sözleşmeye çevirme (indirim fiyata işlenir, fırsat "kazanıldı" olur), sözleşme dönemleri, aynı firmada tarih çakışan aktif sözleşmeyi engelleme, değiştirilemez fiyat geçmişi, sözleşme yenileme ve 90/60/30 gün yenileme görevi üretimini ekler.
 
 Önemli: varsayılan yetki matrisinde **Satış** rolü teklifleri oluşturup düzenleyebilir ama sözleşmeleri yalnızca görüntüler. Teklifi kabul edip sözleşme oluşturmak için İşletme sahibi/Sistem yöneticisi kullanın ya da Kullanıcılar > Yetkiler ekranından Satış rolüne "sözleşme oluştur/düzenle" yetkisi verin.
+
+
+---
+
+## Aşama 5 kurulumu (uzman/hekim, görevlendirme, zaman takibi, kapasite)
+
+1. Supabase > **SQL Editor** > **New query**.
+2. `supabase/06_asama5.sql` dosyasının **tamamını** yapıştırıp **Run** deyin. Beklenen: "Success. No rows returned".
+3. (Önce `05_asama4.sql` çalıştırılmış olmalıdır.) Dosya tekrar çalıştırılırsa zarar vermez.
+4. GitHub'daki dosyaları yeni sürümle değiştirin (zip içindeki tüm klasörü yeniden yükleyin).
+
+Bu dosya: görevlendirme hizmet payı denetiminin düzeltilmiş hali (ardışık dönemleri çakışıyormuş gibi saymaz), görevlendirmenin türünün personelle uyumu, başlamış görevlendirmenin payının geçmişi bozmaması (pay değişimi için yeni dönem açılır), açık görevlendirmesi olan personelin arşivlenememesi, zaman kaydında İstanbul saatine göre otomatik tarih, gelecek tarihli ve 24 saati aşan kaydın engellenmesi, uzman/hekim rolünün yalnızca kendi kayıtlarını görmesi, personel maliyet dönemi ve kullanıcı-personel bağlama fonksiyonlarını ekler.
+
+Uzman veya hekimin kendi hesabıyla zaman girebilmesi için: Uzmanlar (veya İşyeri hekimleri) > personel sayfası > **Giriş hesabı** bölümünden personel kaydını kullanıcıya bağlayın.
+
+
+---
+
+## Aşama 6 kurulumu (faturalar, tahsilatlar, giderler)
+
+1. Supabase > **SQL Editor** > **New query**.
+2. `supabase/07_asama6.sql` dosyasının **tamamını** yapıştırıp **Run** deyin. Beklenen: "Success. No rows returned".
+3. (Önce `06_asama5.sql` çalıştırılmış olmalıdır.) Dosya tekrar çalıştırılırsa zarar vermez.
+4. GitHub'daki dosyaları yeni sürümle değiştirin (zip içindeki tüm klasörü yeniden yükleyin).
+
+Bu dosya: fatura numarasını otomatik verme (F-2026-0001), vade/firma/sözleşme doğrulaması, bir sözleşme için bir hizmet dönemine tek fatura, tahsilatı olan faturanın arşivlenememesi, tahsilatta gelecek tarih engeli, fatura tamamen ödenince açık "tahsilat takibi" görevinin kapanması, gider kuralları (ortak gider firmaya bağlanmaz, doğrudan gider tam olarak bir firmaya ya da personele bağlanır, maaş kategorisi maaş yetkisi ister) ve `fatura_kaydet`, `donem_faturalari_olustur`, `tahsilat_gecikme_gorevleri`, `gider_kaydet` fonksiyonlarını ekler.
+
+Kullanım: **Gelirler ve tahsilatlar** sayfasında "Aylık faturaları oluştur" ile aktif sözleşmelerin o ayki faturaları tek tıkla üretilir; kişi başı sözleşmelerde tutar, o tarihte geçerli çalışan sayısıyla hesaplanır. Vadesi geçen faturalar için giriş yapıldığında görev üretilir (Finans veya İşletme sahibi girişinde).

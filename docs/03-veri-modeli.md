@@ -120,3 +120,22 @@ users.role_id -> roles
 - Sözleşme: aynı firmada tarihleri çakışan iki aktif sözleşme olamaz (veri tabanı kısıtı). Sona eren/feshedilen sözleşme değiştirilemez. Fiyat geçmişi silinmez, yalnızca yeni dönem eklenir.
 - Fonksiyonlar: `teklif_kopyala`, `teklif_kabul_et`, `sozlesme_olustur`, `sozlesme_yenile`, `sozlesme_fiyat_ekle`, `sozlesme_yenileme_gorevleri`.
 - Yenileme uyarıları: bitişe 90/60/30 gün kala her eşik için bir görev üretilir (tekrar üretilmez). Giriş yapıldığında çalışır.
+
+## Aşama 5 ile eklenenler
+
+- Tablolar (01_sema'da vardı, 06'da kurallandı): `employees`, `employee_costs`, `assignments`, `time_entries`.
+- Görevlendirme: firma + personel + hizmet türü + pay (%) + dönem. Aynı firmada aynı hizmet türünün payları HER ANDA toplam %100'ü aşamaz. Başlamış görevlendirmenin payı değişmez; `gorevlendirme_degistir` eski dönemi kapatıp yeni payla yeni dönem açar.
+- Teorik yük: personelin ayın 1'inde yürürlükteki görevlendirme payları x firmanın o ayki teorik hizmet ihtiyacı (firma profili kuralıyla aynı: ay içinde başlayan kayıt bir sonraki ay yansır).
+- Zaman kaydı: başlangıç/bitiş, dakika kırılımı (saha, yol, bekleme, rapor, idari); aynı personelde çakışma veri tabanı kısıtıyla engellenir; `work_date` başlangıçtan (İstanbul saati) otomatik atanır.
+- Uzman/hekim rolü (`uzman_hekim`): yalnızca kendi zaman kayıtlarını ve görevlendirmelerini görür; personel kaydı kullanıcıya `personel_kullanici_bagla` ile bağlanır.
+- Personel maliyeti (`employee_costs`) yalnızca maaş (`payroll`) yetkisi olanlarca görülür; `personel_listesi` ad, tür ve kapasiteyi (hassas olmayan alanlar) diğer operasyon rollerine açar.
+
+
+## Aşama 6 ile eklenenler
+
+- Tablolar (01_sema'da vardı, 07'de kurallandı): `invoices`, `invoice_items`, `payments`, `expense_categories`, `expenses`; `invoice_balances` görünümü bakiyeyi hesaplar (saklanmaz).
+- Tutarlar: faturada KDV hariç + KDV = KDV dahil (veri tabanı hesaplar). Tahsilat tutarı KDV dahildir; bir faturaya birden çok kısmi tahsilat girilebilir. Fazla tahsilat engellenmez, uyarı olarak gösterilir. Tahsilat iptal edilirse (arşiv) toplamdan çıkar.
+- Fatura numarası boşsa `F-<yıl>-<sıra>` otomatik verilir; aynı sözleşme + hizmet dönemi için tek (arşivde olmayan) fatura kesilebilir.
+- Tahsil durumu: tahsil edilmedi / kısmi / tahsil edildi (hesaplanır); itirazlı ve takip gerekiyor elle işaretlenir. Vade gecikmesi İstanbul gününe göre hesaplanır.
+- Gider: KDV hariç tutar esas alınır (kâr hesabı için). Ortak gider firmaya/personele bağlanmaz; doğrudan gider tam olarak birine bağlanır. Ortak giderin dağıtımı Aşama 7'de yapılır; dağıtımı yapılmış havuz, dağıtılan tutarın altına düşürülemez.
+- Maaş/personel maliyeti kategorisindeki giderler yalnızca maaş (`payroll`) yetkisi olanlarca görülür, eklenir ve değiştirilir.

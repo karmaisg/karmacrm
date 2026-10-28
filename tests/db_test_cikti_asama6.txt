@@ -1,0 +1,795 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+                                                                                                                       sozlesme_olustur                                                                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ (d1873b5b-62df-458b-8be4-0aaad7f23864,aaaaaaaa-0000-0000-0000-000000000001,aaaaaaaa-1111-0000-0000-000000000001,,,2026-01-01,2026-12-31,aktif,t,t,,,,11111111-1111-1111-1111-111111111111,"2026-10-28 06:57:15.147227+03","2026-10-28 06:57:15.147227+03",,)
+(1 row)
+
+                                                                                                                       sozlesme_olustur                                                                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ (977929a2-476c-4d7b-820a-74387fd3460f,aaaaaaaa-0000-0000-0000-000000000001,aaaaaaaa-1111-0000-0000-000000000002,,,2026-01-01,2026-12-31,aktif,t,t,,,,11111111-1111-1111-1111-111111111111,"2026-10-28 06:57:15.154884+03","2026-10-28 06:57:15.154884+03",,)
+(1 row)
+
+                                                                                                                       sozlesme_olustur                                                                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ (9aa9dde4-cf68-42fc-9e77-41ae5c843358,aaaaaaaa-0000-0000-0000-000000000001,aaaaaaaa-1111-0000-0000-000000000003,,,2026-01-01,2026-12-31,aktif,t,t,,,,11111111-1111-1111-1111-111111111111,"2026-10-28 06:57:15.157681+03","2026-10-28 06:57:15.157681+03",,)
+(1 row)
+
+                                                                                                                       sozlesme_olustur                                                                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ (55ed990a-0d21-41c2-bf27-3f65d1890eb3,aaaaaaaa-0000-0000-0000-000000000001,aaaaaaaa-1111-0000-0000-000000000004,,,2026-01-01,2026-12-31,aktif,t,t,,,,11111111-1111-1111-1111-111111111111,"2026-10-28 06:57:15.160608+03","2026-10-28 06:57:15.160608+03",,)
+(1 row)
+
+psql:tests/db_tests_asama6.sql:91: NOTICE:  PASS | KDV hariç 1000 @20: 1000 + 200
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:92: NOTICE:  PASS | KDV dahil 1200 @20: 1000 + 200
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:93: NOTICE:  PASS | KDV dahil 100 @20: 83.33 + 16.67 (toplam korunur)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:94: NOTICE:  PASS | KDV hariç 0.01 @20: yuvarlama
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:95: NOTICE:  PASS | Sıfır tutar reddedilir [Tutar sıfırdan büyük olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:96: NOTICE:  PASS | Negatif tutar reddedilir [Tutar sıfırdan büyük olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:97: NOTICE:  PASS | KDV oranı 150 reddedilir [KDV oranı 0 ile 100 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama6.sql:106: NOTICE:  PASS | Finans: fatura ekler (numara otomatik)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:107: NOTICE:  PASS | Numara F-2026-0001
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:108: NOTICE:  PASS | Tutarlar: 12000 + 2400 = 14400; dönem ayın 1'i
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:109: NOTICE:  PASS | Tek kalem oluştu
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:111: NOTICE:  PASS | İkinci fatura: numara artar
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:112: NOTICE:  PASS | İkinci numara F-2026-0002, KDV dahil ayrıştı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:114: NOTICE:  PASS | Elle numara verilebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:115: NOTICE:  PASS | Elle numara kırpılır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:117: NOTICE:  PASS | Aynı numara ikinci kez kullanılamaz [duplicate key value violates unique constraint "invoices_organization_id_invoice_no_key"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:119: NOTICE:  PASS | Vade fatura tarihinden önce olamaz [Vade tarihi fatura tarihinden önce olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:121: NOTICE:  PASS | Sıfır tutarlı fatura reddedilir [Tutar sıfırdan büyük olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:123: NOTICE:  PASS | Başka firmanın sözleşmesi seçilemez [Seçilen sözleşme bu firmaya ait değil.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:125: NOTICE:  PASS | Başka kurumun firması reddedilir [Bağlantılı kayıt bu kuruma ait değil (invoices.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:127: NOTICE:  PASS | Fatura düzenlenir (tutar 15000 hariç)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:128: NOTICE:  PASS | Düzenleme tutarı ve kalemi güncelledi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:129: NOTICE:  PASS | Düzenleme numarayı değiştirmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:131: NOTICE:  PASS | Faturanın firması değiştirilemez [Faturanın firması değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:132: NOTICE:  PASS | Numara boşaltılamaz [Fatura numarası boş olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:133: NOTICE:  PASS | Fatura silinemez (fiziksel silme yok) [permission denied for table invoices]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:137: NOTICE:  PASS | Sözleşmeli dönem faturası
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:139: NOTICE:  PASS | Aynı sözleşme ve dönem için ikinci fatura reddedilir [duplicate key value violates unique constraint "invoices_donem_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:141: NOTICE:  PASS | Dönemsiz ek fatura serbest
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:146: NOTICE:  PASS | 1. kısmi tahsilat
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:147: NOTICE:  PASS | Yöntem kırpılır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:148: NOTICE:  PASS | 2. kısmi tahsilat
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:149: NOTICE:  PASS | Bakiye 10.000, kısmi tahsilat
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:151: NOTICE:  PASS | Gelecek tarihli tahsilat reddedilir [Tahsilat tarihi gelecekte olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:153: NOTICE:  PASS | Bugünkü tahsilat serbest
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:154: NOTICE:  PASS | Sıfır tutarlı tahsilat reddedilir [new row for relation "payments" violates check constraint "payments_amount_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:156: NOTICE:  PASS | Tahsilatın faturası değiştirilemez [Tahsilatın faturası değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:158: NOTICE:  PASS | Tahsilatı olan fatura arşivlenemez [Tahsilatı olan fatura arşivlenemez. Önce tahsilat kayıtlarını iptal edin.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:160: NOTICE:  PASS | Kalanı öder, fazla da girilebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:161: NOTICE:  PASS | Tam tahsil edildi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:162: NOTICE:  PASS | Fazla tahsilat engellenmez
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:163: NOTICE:  PASS | Fazla tahsilat işaretlenir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:164: NOTICE:  PASS | Tahsilat iptali (arşiv)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:165: NOTICE:  PASS | İptal sonrası fazla tahsilat kalkar
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:166: NOTICE:  PASS | İptal edilmiş tahsilat değiştirilemez [İptal edilmiş tahsilat değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:167: NOTICE:  PASS | İtirazlı işareti
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:168: NOTICE:  PASS | İtirazlı durum görünür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:173: NOTICE:  PASS | Finans (görev ekleyebilir): gecikmiş faturalar için görev üretir (GİB-77, DON-1, EK-1 = 3; F-0002 itirazlı, F-0001 ödenmiş)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama6.sql:175: NOTICE:  PASS | Satış (faturaları göremez): görev üretmez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama6.sql:180: NOTICE:  PASS | Sahip: aynı görevleri tekrar üretmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:181: NOTICE:  PASS | Aynı görev ikinci kez üretilmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:182: NOTICE:  PASS | Görev türü ve kaynak doğru
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:183: NOTICE:  PASS | Çok gecikmiş (>30 gün) yüksek öncelik
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:184: NOTICE:  PASS | Itiraz kalkar
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:185: NOTICE:  PASS | Itiraz kalkınca F-0002 için de görev üretilir
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama6.sql:189: NOTICE:  PASS | Gecikmiş faturaya ödeme
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:191: NOTICE:  PASS | Tam ödenen faturanın görevi otomatik kapandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:192: NOTICE:  PASS | Diğer görevler açık kaldı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama6.sql:201: NOTICE:  PASS | Finans: Ekim 2026 toplu fatura
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:202: NOTICE:  PASS | 2 fatura üretildi (kişi başı + sabit aylık)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:203: NOTICE:  PASS | Atlananlar: özel fiyat + profilsiz firma
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:205: NOTICE:  PASS | Kişi başı: 50 x 100 = 5000 hariç, 1000 KDV
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:207: NOTICE:  PASS | Sabit aylık KDV dahil 6000: 5000 + 1000
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:208: NOTICE:  PASS | Kalem açıklaması ay adını içerir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:209: NOTICE:  PASS | Numaralar benzersiz ve sıralı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:211: NOTICE:  PASS | Aynı dönem tekrar çalıştırılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:212: NOTICE:  PASS | Tekrarda yeni fatura üretilmez (idempotent)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:213: NOTICE:  PASS | Mevcut fatura atlama nedeni
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:214: NOTICE:  PASS | Vade günü 400 reddedilir [Vade günü 0 ile 365 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:217: NOTICE:  PASS | Sözleşme dışı dönem (2027-03)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:218: NOTICE:  PASS | Sözleşme yoksa hiçbir şey üretilmez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama6.sql:222: NOTICE:  PASS | Satış: toplu fatura yetkisi yok [Fatura ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:223: NOTICE:  PASS | Satış: faturaları göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:224: NOTICE:  PASS | Satış: fatura ekleyemez [Fatura ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:225: NOTICE:  PASS | Satış: tahsilatları göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 56565656-5656-5656-5656-565656565656
+(1 row)
+
+psql:tests/db_tests_asama6.sql:227: NOTICE:  PASS | Operasyon: faturaları göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama6.sql:229: NOTICE:  PASS | Başka kurum: faturaları göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:231: NOTICE:  PASS | Başka kurum: bizim firmamıza fatura kesemez [Bağlantılı kayıt bu kuruma ait değil (invoices.company_id).]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama6.sql:239: NOTICE:  PASS | Finans: kategorileri görür (17)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:242: NOTICE:  PASS | Ortak gider: kira KDV dahil 12000
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:243: NOTICE:  PASS | Kira: 10000 + 2000
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:245: NOTICE:  PASS | Doğrudan gider: firmaya
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:247: NOTICE:  PASS | Ortak gider firmaya bağlanamaz [Ortak giderde firma veya personel seçilemez. Bir firmaya ya da personele ait gider "doğrud]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:249: NOTICE:  PASS | Doğrudan gider bağlantısız olamaz [Doğrudan gider için firma veya personel seçilmelidir.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:251: NOTICE:  PASS | Doğrudan gider hem firma hem personel olamaz [Doğrudan giderde firma ya da personelden yalnızca biri seçilmelidir.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:253: NOTICE:  PASS | Başka kurumun personeli reddedilir [Bağlantılı kayıt bu kuruma ait değil (expenses.employee_id).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:255: NOTICE:  PASS | Başka kurumun kategorisi reddedilir [Gider kategorisi seçilmelidir.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:257: NOTICE:  PASS | Sıfır tutarlı gider reddedilir [Tutar sıfırdan büyük olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:259: NOTICE:  PASS | Gider düzenlenir (kira 13000 dahil)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:260: NOTICE:  PASS | Düzenleme tutarı güncelledi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:264: NOTICE:  PASS | Finans (payroll vce): maaş gideri ekler
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:265: NOTICE:  PASS | Finans maaş giderini görür
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+              set_config              
+--------------------------------------
+ 56565656-5656-5656-5656-565656565656
+(1 row)
+
+psql:tests/db_tests_asama6.sql:271: NOTICE:  PASS | Operasyon: giderleri göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:273: NOTICE:  PASS | Operasyon: gider ekleyemez [Gider ekleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama6.sql:281: NOTICE:  PASS | Payroll yetkisiz finans: maaş giderini göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:282: NOTICE:  PASS | Ama diğer giderleri görür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:284: NOTICE:  PASS | Payroll yetkisiz: maaş gideri ekleyemez [Maaş ve personel maliyeti giderleri için maaş (payroll) yetkisi gerekir.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:286: NOTICE:  PASS | Payroll yetkisiz: maaş kategorisine kaydırma reddedilir [Maaş ve personel maliyeti giderlerini değiştirmek için maaş (payroll) yetkisi gerekir.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama6.sql:297: NOTICE:  PASS | Dağıtılmış havuz 9000 altına (8000) düşürülemez [Bu değişiklik, ilgili dönemde yapılmış ortak gider dağıtımının (9000.00) altına düşüyor. Ö]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:299: NOTICE:  PASS | Dağıtılmış havuzdaki ortak gider arşivlenemez [Bu değişiklik, ilgili dönemde yapılmış ortak gider dağıtımının (9000.00) altına düşüyor. Ö]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:301: NOTICE:  PASS | Ortak gider başka aya taşınıp havuz boşaltılamaz [Bu değişiklik, ilgili dönemde yapılmış ortak gider dağıtımının (9000.00) altına düşüyor. Ö]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:303: NOTICE:  PASS | Havuzu artıran düzenleme serbest
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:304: NOTICE:  PASS | Doğrudan gider arşivlenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:305: NOTICE:  PASS | Arşivdeki gider değiştirilemez [Arşivdeki gider değiştirilemez. Önce arşivden çıkarın.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:306: NOTICE:  PASS | Gider silinemez [permission denied for table expenses]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:309: NOTICE:  PASS | Finans: yeni kategori ekleyemez (settings yetkisi yok)?
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:310: NOTICE:  PASS | Finans: kategori ekleyemez [new row violates row-level security policy for table "expense_categories"]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama6.sql:312: NOTICE:  PASS | Sahip: kategori ekler
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:313: NOTICE:  PASS | Kategori adı kırpılır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:314: NOTICE:  PASS | Aynı ad ikinci kez eklenemez [duplicate key value violates unique constraint "expense_categories_organization_id_name_ke]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:315: NOTICE:  PASS | Boş kategori adı reddedilir [Kategori adı boş olamaz.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:316: NOTICE:  PASS | Giderli kategorinin maaş niteliği değiştirilemez [Gideri olan kategorinin maaş/vergi niteliği değiştirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:317: NOTICE:  PASS | Maaş kategorisi işletme niteliğinde olamaz [Maaş kategorisinin niteliği personel veya SGK olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:324: NOTICE:  PASS | Fatura/tahsilat/gider değişiklikleri denetim kaydına düştü
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama6.sql:325: NOTICE:  PASS | Tahsilat iptal eden kullanıcı kaydedildi
+ ok 
+----
+ 
+(1 row)
+
