@@ -9,8 +9,6 @@ import { huniOzeti, takipDurumu } from '../lib/puanlama.js';
 import { para } from '../lib/format.js';
 import { gorevZamani } from './gorevler.js';
 import { sozlesmeOzeti } from './sozlesmeler.js';
-import { finansOzeti } from '../lib/finans.js';
-import { para2 } from '../lib/format.js';
 
 export async function panelSayfasi(app) {
   const ad = ilkAd(app.ctx.user.full_name);
@@ -24,7 +22,7 @@ export async function panelSayfasi(app) {
     };
   }
 
-  const [firmalar, profiller, kurallar, ayarlar, firsatlar, gorevler, adaylar, teklifler, sozlesmeler, sozlesmeFiyatlari, faturalar, tahsilatlar] = await Promise.all([
+  const [firmalar, profiller, kurallar, ayarlar, firsatlar, gorevler, adaylar, teklifler, sozlesmeler, sozlesmeFiyatlari] = await Promise.all([
     app.api.listCompanies(), app.api.listAllProfiles(), app.api.listServiceRules(), app.api.listSettings(),
     app.can('opportunities', 'view') ? app.api.listOpportunities() : [],
     app.can('tasks', 'view') ? app.api.listTasks() : [],
@@ -32,8 +30,6 @@ export async function panelSayfasi(app) {
     app.can('offers', 'view') ? app.api.listOffers() : [],
     app.can('contracts', 'view') ? app.api.listContracts() : [],
     app.can('contracts', 'view') ? app.api.listAllContractPrices() : [],
-    app.can('invoices', 'view') ? app.api.listInvoices() : [],
-    app.can('invoices', 'view') ? app.api.listPayments() : [],
   ]);
   const bugunStr = bugun();
   const ay = ayBasi(bugunStr);
@@ -93,12 +89,6 @@ export async function panelSayfasi(app) {
       <li><a class="link" href="#/sozlesmeler">Aylık yinelenen gelir (KDV hariç)</a><strong>${para(soz.aylikGelir)}</strong></li>
       <li><a class="link" href="#/sozlesmeler">90 gün içinde bitecek sözleşme</a><strong>${sayi(soz.yaklasan.length)}</strong></li>` : ''}
   </ul></section>`);
-  const fin = app.can('invoices', 'view') ? finansOzeti(faturalar, tahsilatlar, bugunStr) : null;
-  const finansKarti = () => (!fin ? '' : html`<section class="card"><h2 class="card-title">Tahsilat durumu</h2><ul class="list">
-    <li><a class="link" href="#/tahsilat">Açık alacak (KDV dahil)</a><strong>${para2(fin.toplamKalan)}</strong></li>
-    <li><a class="link" href="#/tahsilat">Vadesi geçmiş</a><strong>${para2(fin.gecikmisKalan)} · ${sayi(fin.gecikmisAdet)} fatura</strong></li>
-    <li><a class="link" href="#/tahsilat">Bu ay tahsilat</a><strong>${para2(fin.buAyTahsilat)}</strong></li>
-  </ul></section>`);
   const acikGorev = gorevler.filter((g) => !g.archived_at && (g.status === 'acik' || g.status === 'devam_ediyor'));
   const gorevKarti = () => (!app.can('tasks', 'view') ? '' : html`<section class="card"><h2 class="card-title">Görevler</h2>
     <ul class="list">
@@ -134,7 +124,7 @@ export async function panelSayfasi(app) {
     const p = guncelProfil(harita.get(f.id), bugunStr);
     return html`<li><a class="cell-main" href="#/firmalar/${f.id}">${avatar(f.name, 'sm')}<span><strong>${f.name}</strong><small>${tarih(String(f.created_at ?? '').slice(0, 10))}</small></span></a>${tehlikePill(p?.hazard_class)}</li>`;
   })}</ul></section>
-      ${satisKarti()}${ticariKart()}${finansKarti()}${gorevKarti()}
+      ${satisKarti()}${ticariKart()}${gorevKarti()}
     </div>`;
 
   return {

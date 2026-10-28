@@ -182,8 +182,3 @@ export function gunFarki(a, b) {
   const [y2, m2, d2] = String(b).slice(0, 10).split('-').map(Number);
   return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
 }
-
-// ---------------------------------------------------------------- Aşama 6: kuruşlu tutar
-const NF_TL2 = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 });
-/** Fatura, tahsilat ve gider tutarları için kuruşlu para biçimi ('₺1.234,50'). */
-export const para2 = (n) => (n === null || n === undefined || n === '' || Number.isNaN(Number(n)) ? '—' : NF_TL2.format(Number(n)));

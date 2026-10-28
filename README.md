@@ -39,14 +39,13 @@ karmacrm/
 │  ├─ 03_asama2.sql          Aşama 2 fonksiyonları ve korumaları (bir kez)
 │  ├─ 04_asama3.sql          Aşama 3: CRM, fırsat, görev fonksiyonları (bir kez)
 │  ├─ 05_asama4.sql          Aşama 4: teklif, sözleşme kuralları ve fonksiyonları (bir kez)
-│  ├─ 06_asama5.sql          Aşama 5: personel, görevlendirme, zaman kaydı kuralları (bir kez)
-│  └─ 07_asama6.sql          Aşama 6: fatura, tahsilat, gider kuralları ve fonksiyonları (bir kez)
+│  └─ 06_asama5.sql          Aşama 5: personel, görevlendirme, zaman kaydı kuralları (bir kez)
 ├─ src/
 │  ├─ main.js                Açılış, oturum, yönlendirme
 │  ├─ config.js              Supabase adresi ve anon anahtarı (gizli değildir)
 │  ├─ modules.js             Menü ve modül tanımları
-│  ├─ lib/                   api.js (Supabase), hesaplama.js, ticari.js, operasyon.js, finans.js, format.js, veri.js, router.js
-│  ├─ pages/                 auth, panel, firmalar, firma, kisiler, kullanicilar, crm, firsatlar, gorevler, gorusmeler, teklifler, sozlesmeler, personel, gorevlendirmeler, zaman, kapasite, faturalar, giderler, placeholder
+│  ├─ lib/                   api.js (Supabase), hesaplama.js, ticari.js, operasyon.js, format.js, veri.js, router.js
+│  ├─ pages/                 auth, panel, firmalar, firma, kisiler, kullanicilar, crm, firsatlar, gorevler, gorusmeler, teklifler, sozlesmeler, personel, gorevlendirmeler, zaman, kapasite, placeholder
 │  ├─ ui/                    components.js, shell.js (kenar menü/üst çubuk/arama), icons.js
 │  └─ styles/                tokens.css, app.css
 ├─ tests/
@@ -75,13 +74,11 @@ psql -d osgb -f supabase/03_asama2.sql
 psql -d osgb -f supabase/04_asama3.sql
 psql -d osgb -f supabase/05_asama4.sql
 psql -d osgb -f supabase/06_asama5.sql
-psql -d osgb -f supabase/07_asama6.sql
 psql -d osgb -f tests/db_tests.sql
 psql -d osgb -f tests/db_tests_asama2.sql
 psql -d osgb -f tests/db_tests_asama3.sql
 psql -d osgb -f tests/db_tests_asama4.sql
 psql -d osgb -f tests/db_tests_asama5.sql
-psql -d osgb -f tests/db_tests_asama6.sql
 ```
 
 Arayüz testleri (Node + Playwright; gerçek Supabase'e bağlanmaz, sahte istemci kullanır):

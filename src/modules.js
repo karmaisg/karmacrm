@@ -76,9 +76,9 @@ export const MENU = [
     aciklama: 'Teorik yük ve fiilî süreye göre uzman ve hekim doluluk oranları.' },
   { id: 'gorevler', grup: 'operasyon', modul: 'tasks', ad: 'Hatırlatmalar ve görevler', simge: 'checksq', yapildi: true },
 
-  { id: 'tahsilat', grup: 'finans', modul: 'invoices', ad: 'Gelirler ve tahsilatlar', simge: 'wallet', yapildi: true,
+  { id: 'tahsilat', grup: 'finans', modul: 'invoices', ad: 'Gelirler ve tahsilatlar', simge: 'wallet', asama: 6,
     aciklama: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi.' },
-  { id: 'giderler', grup: 'finans', modul: 'expenses', ad: 'Giderler', simge: 'receipt', yapildi: true,
+  { id: 'giderler', grup: 'finans', modul: 'expenses', ad: 'Giderler', simge: 'receipt', asama: 6,
     aciklama: 'Doğrudan ve ortak giderler; KDV hariç ve dahil tutarlar.' },
   { id: 'personel-karlilik', grup: 'finans', modul: 'staff_profit', ad: 'Personel kârlılığı', simge: 'trend', asama: 7,
     aciklama: 'Uzman ve hekim bazında gelir, maliyet ve katkı kârı.' },

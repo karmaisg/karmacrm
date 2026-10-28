@@ -37,9 +37,6 @@ const tablo = {
   sales_opportunities: [], opportunity_stage_history: [], activities: [], tasks: [],
   offers: [], offer_items: [], contracts: [], contract_prices: [],
   employees: [], employee_costs: [], assignments: [], time_entries: [],
-  invoices: [], invoice_items: [], payments: [], expenses: [],
-  expense_categories: [['Kira', 'isletme', 'ortak', false], ['Araç yakıtı', 'isletme', 'ortak', false], ['Uzman maaşları', 'personel', 'dogrudan', true]]
-    .map(([name, nature, tur, payroll], i) => ({ id: uid(), organization_id: ORG, name, nature, default_cost_type: tur, is_payroll: payroll, is_income_tax: false, sort_order: i + 1 })),
   settings: [{ key: 'kapasite_dakika', value: 11700, valid_from: '2000-01-01' }, { key: 'marj_esigi_yuzde', value: 20, valid_from: '2000-01-01' }, { key: 'varsayilan_kdv_orani', value: 20, valid_from: '2000-01-01' }],
   service_time_rules: [
     ['is_guvenligi_uzmani', 'az_tehlikeli', 10], ['is_guvenligi_uzmani', 'tehlikeli', 20], ['is_guvenligi_uzmani', 'cok_tehlikeli', 40],
@@ -99,21 +96,7 @@ function kurucu(ad) {
         if (tablo.time_entries.some((x) => !x.archived_at && x.employee_id === yeni.employee_id && x.start_at < yeni.end_at && x.end_at > yeni.start_at)) return { data: null, error: hata('conflicting key value violates exclusion constraint "time_entries_employee_id_tstzrange_excl"', '23P01') };
         for (const k of ['onsite_minutes', 'travel_minutes', 'waiting_minutes', 'reporting_minutes', 'admin_minutes']) yeni[k] ??= 0;
       }
-      if (ad === 'payments') {
-        const inv = tablo.invoices.find((x) => x.id === yeni.invoice_id);
-        if (!inv) return { data: null, error: hata('Fatura bulunamadı.', 'P0001') };
-        if (inv.archived_at) return { data: null, error: hata('Arşivdeki faturaya tahsilat girilemez.', 'P0001') };
-        if (yeni.paid_at > bugun()) return { data: null, error: hata('Tahsilat tarihi gelecekte olamaz.', 'P0001') };
-        if (!(Number(yeni.amount) > 0)) return { data: null, error: hata('check constraint', '23514') };
-      }
-      if (ad === 'expense_categories') {
-        yeni.name = String(yeni.name ?? '').trim();
-        if (!yeni.name) return { data: null, error: hata('Kategori adı boş olamaz.', 'P0001') };
-        if (tablo.expense_categories.some((k) => k.name === yeni.name)) return { data: null, error: hata('duplicate key value violates unique constraint "expense_categories_organization_id_name_key"', '23505') };
-        yeni.is_payroll ??= false;
-      }
       satirlar.push(yeni);
-      if (ad === 'payments') odemeSonrasi(yeni.invoice_id);
       return { data: kopya(yeni), error: null };
     }
     if (durum.islem === 'update') {
@@ -148,12 +131,9 @@ function kurucu(ad) {
           durum.yukle.total_minutes = t0.total_minutes; durum.yukle.work_date = new Date(new Date(t0.start_at).getTime() + 3 * 3600000).toISOString().slice(0, 10);
         }
       }
-      if (ad === 'invoices' && eslesen[0] && durum.yukle.archived_at && tablo.payments.some((x) => x.invoice_id === eslesen[0].id && !x.archived_at)) return { data: null, error: hata('Tahsilatı olan fatura arşivlenemez. Önce tahsilat kayıtlarını iptal edin.', 'P0001') };
-      if (ad === 'payments' && eslesen[0]?.archived_at) return { data: null, error: hata('İptal edilmiş tahsilat değiştirilemez.', 'P0001') };
       if (ad === 'tasks' && durum.yukle.status === 'tamamlandi') durum.yukle.completed_at = new Date().toISOString();
       if (ad === 'tasks' && durum.yukle.status && durum.yukle.status !== 'tamamlandi') durum.yukle.completed_at = null;
       eslesen.forEach((r) => Object.assign(r, durum.yukle, { updated_at: new Date().toISOString() }));
-      if (ad === 'payments') eslesen.forEach((r) => odemeSonrasi(r.invoice_id));
       return durum.tek ? { data: eslesen[0] ? kopya(eslesen[0]) : null, error: eslesen[0] ? null : hata('yok', 'PGRST116') } : { data: kopya(eslesen), error: null };
     }
     let sonuc = kopya(eslesen);
@@ -178,44 +158,6 @@ function kurucu(ad) {
     then(res, rej) { return new Promise((r) => setTimeout(r, 5)).then(calistir).then(res, rej); },
   };
   return q;
-}
-
-
-const kdvAyir = (t, mod, oran) => {
-  if (!(Number(t) > 0)) throw new Error('Tutar sıfırdan büyük olmalıdır.');
-  const k = Math.round(Number(t) * 100);
-  if (mod === 'kdv_dahil') { const h = Math.round((k * 100) / (100 + Number(oran))); return { haric: h / 100, kdv: (k - h) / 100 }; }
-  return { haric: k / 100, kdv: Math.round((k * Number(oran)) / 100) / 100 };
-};
-function faturaToplami(i) { return Math.round((Number(i.amount_excl_vat) + Number(i.vat_amount)) * 100) / 100; }
-function odenen(id) { return Math.round(tablo.payments.filter((p) => p.invoice_id === id && !p.archived_at).reduce((t, p) => t + Number(p.amount) * 100, 0)) / 100; }
-function odemeSonrasi(invoiceId) {
-  const i = tablo.invoices.find((x) => x.id === invoiceId);
-  if (i && odenen(i.id) >= faturaToplami(i)) tablo.tasks.filter((t) => t.source_ref === `fatura:${i.id}` && ['acik', 'devam_ediyor'].includes(t.status)).forEach((t) => { t.status = 'tamamlandi'; t.completed_at = new Date().toISOString(); });
-}
-function faturaYaz(a, id) {
-  let k; try { k = kdvAyir(a.p_tutar, a.p_kdv_modu, a.p_kdv_orani); } catch (e) { return { error: hata(e.message, 'P0001') }; }
-  if (a.p_vade < a.p_tarih) return { error: hata('Vade tarihi fatura tarihinden önce olamaz.', 'P0001') };
-  const donem = a.p_donem ? `${a.p_donem.slice(0, 7)}-01` : null;
-  const no = String(a.p_no ?? '').trim();
-  if (id) {
-    const i = tablo.invoices.find((x) => x.id === id); if (!i) return { error: hata('Fatura bulunamadı.', 'P0001') };
-    if (no && tablo.invoices.some((x) => x.id !== id && x.invoice_no === no)) return { error: hata('duplicate key value violates unique constraint "invoices_organization_id_invoice_no_key"', '23505') };
-    Object.assign(i, { contract_id: a.p_sozlesme, invoice_no: no || i.invoice_no, invoice_date: a.p_tarih, due_date: a.p_vade, service_period: donem, amount_excl_vat: k.haric, vat_amount: k.kdv, amount_incl_vat: k.haric + k.kdv, notes: a.p_not });
-    const kalemler = tablo.invoice_items.filter((x) => x.invoice_id === id && !x.archived_at);
-    if (kalemler.length === 1) Object.assign(kalemler[0], { description: a.p_aciklama || 'Hizmet bedeli', unit_price_excl: k.haric, vat_rate: a.p_kdv_orani });
-    return { data: kopya(i) };
-  }
-  if (no && tablo.invoices.some((x) => x.invoice_no === no)) return { error: hata('duplicate key value violates unique constraint "invoices_organization_id_invoice_no_key"', '23505') };
-  if (a.p_sozlesme && donem && tablo.invoices.some((x) => !x.archived_at && x.contract_id === a.p_sozlesme && x.service_period === donem)) return { error: hata('duplicate key value violates unique constraint "invoices_donem_uq"', '23505') };
-  const yil = a.p_tarih.slice(0, 4);
-  const sayac = Math.max(0, ...tablo.invoices.map((x) => { const m = x.invoice_no.match(new RegExp(`^F-${yil}-(\\d+)$`)); return m ? Number(m[1]) : 0; })) + 1;
-  const simdi = new Date().toISOString();
-  const i = { id: uid(), organization_id: ORG, company_id: a.p_firma, contract_id: a.p_sozlesme, invoice_no: no || `F-${yil}-${String(sayac).padStart(4, '0')}`, invoice_date: a.p_tarih, due_date: a.p_vade, service_period: donem,
-    amount_excl_vat: k.haric, vat_amount: k.kdv, amount_incl_vat: k.haric + k.kdv, flag: null, notes: a.p_not, created_at: simdi, updated_at: simdi, archived_at: null };
-  tablo.invoices.push(i);
-  tablo.invoice_items.push({ id: uid(), organization_id: ORG, invoice_id: i.id, description: a.p_aciklama || 'Hizmet bedeli', quantity: 1, unit_price_excl: k.haric, vat_rate: a.p_kdv_orani, created_at: simdi, archived_at: null });
-  return { data: kopya(i) };
 }
 
 const rpcler = {
@@ -368,52 +310,6 @@ const rpcler = {
     const y = { ...a, id: uid(), share_pct: p_pay, valid_from: p_baslangic, valid_to: eskiBitis, notes: p_not ?? a.notes, created_at: new Date().toISOString() };
     tablo.assignments.push(y);
     return { data: kopya(y) };
-  },
-  fatura_kaydet(a) { return faturaYaz(a, a.p_id); },
-  donem_faturalari_olustur({ p_donem, p_fatura_tarihi, p_vade_gun }) {
-    const donem = `${p_donem.slice(0, 7)}-01`; const bit = new Date(Date.UTC(Number(donem.slice(0, 4)), Number(donem.slice(5, 7)), 0)).toISOString().slice(0, 10);
-    const tarih = p_fatura_tarihi ?? bugun(); const vade = new Date(`${tarih}T00:00:00Z`); vade.setUTCDate(vade.getUTCDate() + p_vade_gun);
-    let n = 0; const atlanan = [];
-    for (const c of tablo.contracts.filter((x) => !x.archived_at && ['aktif', 'yenilendi', 'sona_erdi'].includes(x.status) && x.start_date <= bit && x.end_date >= donem)) {
-      const firma = tablo.companies.find((x) => x.id === c.company_id)?.name ?? 'Firma';
-      if (tablo.invoices.some((i) => !i.archived_at && i.contract_id === c.id && i.service_period === donem)) { atlanan.push({ firma, neden: 'Bu dönem için fatura zaten var' }); continue; }
-      const gun = c.start_date > donem ? c.start_date : donem;
-      const f = tablo.contract_prices.find((x) => x.contract_id === c.id && x.valid_from <= gun && (!x.valid_to || x.valid_to >= gun));
-      if (!f) { atlanan.push({ firma, neden: 'Bu dönem için geçerli fiyat yok' }); continue; }
-      if (f.pricing === 'ozel') { atlanan.push({ firma, neden: 'Özel fiyatlı sözleşme: faturayı elle girin' }); continue; }
-      let tutar;
-      if (f.pricing === 'sabit_aylik') tutar = Number(f.fixed_monthly_price);
-      else {
-        const pr = tablo.company_profiles.find((x) => x.company_id === c.company_id && x.valid_from <= gun && (!x.valid_to || x.valid_to >= gun));
-        if (!pr) { atlanan.push({ firma, neden: 'Firma profilinde o tarih için çalışan sayısı yok' }); continue; }
-        tutar = Number(f.unit_price) * pr.employee_count;
-      }
-      if (!(tutar > 0)) { atlanan.push({ firma, neden: 'Hesaplanan tutar sıfır' }); continue; }
-      const r = faturaYaz({ p_firma: c.company_id, p_sozlesme: c.id, p_no: null, p_tarih: tarih, p_vade: vade.toISOString().slice(0, 10), p_donem: donem, p_tutar: tutar, p_kdv_modu: f.vat_mode, p_kdv_orani: f.vat_rate, p_aciklama: `İSG hizmet bedeli - ${donem.slice(0, 7)}`, p_not: null }, null);
-      if (r.error) return r;
-      n += 1;
-    }
-    return { data: { olusturulan: n, atlanan } };
-  },
-  tahsilat_gecikme_gorevleri() {
-    let n = 0;
-    for (const i of tablo.invoices.filter((x) => !x.archived_at && x.flag !== 'itirazli' && x.due_date < bugun() && faturaToplami(x) - odenen(x.id) > 0)) {
-      const ref = `fatura:${i.id}`; if (tablo.tasks.some((t) => t.source_ref === ref)) continue;
-      const firma = tablo.companies.find((x) => x.id === i.company_id);
-      tablo.tasks.push({ id: uid(), organization_id: ORG, company_id: i.company_id, title: `${firma?.name} - ${i.invoice_no} faturasının vadesi geçti`, status: 'acik', priority: 'orta', kind: 'tahsilat_takibi', source_ref: ref, due_at: new Date().toISOString(), assignee: oturum?.user?.id, created_at: new Date().toISOString(), archived_at: null }); n += 1;
-    }
-    return { data: n };
-  },
-  gider_kaydet(a) {
-    let k; try { k = kdvAyir(a.p_tutar, a.p_kdv_modu, a.p_kdv_orani); } catch (e) { return { error: hata(e.message, 'P0001') }; }
-    if (a.p_tur === 'ortak' && (a.p_firma || a.p_personel)) return { error: hata('Ortak giderde firma veya personel seçilemez.', 'P0001') };
-    if (a.p_tur === 'dogrudan' && !a.p_firma && !a.p_personel) return { error: hata('Doğrudan gider için firma veya personel seçilmelidir.', 'P0001') };
-    if (a.p_tur === 'dogrudan' && a.p_firma && a.p_personel) return { error: hata('Doğrudan giderde firma ya da personelden yalnızca biri seçilmelidir.', 'P0001') };
-    const simdi = new Date().toISOString();
-    const alanlar = { category_id: a.p_kategori, expense_date: a.p_tarih, amount_excl_vat: k.haric, vat_amount: k.kdv, amount_incl_vat: k.haric + k.kdv, cost_type: a.p_tur, company_id: a.p_firma, employee_id: a.p_personel, paid: !!a.p_odendi, description: a.p_aciklama };
-    if (a.p_id) { const e = tablo.expenses.find((x) => x.id === a.p_id); if (!e) return { error: hata('Gider bulunamadı.', 'P0001') }; Object.assign(e, alanlar, { updated_at: simdi }); return { data: kopya(e) }; }
-    const e = { id: uid(), organization_id: ORG, created_at: simdi, updated_at: simdi, archived_at: null, ...alanlar };
-    tablo.expenses.push(e); return { data: kopya(e) };
   },
   kullanici_ekle({ p_email, p_ad_soyad, p_rol }) {
     const a = authSadece.find((x) => x.email === p_email.toLowerCase());

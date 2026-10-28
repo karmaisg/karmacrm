@@ -20,8 +20,6 @@ import { firsatlarSayfasi } from './pages/firsatlar.js';
 import { gorevlerSayfasi } from './pages/gorevler.js';
 import { tekliflerSayfasi, teklifSayfasi } from './pages/teklifler.js';
 import { sozlesmelerSayfasi, sozlesmeSayfasi } from './pages/sozlesmeler.js';
-import { tahsilatSayfasi } from './pages/faturalar.js';
-import { giderlerSayfasi } from './pages/giderler.js';
 import { personelListeSayfasi, personelSayfasi } from './pages/personel.js';
 import { gorevlendirmelerSayfasi } from './pages/gorevlendirmeler.js';
 import { zamanSayfasi } from './pages/zaman.js';
@@ -67,8 +65,6 @@ function rotaCoz(parcalar) {
   if (ilk === 'gorevlendirmeler') return { menu: 'gorevlendirmeler', modul: 'assignments', yukle: () => gorevlendirmelerSayfasi(app) };
   if (ilk === 'zaman') return { menu: 'zaman', modul: 'time', yukle: () => zamanSayfasi(app) };
   if (ilk === 'kapasite') return { menu: 'kapasite', modul: 'capacity', yukle: () => kapasiteSayfasi(app) };
-  if (ilk === 'tahsilat') return { menu: 'tahsilat', modul: 'invoices', yukle: () => tahsilatSayfasi(app) };
-  if (ilk === 'giderler') return { menu: 'giderler', modul: 'expenses', yukle: () => giderlerSayfasi(app) };
   if (ilk === 'kullanicilar') return { menu: 'kullanicilar', modul: 'users', yukle: () => kullanicilarSayfasi(app) };
   const o = menuOgesi(ilk);
   if (o && !o.yapildi) return { menu: o.id, modul: o.modul, yukle: async () => yakindaSayfasi(o.id) };
@@ -149,7 +145,6 @@ async function uygulamayiBaslat(oturum) {
   kabuk = kabukKur(app);
   // 90/60/30 gün yenileme görevleri sessizce üretilir (yetkisi olmayan veya hata alan kullanıcıyı etkilemez).
   if (app.can('contracts', 'view') && app.can('tasks', 'create')) app.api.createRenewalTasks().catch((e) => console.warn('yenileme görevleri', e));
-  if (app.can('invoices', 'view') && app.can('companies', 'view') && app.can('tasks', 'create')) app.api.createOverdueTasks().catch((e) => console.warn('tahsilat görevleri', e));
   if (!location.hash || location.hash === '#') git('panel');
   await sayfayiCiz();
 }
