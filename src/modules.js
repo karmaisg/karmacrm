@@ -85,9 +85,9 @@ export const MENU = [
   { id: 'firma-karlilik', grup: 'finans', modul: 'company_profit', ad: 'Firma kârlılığı', simge: 'bars', yapildi: true,
     aciklama: 'Firma bazında katkı kârı, ortak gider payı ve vergi öncesi kâr katkısı.' },
 
-  { id: 'raporlar', grup: 'yonetim', modul: 'reports', ad: 'Raporlar', simge: 'bars', asama: 8,
+  { id: 'raporlar', grup: 'yonetim', modul: 'reports', ad: 'Raporlar', simge: 'bars', yapildi: true,
     aciklama: 'Aylık yönetici raporu ve Excel/CSV dışa aktarımları.' },
-  { id: 'aktarim', grup: 'yonetim', modul: 'import_export', ad: 'Veri içe/dışa aktarma', simge: 'upload', asama: 8,
+  { id: 'aktarim', grup: 'yonetim', modul: 'import_export', ad: 'Veri içe/dışa aktarma', simge: 'upload', yapildi: true,
     aciklama: 'Excel ve CSV içe aktarma: sütun eşleştirme, önizleme ve mükerrer kayıt kontrolü.' },
   { id: 'kullanicilar', grup: 'yonetim', modul: 'users', ad: 'Kullanıcılar ve yetkiler', simge: 'lock', yapildi: true },
   { id: 'ayarlar', grup: 'yonetim', modul: 'settings', ad: 'Sistem ayarları', simge: 'settings', asama: null,

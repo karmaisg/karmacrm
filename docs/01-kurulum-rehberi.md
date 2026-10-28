@@ -190,3 +190,21 @@ Kullanım: **Gelirler ve tahsilatlar** sayfasında "Aylık faturaları oluştur"
 Kullanım: **Firma kârlılığı** ve **Personel kârlılığı** sayfaları aylık çalışır. Gelir, fatura hizmet dönemine göre KDV hariç alınır; personel maliyeti o ayın başında geçerli maliyet kaydından gelir. "Teorik" yöntem maliyeti görevlendirme payına, "fiili" yöntem girilen saha+rapor dakikasına göre firmalara dağıtır; kullanılmayan kısım "boşta kapasite" olarak firmalara yüklenmez. Ortak giderler kategori başına seçtiğiniz ölçüte göre (gelir oranı, fiili süre, müşteri/personel/ziyaret sayısı) dağıtılır; "Dağıtımı kaydet" ile o ayın değerleri dondurulur. Sayfalar maaş, gider ve fatura görüntüleme yetkilerini birlikte ister.
 
 Bu sayılar yönetim tahminidir; resmî muhasebe veya vergi hesabı yerine geçmez. Maaş kategorisindeki giderler, personel maliyetiyle çift sayılmaması için hesaba katılmaz (uyarı çıkar).
+
+---
+
+## Aşama 8 kurulumu (raporlar, CSV dışa ve içe aktarma)
+
+Aşama 8 için **Supabase'de çalıştıracağınız yeni SQL dosyası yoktur**; veri tabanında değişiklik yapılmaz.
+
+1. GitHub'daki dosyaları yeni sürümle değiştirin (zip içindeki tüm klasörü yeniden yükleyin).
+2. Tarayıcıda Ctrl+F5 yapın.
+
+Kullanım:
+
+- **Raporlar:** raporu ve (aylık raporlarda) ayı seçin; tablo ekranda görünür, "CSV indir" aynı tabloyu dosya olarak verir. Bir raporu görmek için o raporun kullandığı modüllerin (firma, sözleşme, fatura, gider) görüntüleme izni gerekir.
+- **Veri içe/dışa aktarma > Dışa aktar:** firma, kişi, sözleşme, fatura, tahsilat ve giderler CSV olarak iner. Dosya Excel'de çift tıklayınca doğru açılır (Türkçe karakterler ve noktalı virgül ayırıcı).
+- **İçe aktar:** önce "Boş şablonu indir" ile sütun başlıklarını görün; dosyanızı seçin, sütunları eşleştirin, önizlemeyi kontrol edin ve "kaydı aktar"a basın. Hatalı satırlar ve kayıtlı firmayla aynı vergi numarası/adı olan satırlar (mükerrer) aktarılmaz; bunları ayrı CSV olarak indirebilirsiniz.
+- Excel (.xlsx) dosyasını doğrudan okumuyoruz: Excel'de **Farklı kaydet > CSV UTF-8 (virgülle ayrılmış)** seçin.
+- İçe aktarma izni: Veri içe/dışa aktarma modülünde "oluşturma" izni ve aktarılacak modülde (firma veya kişi) oluşturma izni gerekir. Varsayılan olarak yalnızca işletme sahibi ve sistem yöneticisi bu izne sahiptir.
+- Toplu aktarımın geri alma düğmesi yoktur; yanlış eklenen kayıtlar tek tek arşivlenebilir. Büyük dosyalardan önce 2-3 satırlık deneme dosyasıyla deneyin.

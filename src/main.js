@@ -23,6 +23,8 @@ import { sozlesmelerSayfasi, sozlesmeSayfasi } from './pages/sozlesmeler.js';
 import { tahsilatSayfasi } from './pages/faturalar.js';
 import { giderlerSayfasi } from './pages/giderler.js';
 import { firmaKarlilikSayfasi, personelKarlilikSayfasi } from './pages/karlilik.js';
+import { raporlarSayfasi } from './pages/raporlar.js';
+import { aktarimSayfasi } from './pages/aktarim.js';
 import { personelListeSayfasi, personelSayfasi } from './pages/personel.js';
 import { gorevlendirmelerSayfasi } from './pages/gorevlendirmeler.js';
 import { zamanSayfasi } from './pages/zaman.js';
@@ -71,6 +73,8 @@ function rotaCoz(parcalar) {
   if (ilk === 'tahsilat') return { menu: 'tahsilat', modul: 'invoices', yukle: () => tahsilatSayfasi(app) };
   if (ilk === 'giderler') return { menu: 'giderler', modul: 'expenses', yukle: () => giderlerSayfasi(app) };
   if (ilk === 'firma-karlilik') return { menu: 'firma-karlilik', modul: 'company_profit', yukle: () => firmaKarlilikSayfasi(app) };
+  if (ilk === 'raporlar') return { menu: 'raporlar', modul: 'reports', yukle: () => raporlarSayfasi(app) };
+  if (ilk === 'aktarim') return { menu: 'aktarim', modul: 'import_export', yukle: () => aktarimSayfasi(app) };
   if (ilk === 'personel-karlilik') return { menu: 'personel-karlilik', modul: 'staff_profit', yukle: () => personelKarlilikSayfasi(app) };
   if (ilk === 'kullanicilar') return { menu: 'kullanicilar', modul: 'users', yukle: () => kullanicilarSayfasi(app) };
   const o = menuOgesi(ilk);

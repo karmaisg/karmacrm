@@ -46,13 +46,13 @@ karmacrm/
 │  ├─ main.js                Açılış, oturum, yönlendirme
 │  ├─ config.js              Supabase adresi ve anon anahtarı (gizli değildir)
 │  ├─ modules.js             Menü ve modül tanımları
-│  ├─ lib/                   api.js (Supabase), hesaplama.js, ticari.js, operasyon.js, finans.js, format.js, veri.js, router.js
-│  ├─ pages/                 auth, panel, firmalar, firma, kisiler, kullanicilar, crm, firsatlar, gorevler, gorusmeler, teklifler, sozlesmeler, personel, gorevlendirmeler, zaman, kapasite, faturalar, giderler, placeholder
-│  ├─ ui/                    components.js, shell.js (kenar menü/üst çubuk/arama), icons.js
+│  ├─ lib/                   api.js (Supabase), hesaplama.js, ticari.js, operasyon.js, finans.js, karlilik.js, csv.js, aktarim.js, format.js, veri.js, router.js
+│  ├─ pages/                 auth, panel, firmalar, firma, kisiler, kullanicilar, crm, firsatlar, gorevler, gorusmeler, teklifler, sozlesmeler, personel, gorevlendirmeler, zaman, kapasite, faturalar, giderler, karlilik, raporlar, aktarim, placeholder
+│  ├─ ui/                    components.js, shell.js (kenar menü/üst çubuk/arama), icons.js, indir.js (CSV indirme)
 │  └─ styles/                tokens.css, app.css
 ├─ tests/
-│  ├─ hesaplama.test.js      Motor testleri (Node)
-│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql, db_tests_asama4.sql, db_tests_asama5.sql   Veri tabanı testleri (PostgreSQL)
+│  ├─ hesaplama.test.js, puanlama, operasyon, finans, karlilik, csv, aktarim .test.js   Motor ve CSV testleri (Node)
+│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql, db_tests_asama4.sql, db_tests_asama5.sql, db_tests_asama6.sql, db_tests_asama7.sql   Veri tabanı testleri (PostgreSQL)
 │  ├─ ui/                    Arayüz testleri (Playwright + sahte Supabase istemcisi)
 │  ├─ supabase_stub.sql      Yalnızca yerel test için Supabase taklidi
 │  └─ db_test_cikti*.txt     Son DB test çıktıları

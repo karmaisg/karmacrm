@@ -147,3 +147,10 @@ users.role_id -> roles
 - `ortak_gider_dagitimini_kaydet`: bir dönem ve kategori için firma bazlı dağıtımı kaydeder; toplam, ortak gider havuzunu aşamaz.
 - `karlilik_girdileri(ay)`: görevlendirme/zaman gibi doğrudan okuma yetkisi olmayan finans rolü için, kârlılık hesabında gereken asgari alanları döndürür (yalnızca firma veya personel kârlılığı görüntüleme yetkisiyle).
 - Hesap tarayıcıda yapılır (`src/lib/karlilik.js`); veri tabanına hesaplanmış kâr yazılmaz, yalnızca kaydedilen ortak gider dağıtımı saklanır.
+
+## Aşama 8 ile eklenenler
+
+- Veri tabanında değişiklik yoktur. Raporlar ve dışa aktarma, tarayıcıda kullanıcının görebildiği kayıtlardan hazırlanır (RLS aynen geçerlidir).
+- İçe aktarma mevcut işlemleri kullanır: firmalar `firma_olustur` (çalışan sayısı + tehlike sınıfı varsa ilk dönem kaydıyla), kişiler doğrudan `contacts` ekleme. Böylece tüm kurallar, denetim kaydı ve yetki kontrolleri veri tabanında yine uygulanır.
+- Mükerrer kuralı: aktif bir firmayla aynı vergi numarası ya da aynı ad (büyük/küçük harf ve boşluk fark etmez) atlanır; arşivdeki firmayla aynı vergi numarası yalnızca uyarıdır. Kişilerde aynı firmada aynı e-posta ya da aynı ad soyad atlanır.
+- CSV dosyalarında formül enjeksiyonuna karşı metin hücreleri `=`, `+`, `-`, `@` ile başlıyorsa başına `'` konur.

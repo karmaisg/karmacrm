@@ -92,7 +92,9 @@ await test('giriş: başarılı giriş, boş panel ve menü', async (s) => {
   if (!/^(Günaydın|İyi günler|İyi akşamlar|İyi geceler), Barış$/.test(h1)) throw new Error(`karşılama: ${h1}`);
   await var_(s.locator('.empty h3:has-text("ilk firmanızı")'), 'boş durum');
   await var_(s.locator('.nav-item:has-text("Kullanıcılar ve yetkiler")'), 'kullanıcılar menüsü');
-  await var_(s.locator('.nav-item:has-text("Raporlar") .nav-tag:has-text("Aşama 8")'), 'aşama etiketi');
+  await var_(s.locator('.nav-item:has-text("Sistem ayarları") .nav-tag:has-text("Yakında")'), 'yakında etiketi');
+  esit(await s.locator('.nav-item:has-text("Raporlar") .nav-tag').count(), 0, 'raporlar artık hazır');
+  esit(await s.locator('.nav-item:has-text("Veri içe/dışa aktarma") .nav-tag').count(), 0, 'aktarım artık hazır');
   esit(await s.locator('.nav-item:has-text("Teklifler") .nav-tag').count(), 0, 'teklifler artık hazır');
   await ekran(s, '02-panel-bos');
 });
@@ -324,8 +326,8 @@ await test('kabuk: koyu tema kalıcı, yer imi arama, çıkış', async (s) => {
 
 await test('kabuk: yakında sayfası ve olmayan adres', async (s) => {
   await girisYap(s);
-  await git(s, '#/raporlar');
-  await var_(s.locator('h3:has-text("Aşama 8")'), 'yakında');
+  await git(s, '#/ayarlar');
+  await var_(s.locator('h3:has-text("sonraki aşamalarda eklenecek")'), 'yakında');
   await git(s, '#/yok-boyle-sayfa');
   await var_(s.locator('h3:has-text("Bu adreste sayfa yok")'), '404');
 });
@@ -1378,6 +1380,188 @@ await test('mobil 375px: kârlılık sayfalarında yatay taşma yok', async (s) 
     if (t > 1) { const w = await s.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map((e) => `${e.tagName}.${e.className}#${e.id}:${Math.round(e.getBoundingClientRect().right)}`).join(' | ')); throw new Error(`${h} yatay taşma ${t}px: ${w}`); }
   }
   await ekran(s, '27-mobil-karlilik');
+}, { genislik: 375, yukseklik: 800 });
+
+
+// ====================================================================== Aşama 8: raporlar, CSV dışa/içe aktarma
+const indirOku = async (s, tikla) => { const [dl] = await Promise.all([s.waitForEvent('download'), tikla()]); return { ad: dl.suggestedFilename(), metin: fs.readFileSync(await dl.path(), 'utf8') }; };
+const csvDosya = (ad, metin) => ({ name: ad, mimeType: 'text/csv', buffer: Buffer.from(metin, 'utf8') });
+const tabloSay = (s, ad) => s.evaluate((a) => globalThis.__fake.tablo[a].length, ad);
+
+await test('raporlar: yönetici özeti, rapor değişimi, ay seçimi ve CSV indirme', async (s) => {
+  await karlilikHazirla(s);
+  await git(s, '#/raporlar'); await s.waitForSelector('#rapor-tablo tbody tr');
+  esit((await s.locator('#rapor-sec option').count()), 5, 'beş rapor');
+  const ozet = await s.locator('#rapor-tablo').innerText();
+  for (const b of ['Aktif firma sayısı', 'Kesilen fatura adedi', '20.000,00', 'Ay gideri']) if (!ozet.includes(b)) throw new Error(`yönetici özetinde ${b} yok: ${ozet}`);
+  await ekran(s, '28-raporlar');
+  await s.selectOption('#rapor-sec', 'yaslandirma');
+  await s.waitForSelector('#rapor-tablo tfoot');
+  await var_(s.locator('#rapor-tablo tbody td:has-text("Kar A.Ş.")'), 'yaşlandırmada firma');
+  const { ad, metin } = await indirOku(s, () => s.click('#rapor-indir'));
+  if (!/^rapor-yaslandirma-\d{4}-\d{2}-\d{2}\.csv$/.test(ad)) throw new Error(`dosya adı: ${ad}`);
+  if (!metin.startsWith('﻿Firma;Açık fatura;')) throw new Error(`başlık: ${metin.slice(0, 60)}`);
+  if (!metin.includes('Kar A.Ş.;1;') || !/Toplam;1;/.test(metin)) throw new Error(`satırlar: ${metin}`);
+  await s.selectOption('#rapor-sec', 'gider-kategori');
+  await var_(s.locator('#rapor-tablo td:has-text("Kira")'), 'gider kategorisi');
+  await var_(s.locator('#rapor-tablo tfoot td:has-text("3.000,00")'), 'gider toplamı');
+  await s.selectOption('#rapor-ay', await s.evaluate(() => { const d = new Date(); d.setMonth(d.getMonth() - 2); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; }));
+  await var_(s.locator('#rapor-govde .empty h3:has-text("için kayıt yok")'), 'boş ay');
+  await s.selectOption('#rapor-sec', 'sozlesme-bitis');
+  await var_(s.locator('#rapor-tablo td:has-text("Kar A.Ş.")'), 'sözleşme bitişi');
+  await s.selectOption('#rapor-sec', 'portfoy');
+  await var_(s.locator('#rapor-tablo tfoot'), 'portföy toplamı');
+});
+
+await test('raporlar: izni olmayan rapor kilitli, indirme kapalı', async (s) => {
+  await girisYap(s);
+  await cikisYapGir(s, 'operasyon@test.com');
+  await git(s, '#/raporlar'); await s.waitForSelector('#rapor-sec');
+  await s.selectOption('#rapor-sec', 'yaslandirma');
+  await var_(s.locator('#rapor-govde .empty h3:has-text("izniniz yok")'), 'kilit');
+  if (!(await s.locator('#rapor-indir').isDisabled())) throw new Error('indirme düğmesi kapalı olmalı');
+  await s.selectOption('#rapor-sec', 'portfoy');
+  await s.waitForSelector('#rapor-govde .empty:not(:has-text("izniniz yok")), #rapor-tablo');
+  if (await s.locator('#rapor-indir').isDisabled()) throw new Error('izinli raporda indirme açık olmalı');
+});
+
+await test('aktarım: dışa aktarma firmalar, faturalar ve boş küme; formül koruması', async (s) => {
+  await karlilikHazirla(s);
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; t.companies.find((c) => c.name === 'Kar A.Ş.').notes = '=HYPERLINK("http://x")'; });
+  await git(s, '#/aktarim'); await s.waitForSelector('#disa-liste');
+  const f = await indirOku(s, () => s.click('[data-disa="firmalar"]'));
+  if (!/^firmalar-\d{4}-\d{2}-\d{2}\.csv$/.test(f.ad)) throw new Error(f.ad);
+  if (!f.metin.startsWith('﻿Firma adı;Vergi no;')) throw new Error(f.metin.slice(0, 50));
+  if (!f.metin.includes('Kar A.Ş.;7000000001;')) throw new Error(f.metin);
+  if (!f.metin.includes(`"'=HYPERLINK(""http://x"")"`)) throw new Error('formül korunmadı: ' + f.metin);
+  const i = await indirOku(s, () => s.click('[data-disa="faturalar"]'));
+  if (!i.metin.includes('Fatura no;Firma;') || !/F-\d{4}-0001;Kar A\.Ş\.;/.test(i.metin)) throw new Error(i.metin);
+  const boş = await indirOku(s, () => s.click('[data-disa="tahsilatlar"]'));
+  esit(boş.metin.trim().split(/\r?\n/).length, 1, 'yalnızca başlık satırı');
+  await s.waitForSelector('.toast');
+});
+
+await test('aktarım: firma içe aktarma — eşleştirme, önizleme, mükerrer/hata, aktarım, hata raporu', async (s) => {
+  await girisYap(s);
+  await sozlesmeliFirma(s, 'Mevcut Ltd', '5550000001', 10, 100);
+  await git(s, '#/aktarim'); await s.waitForSelector('#ice-dosya');
+  const once = await tabloSay(s, 'companies');
+  const csv = '﻿Şirket;VKN;Şehir;E-posta;Çalışan;Tehlike;Bilinmeyen\r\n'
+    + 'Yeni Bir A.Ş.;1000000001;Ankara;a@yeni.com;25;Tehlikeli;x\r\n'      // hazır + profil
+    + 'Yeni İki Ltd;1000000002;İzmir;;;;\r\n'                                // hazır, profilsiz
+    + 'Mevcut Ltd;9990000009;Bursa;;;;\r\n'                                 // mükerrer (ad)
+    + 'Başka Ad;5550000001;Bursa;;;;\r\n'                                   // mükerrer (vergi no)
+    + 'Bozuk E-posta;1000000003;Van;yok;;;\r\n'                             // hata
+    + 'Eksik Tehlike;1000000004;Van;;10;;\r\n'                              // hata
+    + 'Yeni Bir Kopya;1000000001;Ankara;;;;\r\n';                           // dosya içi mükerrer
+  await s.setInputFiles('#ice-dosya', csvDosya('firmalar.csv', csv));
+  await s.waitForSelector('#ice-esleme');
+  esit(await s.locator('select[data-esle="0"]').inputValue(), 'name', 'Şirket → Firma adı');
+  esit(await s.locator('select[data-esle="1"]').inputValue(), 'tax_no', 'VKN → Vergi no');
+  esit(await s.locator('select[data-esle="6"]').inputValue(), '', 'bilinmeyen sütun aktarılmaz');
+  esit((await s.locator('#ice-n-hazir').textContent()).trim(), '2', 'hazır');
+  esit((await s.locator('#ice-n-mukerrer').textContent()).trim(), '3', 'mükerrer');
+  esit((await s.locator('#ice-n-hata').textContent()).trim(), '2', 'hata');
+  await var_(s.locator('#ice-onizleme tr[data-durum="hata"]:has-text("E-posta adresi geçersiz")'), 'e-posta hatası');
+  await var_(s.locator('#ice-onizleme tr[data-durum="mukerrer"]:has-text("Mevcut Ltd")'), 'mükerrer açıklaması');
+  await ekran(s, '29-iceaktar-onizleme');
+  // sütun eşlemesini elle değiştir: Çalışan sütununu aktarma → "Eksik Tehlike" hatası kalkar
+  await s.selectOption('select[data-esle="4"]', '');
+  await s.waitForFunction(() => document.querySelector('#ice-n-hata')?.textContent.trim() === '1');
+  await s.selectOption('select[data-esle="4"]', 'employee_count');
+  await s.waitForFunction(() => document.querySelector('#ice-n-hata')?.textContent.trim() === '2');
+  // aktarım
+  await s.locator('[data-action="ice-aktar"]').click();
+  await s.locator('.modal-overlay button:has-text("kaydı ekle")').click();
+  await s.waitForSelector('#ice-sonuc');
+  esit(await tabloSay(s, 'companies'), once + 2, 'iki yeni firma');
+  if (!(await s.locator('#ice-sonuc').innerText()).includes('2 kayıt eklendi')) throw new Error('sonuç metni');
+  const profil = await s.evaluate(() => { const t = globalThis.__fake.tablo; const f = t.companies.find((c) => c.name === 'Yeni Bir A.Ş.'); const p = t.company_profiles.filter((x) => x.company_id === f.id); return [f.tax_no, f.city, p.length, p[0]?.employee_count, p[0]?.hazard_class]; });
+  esit(JSON.stringify(profil), JSON.stringify(['1000000001', 'Ankara', 1, 25, 'tehlikeli']), 'firma ve profil');
+  const { metin } = await indirOku(s, () => s.click('[data-action="ice-hata-indir"]'));
+  if (!metin.includes('Satır;Durum;Açıklama;') || !metin.includes('Mükerrer') || !metin.includes('Hata')) throw new Error(metin);
+  esit(metin.trim().split(/\r?\n/).length, 6, 'başlık + 5 aktarılamayan');
+  // tekrar aynı dosya: hepsi mükerrer, hazır 0, aktarma düğmesi kapalı
+  await s.click('[data-action="ice-yeni"]');
+  await s.setInputFiles('#ice-dosya', csvDosya('firmalar.csv', csv));
+  await s.waitForSelector('#ice-n-hazir');
+  esit((await s.locator('#ice-n-hazir').textContent()).trim(), '0', 'ikinci denemede hazır yok');
+  if (!(await s.locator('[data-action="ice-aktar"]').isDisabled())) throw new Error('aktar düğmesi kapalı olmalı');
+});
+
+await test('aktarım: kişi içe aktarma firmaya bağlanır; eşleşmeyen firma ve mükerrer kişi aktarılmaz', async (s) => {
+  await girisYap(s);
+  await sozlesmeliFirma(s, 'Kisi A.Ş.', '5550000002', 10, 100);
+  await git(s, '#/aktarim'); await s.waitForSelector('#ice-tur');
+  await s.selectOption('#ice-tur', 'kisiler');
+  const csv = 'Ad soyad,Firma,Firma vergi no,Unvan,Telefon,E-posta,Karar verici\n'
+    + 'Veli Demir,Kisi A.Ş.,,İK,0555 111 22 33,veli@kisi.com,Evet\n'
+    + 'Can Aksoy,,5550000002,Muhasebe,,,Hayır\n'
+    + 'Kayıp Kişi,Olmayan Ltd,,,,,\n'
+    + 'Veli Demir,Kisi A.Ş.,,İK,,veli@kisi.com,Evet\n';
+  await s.setInputFiles('#ice-dosya', csvDosya('kisiler.csv', csv));
+  await s.waitForSelector('#ice-onizleme');
+  esit((await s.locator('#ice-n-hazir').textContent()).trim(), '2', 'hazır');
+  esit((await s.locator('#ice-n-mukerrer').textContent()).trim(), '1', 'mükerrer');
+  esit((await s.locator('#ice-n-hata').textContent()).trim(), '1', 'hata');
+  await var_(s.locator('#ice-onizleme tr[data-durum="hata"]:has-text("bulunamadı")'), 'firma bulunamadı');
+  await s.locator('[data-action="ice-aktar"]').click();
+  await s.locator('.modal-overlay button:has-text("kaydı ekle")').click();
+  await s.waitForSelector('#ice-sonuc');
+  const k = await s.evaluate(() => { const t = globalThis.__fake.tablo; const f = t.companies.find((c) => c.name === 'Kisi A.Ş.'); return t.contacts.filter((x) => x.company_id === f.id).map((x) => [x.full_name, x.is_decision_maker, x.title]).sort(); });
+  esit(JSON.stringify(k), JSON.stringify([['Can Aksoy', false, 'Muhasebe'], ['Veli Demir', true, 'İK']]), 'kişiler');
+});
+
+await test('aktarım: bozuk dosya, Excel dosyası, boş dosya ve XSS içerikli firma adı güvenle işlenir', async (s) => {
+  await girisYap(s);
+  await git(s, '#/aktarim'); await s.waitForSelector('#ice-dosya');
+  await s.setInputFiles('#ice-dosya', { name: 'a.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.concat([Buffer.from('PK\u0003\u0004'), Buffer.from([0, 1, 2, 3, 0, 0])]) });
+  await s.waitForSelector('#ice-hata:not([hidden])');
+  if (!(await s.locator('#ice-hata').innerText()).includes('CSV gibi görünmüyor')) throw new Error('xlsx mesajı');
+  await s.setInputFiles('#ice-dosya', csvDosya('bos.csv', 'Firma adı;Vergi no\n'));
+  await s.waitForFunction(() => document.querySelector('#ice-hata')?.textContent.includes('en az bir veri satırı'));
+  await s.setInputFiles('#ice-dosya', csvDosya('bozuk.csv', 'Firma adı;Vergi no\n"Açık tırnak;123\n'));
+  await s.waitForFunction(() => document.querySelector('#ice-hata')?.textContent.includes('kapatılmamış tırnak'));
+  await s.setInputFiles('#ice-dosya', csvDosya('xss.csv', 'Firma adı;Vergi no\n<img src=x onerror=window.__xss=1>;1234567890\n'));
+  await s.waitForSelector('#ice-onizleme');
+  await s.waitForTimeout(300);
+  esit(await s.evaluate(() => window.__xss ?? null), null, 'betik çalışmamalı');
+  esit(await s.locator('#ice-onizleme img').count(), 0, 'img oluşmamalı');
+  await var_(s.locator('#ice-onizleme td:has-text("<img src=x")'), 'metin olarak gösterilir');
+  await s.locator('select[data-esle="0"]').selectOption('');
+  await var_(s.locator('.notice-warn:has-text("eşleştirin")'), 'zorunlu alan uyarısı');
+  esit(await s.locator('[data-action="ice-aktar"]').count(), 0, 'eşleşmesiz aktarma düğmesi yok');
+});
+
+await test('aktarım: şablon indirilir; yetkisiz roller içe aktarmayı göremez, dışa aktarma izne göre', async (s) => {
+  await girisYap(s);
+  await git(s, '#/aktarim'); await s.waitForSelector('#ice-tur');
+  const sablon = await indirOku(s, () => s.click('[data-action="ice-sablon"]'));
+  if (!sablon.metin.startsWith('﻿Firma adı;Vergi no;') || sablon.ad !== 'firmalar-sablon.csv') throw new Error(sablon.ad + sablon.metin.slice(0, 40));
+  await cikisYapGir(s, 'satis@test.com');
+  await git(s, '#/aktarim'); await s.waitForSelector('#disa-liste');
+  await var_(s.locator('#ice-kok .empty h3:has-text("aktarma izniniz yok")'), 'satış içe aktaramaz');
+  esit(await s.locator('#ice-dosya').count(), 0, 'dosya alanı yok');
+  esit(await s.locator('[data-disa="faturalar"]').count(), 0, 'satış faturayı dışa aktaramaz');
+  await var_(s.locator('[data-disa="firmalar"]'), 'satış firmaları dışa aktarabilir');
+  await cikisYapGir(s, 'finans@test.com');
+  await git(s, '#/aktarim'); await s.waitForSelector('#disa-liste');
+  await var_(s.locator('#ice-kok .empty h3:has-text("aktarma izniniz yok")'), 'finans içe aktaramaz (firma oluşturma izni yok)');
+  await var_(s.locator('[data-disa="faturalar"]'), 'finans faturayı dışa aktarır');
+});
+
+await test('mobil 375px: raporlar ve aktarım sayfalarında yatay taşma yok', async (s) => {
+  await karlilikHazirla(s);
+  for (const h of ['#/raporlar', '#/aktarim']) {
+    await git(s, h); await s.waitForTimeout(400);
+    if (h === '#/aktarim') {
+      await s.setInputFiles('#ice-dosya', csvDosya('m.csv', 'Firma adı;Vergi no;Şehir;E-posta\nMobil Ltd;1234567890;Ankara;m@m.com\nMükerrer;7000000001;x;\n'));
+      await s.waitForSelector('#ice-onizleme');
+    }
+    const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (t > 1) { const w = await s.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map((e) => `${e.tagName}.${e.className}#${e.id}:${Math.round(e.getBoundingClientRect().right)}`).join(' | ')); throw new Error(`${h} yatay taşma ${t}px: ${w}`); }
+  }
+  await ekran(s, '30-mobil-aktarim');
 }, { genislik: 375, yukseklik: 800 });
 
 await tarayici.close(); sunucu.close();
