@@ -26,7 +26,7 @@ Tek işletme için çalışır; veri modeli ileride SaaS'a geçişe hazırdır (
 | Veri tabanı | Supabase PostgreSQL |
 | Giriş | Supabase Auth (kayıt kapalı, kullanıcıları işletme sahibi ekler) |
 | Yetki | Row Level Security: kurallar veri tabanındadır, butonları gizlemek güvenlik sayılmaz |
-| Gizli işlemler | Supabase Edge Functions (yapay zekâ anahtarı, e-posta/SMS) — Aşama 9 |
+| Gizli işlemler | Supabase Edge Functions (günlük özet e-postası — Aşama 10; yapay zekâ anahtarı, SMS sonraki aşamalar) |
 
 ## Klasörler
 
@@ -42,7 +42,9 @@ karmacrm/
 │  ├─ 06_asama5.sql          Aşama 5: personel, görevlendirme, zaman kaydı kuralları (bir kez)
 │  ├─ 07_asama6.sql          Aşama 6: fatura, tahsilat, gider kuralları ve fonksiyonları (bir kez)
 │  ├─ 08_asama7.sql          Aşama 7: kârlılık girdileri, ortak gider dağıtımı ve ölçüt fonksiyonları (bir kez)
-│  └─ 09_asama9.sql          Aşama 9: sistem ayarları (ayar_kaydet, hizmet_suresi_kurali_ekle) (bir kez)
+│  ├─ 09_asama9.sql          Aşama 9: sistem ayarları (ayar_kaydet, hizmet_suresi_kurali_ekle) (bir kez)
+│  ├─ 10_asama10.sql         Aşama 10: günlük özet (email_digest_log, gunluk_ozet) (bir kez)
+│  └─ functions/gunluk-ozet/index.ts   Günlük özet e-postası Edge Function'ı (yalnızca sahibe)
 ├─ src/
 │  ├─ main.js                Açılış, oturum, yönlendirme
 │  ├─ config.js              Supabase adresi ve anon anahtarı (gizli değildir)
@@ -52,8 +54,8 @@ karmacrm/
 │  ├─ ui/                    components.js, shell.js (kenar menü/üst çubuk/arama), icons.js, indir.js (CSV indirme)
 │  └─ styles/                tokens.css, app.css
 ├─ tests/
-│  ├─ hesaplama.test.js, puanlama, operasyon, finans, karlilik, csv, aktarim, ayarlar .test.js   Motor ve CSV testleri (Node)
-│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql, db_tests_asama4.sql, db_tests_asama5.sql, db_tests_asama6.sql, db_tests_asama7.sql, db_tests_asama9.sql   Veri tabanı testleri (PostgreSQL)
+│  ├─ hesaplama.test.js, puanlama, operasyon, finans, karlilik, csv, aktarim, ayarlar, ozet .test.js   Motor ve CSV testleri (Node)
+│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql, db_tests_asama4.sql, db_tests_asama5.sql, db_tests_asama6.sql, db_tests_asama7.sql, db_tests_asama9.sql, db_tests_asama10.sql   Veri tabanı testleri (PostgreSQL)
 │  ├─ ui/                    Arayüz testleri (Playwright + sahte Supabase istemcisi)
 │  ├─ supabase_stub.sql      Yalnızca yerel test için Supabase taklidi
 │  └─ db_test_cikti*.txt     Son DB test çıktıları
@@ -80,8 +82,10 @@ psql -d osgb -f supabase/06_asama5.sql
 psql -d osgb -f supabase/07_asama6.sql
 psql -d osgb -f supabase/08_asama7.sql
 psql -d osgb -f supabase/09_asama9.sql
+psql -d osgb -f supabase/10_asama10.sql
 psql -d osgb -f tests/db_tests_asama7.sql
 psql -d osgb -f tests/db_tests_asama9.sql
+psql -d osgb -f tests/db_tests_asama10.sql
 psql -d osgb -f tests/db_tests.sql
 psql -d osgb -f tests/db_tests_asama2.sql
 psql -d osgb -f tests/db_tests_asama3.sql

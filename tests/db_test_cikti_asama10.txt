@@ -1,0 +1,229 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:123: NOTICE:  PASS | Tarih bugün (İstanbul)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:124: NOTICE:  PASS | Vadesi geçmiş: 2 fatura (F-1, F-2)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:125: NOTICE:  PASS | Vadesi geçmiş toplam 1.700 (1200 + 600-100)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:126: NOTICE:  PASS | Önce en eski vade (F-1, 40 gün)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:127: NOTICE:  PASS | İptal edilen tahsilat sayılmadı (F-1 kalan 1.200)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:128: NOTICE:  PASS | Kısmi tahsilat düşüldü, itiraz işareti taşınır (F-2 kalan 500)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:129: NOTICE:  PASS | Tamamen ödenen fatura yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:130: NOTICE:  PASS | Arşivli fatura yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:131: NOTICE:  PASS | 20 gün sonra vadesi gelen yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:132: NOTICE:  PASS | 7 gün içinde vade: 2 fatura (F-7 bugün, F-4 3 gün)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:133: NOTICE:  PASS | Yaklaşanlar vade sırasıyla, gün sayısı doğru
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:134: NOTICE:  PASS | Sözleşmeler: 90 gün içindeki aktifler (süresi geçen + 30 gün + tam 90 gün) = 3
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:135: NOTICE:  PASS | Sözleşme sırası: süresi geçen önce, kalan gün negatif
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:136: NOTICE:  PASS | Sona ermiş ve 200 gün sonra biten sözleşme yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:137: NOTICE:  PASS | Görevler: dünkü + bugünkü = 2 (yarın, biten, arşivli, tarihsiz hariç)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:138: NOTICE:  PASS | Görev: dünkü gecikmiş, bugünkü değil; öncelik ve firma
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:139: NOTICE:  PASS | Başka kurumun verisi sızmaz
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:140: NOTICE:  PASS | Boş kurum testi için ikinci kurum: 1 vadesi geçmiş (Y-1)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:141: NOTICE:  PASS | Olmayan kurum: sıfırlar
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:145: NOTICE:  PASS | Liste en fazla 10 satır, adet tümü (14), toplam tümü
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama10.sql:152: NOTICE:  PASS | Sahip bile tarayıcıdan özet fonksiyonunu çağıramaz [permission denied for function gunluk_ozet]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:153: NOTICE:  PASS | Başka kurumun özeti istenemez [permission denied for function gunluk_ozet]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:156: NOTICE:  PASS | Anonim çağıramaz [permission denied for function gunluk_ozet]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:168: NOTICE:  PASS | Aynı gün ikinci başarılı günlük kayıt reddedilir [duplicate key value violates unique constraint "email_digest_log_gun_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:170: NOTICE:  PASS | Aynı gün birden çok hata/atlandı kaydı olabilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:171: NOTICE:  PASS | Geçersiz durum reddedilir [new row for relation "email_digest_log" violates check constraint "email_digest_log_durum_]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:172: NOTICE:  PASS | Geçersiz tür reddedilir [new row for relation "email_digest_log" violates check constraint "email_digest_log_tur_ch]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama10.sql:175: NOTICE:  PASS | Sahip kendi kurumunun kayıtlarını görür (4), yabancıyı görmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:176: NOTICE:  PASS | Sahip bile kayıt ekleyemez [permission denied for table email_digest_log]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:177: NOTICE:  PASS | Sahip kayıt güncelleyemez [permission denied for table email_digest_log]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:178: NOTICE:  PASS | Sahip kayıt silemez [permission denied for table email_digest_log]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama10.sql:180: NOTICE:  PASS | Satış kayıtları göremez (ayarlar izni yok)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama10.sql:182: NOTICE:  PASS | Yabancı kurum yalnızca kendi kaydını görür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama10.sql:184: NOTICE:  ÖZET: tamamlandı

@@ -1,5 +1,5 @@
 // OSGB 360 - Sistem ayarları: sayısal parametreler ve hizmet süresi kuralları (tarihçeli). Mantık: lib/ayarlar.js
-import { html, bugun, tarih, ayAdi } from '../lib/format.js';
+import { html, bugun, tarih, tarihSaat, ayAdi } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { pill, emptyState, field, openFormModal, toast } from '../ui/components.js';
 import { PERSONEL_TURLERI, TEHLIKE_SINIFLARI } from '../lib/hesaplama.js';
@@ -25,6 +25,9 @@ const baslangicAlani = (bugunStr, ilk) => field({
 export async function ayarlarSayfasi(app) {
   const [ayarlar0, kurallar0] = await Promise.all([app.api.listSettings(), app.api.listServiceRules()]);
   let ayarlar = ayarlar0; let kurallar = kurallar0;
+  // Özet günlüğü: 10_asama10.sql çalıştırılmadıysa tablo yoktur; sayfa yine açılır, kart "kurulmamış" der.
+  const gunlukOku = () => Promise.resolve().then(() => app.api.listDigestLog()).then((v) => ({ satirlar: v, hata: false }), () => ({ satirlar: [], hata: true }));
+  let ozetGunlugu = await gunlukOku();
   const degistirebilir = app.can('settings', 'create') && app.can('settings', 'edit');
 
   const genelKart = () => {
@@ -69,10 +72,21 @@ export async function ayarlarSayfasi(app) {
     <li><span><strong>Kullanıcılar ve yetkiler</strong><small class="block muted">Kim neyi görebilir ve değiştirebilir</small></span><a class="btn btn-secondary btn-sm" href="#/kullanicilar">Yetkiler</a></li>
     <li><span><strong>Sözleşme yenileme uyarıları</strong><small class="block muted">90, 60 ve 30 gün kala (sabit)</small></span><span class="muted">değiştirilemez</span></li></ul></section>`;
 
-  const hepsi = () => html`${genelKart()}${kuralKart()}${gecmisKart()}${digerKart()}`;
+  const DURUM = { gonderildi: ['Gönderildi', 'success'], atlandi: ['Atlandı', 'info'], hata: ['Hata', 'danger'] };
+  const ozetKart = () => html`<section class="card card-flush pad-t" id="ozet-kart"><div class="card-head"><div><h2 class="card-title">Günlük özet e-postası</h2>
+    <p class="card-sub">Her sabah 08:00'de yalnızca sizin e-posta adresinize gider: vadesi geçmiş ve yaklaşan faturalar, biten sözleşmeler, geciken görevler. Müşterilere hiçbir şey gönderilmez. Bildirilecek bir şey yoksa e-posta gönderilmez.</p></div>
+    ${degistirebilir ? html`<button type="button" class="btn btn-secondary btn-sm" id="ozet-test">${icon('mail', 16)} Test e-postası gönder</button>` : ''}</div>
+    ${ozetGunlugu.hata ? html`<div class="notice notice-info" role="note">Günlük özet henüz kurulmamış görünüyor (10_asama10.sql çalıştırılmamış olabilir). Kurulum rehberindeki Aşama 10 adımlarına bakın.</div>`
+      : ozetGunlugu.satirlar.length ? html`<div class="table-wrap"><table class="table" id="ozet-gunlugu"><thead><tr><th scope="col">Zaman</th><th scope="col">Tür</th><th scope="col">Durum</th><th scope="col" class="hide-sm">Ayrıntı</th></tr></thead><tbody>
+        ${ozetGunlugu.satirlar.map((x) => { const d = DURUM[x.durum] ?? [x.durum, 'info']; return html`<tr><td>${tarihSaat(x.created_at)}</td><td>${x.tur === 'test' ? 'Test' : 'Günlük'}</td><td>${pill(d[0], d[1])}</td><td class="hide-sm muted">${x.ayrinti ?? ''}</td></tr>`; })}</tbody></table></div>`
+        : html`<p class="fine pad">Henüz gönderim kaydı yok. Kurulumu denemek için "Test e-postası gönder"i kullanın.</p>`}
+    <p class="fine pad">Alıcı adresi ve e-posta servisi anahtarı güvenlik için Supabase'de gizli ayar olarak tutulur; bu sayfada gösterilmez ve değiştirilemez.</p></section>`;
+
+  const hepsi = () => html`${genelKart()}${kuralKart()}${ozetKart()}${gecmisKart()}${digerKart()}`;
 
   async function yenile(kok) {
     try { [ayarlar, kurallar] = await Promise.all([app.api.listSettings(), app.api.listServiceRules()]); } catch (e) { toast(humanError(e), 'hata'); return; }
+    ozetGunlugu = await gunlukOku();
     kok.querySelector('#ayarlar-kok').innerHTML = hepsi().s;
   }
 
@@ -90,6 +104,16 @@ export async function ayarlarSayfasi(app) {
       },
       onDone: () => yenile(kok),
     });
+  }
+
+  let ozetGidiyor = false;
+  async function ozetTesti(kok) {
+    if (ozetGidiyor) return;
+    ozetGidiyor = true;
+    const dugme = kok.querySelector('#ozet-test'); if (dugme) dugme.disabled = true;
+    try { await app.api.sendDigestTest(); toast('Test e-postası gönderildi. Gelen kutunuzu (ve istenmeyen klasörünü) kontrol edin.'); } catch (e) { toast(humanError(e), 'hata'); }
+    ozetGidiyor = false;
+    await yenile(kok);
   }
 
   function kuralFormu(kok, anahtar) {
@@ -116,7 +140,8 @@ export async function ayarlarSayfasi(app) {
     mount(kok) {
       kok.addEventListener('click', (e) => {
         const a = e.target.closest('[data-ayar]'); if (a) { ayarFormu(kok, a.dataset.ayar); return; }
-        const k = e.target.closest('[data-kural]'); if (k) kuralFormu(kok, k.dataset.kural);
+        const k = e.target.closest('[data-kural]'); if (k) { kuralFormu(kok, k.dataset.kural); return; }
+        if (e.target.closest('#ozet-test')) ozetTesti(kok);
       });
     },
   };

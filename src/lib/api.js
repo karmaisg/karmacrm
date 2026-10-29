@@ -162,6 +162,22 @@ export function createApi(db) {
       p_personel_turu: tur, p_tehlike: tehlike, p_dakika: dakika, p_gecerlilik: gecerlilik, p_not: not ?? null,
     })),
 
+    // ----- günlük özet e-postası (Aşama 10). Alıcı adresi ve API anahtarı tarayıcıya hiç gelmez; Supabase sırlarındadır.
+    listDigestLog: () => bir(T('email_digest_log').select('*').order('created_at', { ascending: false }).limit(8)),
+    async sendDigestTest() {
+      const { data, error } = await db.functions.invoke('gunluk-ozet', { body: { test: true } });
+      if (error) {
+        let govde = null;
+        try { govde = await error.context?.json?.(); } catch { /* gövde okunamadı */ }
+        const durum = error.context?.status;
+        if (durum === 404) throw new AppError('Günlük özet fonksiyonu henüz kurulmamış. Kurulum rehberindeki Aşama 10 adımlarını izleyin.');
+        if (govde?.mesaj) throw new AppError(govde.mesaj);
+        throw new AppError('Test e-postası gönderilemedi: fonksiyona ulaşılamadı. Kurulumu ve internet bağlantısını kontrol edin.');
+      }
+      if (data && data.ok === false) throw new AppError(data.mesaj || 'Test e-postası gönderilemedi.');
+      return data;
+    },
+
     // ----- kişiler
     listContacts: () => hepsiniOku(() => T('contacts').select('*').order('id')),
     listContactsByCompany: (companyId) => bir(T('contacts').select('*').eq('company_id', companyId).order('full_name')),

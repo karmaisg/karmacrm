@@ -223,3 +223,42 @@ Kullanım: **Sistem ayarları** sayfasında dört genel parametre (aylık kapasi
 Varsayılan olarak yalnızca işletme sahibi ve sistem yöneticisi bu sayfayı görür ve değiştirir. Başka bir role görüntüleme izni verirseniz sayfa salt okunur açılır.
 
 Bu aşamada değiştirilemeyenler: sözleşme yenileme uyarı günleri (90/60/30 sabittir) ve e-posta/SMS gönderimi (henüz yok; ayrı bir karar gerektirir).
+
+## Aşama 10 kurulumu (günlük özet e-postası — yalnızca size)
+
+Her sabah 08:00'de **yalnızca sizin e-posta adresinize** özet gider: vadesi geçmiş faturalar, 7 gün içinde vadesi gelenler, 90 gün içinde biten sözleşmeler, geciken görevler. Müşterilere hiçbir şey gönderilmez. Bildirilecek bir şey yoksa e-posta gönderilmez. Bu adımlar bir kez yapılır; menü adları Supabase arayüzünde zamanla değişebilir, bulamazsanız ekran görüntüsü gönderin.
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/10_asama10.sql` dosyasının tamamını çalıştırın ("Success" görmelisiniz).
+2. **Resend hesabı:** resend.com'da **kendi e-posta adresinizle** ücretsiz hesap açın, API Keys bölümünden bir anahtar oluşturun (`re_...` ile başlar). Alan adı doğrulamadan yalnızca **Resend hesabınızın e-posta adresine** gönderebilirsiniz; bu işimiz için yeterlidir. Gönderen adres `onboarding@resend.dev` olduğundan ilk e-postalar istenmeyen klasörüne düşebilir; "spam değil" deyin.
+3. **Gizli ayarlar:** Supabase > Edge Functions > Secrets bölümüne üç kayıt ekleyin:
+   - `RESEND_API_KEY` = Resend anahtarınız
+   - `OZET_ALICI` = özetin gideceği tek e-posta adresi (Resend hesabınızdakiyle aynı olmalı)
+   - `OZET_CRON_SIRRI` = kendi ürettiğiniz uzun rastgele bir metin (en az 30 karakter; başka yere yazmayın)
+4. **Fonksiyonu yükleyin:** Edge Functions > "Deploy a new function" > editörle; adı tam olarak `gunluk-ozet`; `supabase/functions/gunluk-ozet/index.ts` dosyasının içeriğini yapıştırıp Deploy edin. Fonksiyon ayarlarında **"Verify JWT"** seçeneğini **kapatın** (kimlik doğrulamayı fonksiyon kendisi yapar: ya gizli başlık ya da giriş yapmış yetkili kullanıcı).
+
+5. **Test:** Uygulamada Sistem ayarları > "Günlük özet e-postası" kartında **Test e-postası gönder**'e basın. Gelen kutunuzda "[TEST]" ile başlayan e-posta görünmeli; kartta "Gönderildi" kaydı çıkar. Hata olursa kartta ve uyarıda nedeni yazar (ör. `OZET_ALICI tanımlı değil`).
+
+6. **Zamanlama:** Database > Extensions'dan `pg_cron` ve `pg_net`'i açın. SQL Editor'de aşağıdakini **kendi değerlerinizle** çalıştırın (`BURAYA_SIRRI_YAZIN` = 3. adımdaki `OZET_CRON_SIRRI` ile aynı metin):
+
+```sql
+select vault.create_secret('BURAYA_SIRRI_YAZIN', 'ozet_cron_sirri');
+
+select cron.schedule('osgb360-gunluk-ozet-1', '0 5 * * *', $$
+  select net.http_post(
+    url := 'https://hstvzdumaabqdwdzsbcx.supabase.co/functions/v1/gunluk-ozet',
+    headers := jsonb_build_object('Content-Type', 'application/json',
+      'x-ozet-sirri', (select decrypted_secret from vault.decrypted_secrets where name = 'ozet_cron_sirri')),
+    body := '{}'::jsonb) $$);
+
+-- İsteğe bağlı yedek: ilk deneme başarısız olursa 09:00'da yeniden dener (başarılı gönderim varsa atlanır)
+select cron.schedule('osgb360-gunluk-ozet-2', '0 6 * * *', $$
+  select net.http_post(
+    url := 'https://hstvzdumaabqdwdzsbcx.supabase.co/functions/v1/gunluk-ozet',
+    headers := jsonb_build_object('Content-Type', 'application/json',
+      'x-ozet-sirri', (select decrypted_secret from vault.decrypted_secrets where name = 'ozet_cron_sirri')),
+    body := '{}'::jsonb) $$);
+```
+
+Saatler UTC'dir; Türkiye UTC+3 olduğu için `0 5` = 08:00, `0 6` = 09:00. Kapatmak için: `select cron.unschedule('osgb360-gunluk-ozet-1');`
+
+**Gizlilik notu:** Özette müşteri adları ve tutarlar bulunur ve e-posta Resend üzerinden geçer. Alıcı adresi ve anahtar kodda ya da GitHub'da değil, yalnızca Supabase gizli ayarlarındadır; uygulama bunları göstermez.

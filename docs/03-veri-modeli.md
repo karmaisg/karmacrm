@@ -161,3 +161,9 @@ users.role_id -> roles
 - `ayar_kaydet(anahtar, değer, geçerlilik)`: yalnızca dört sayısal ayar (kapasite_dakika, kurumlar_vergisi_orani, marj_esigi_yuzde, varsayilan_kdv_orani) kabul edilir; aralık denetlenir (kapasite 60-44.640 tam sayı, oranlar 0-100). Tarih ayın 1'i olmalı ve bu aydan önce olamaz. Aynı tarihe tekrar kayıt değeri düzeltir.
 - `hizmet_suresi_kurali_ekle(personel türü, tehlike, dakika, geçerlilik, not)`: açık kural bir gün önce kapatılır, yenisi açılır; dakika 0-600; sonradan başlayan kural varken öne eklenemez; aynı dakika girilirse değişiklik yapılmaz. Çakışma ayrıca veri tabanı dışlama kısıtıyla da engellenir.
 - İkisi de "settings" modülünde oluşturma + düzenleme izni ister; okuma kurumdaki tüm kullanıcılara açıktır (hesaplamalar için).
+
+## Aşama 10 ile eklenenler
+
+- `email_digest_log`: günlük özet gönderim kaydı (kurum, gün, tür `gunluk`/`test`, durum `gonderildi`/`atlandi`/`hata`, ayrıntı). Yalnızca "settings" görüntüleme izni olanlar okur; kimse tarayıcıdan yazamaz (yazma yalnızca Edge Function'dan). Aynı kurum için günde en çok bir başarılı `gunluk` kaydı olabilir (benzersiz indeks) — aynı gün ikinci e-postayı veri tabanı da engeller.
+- `gunluk_ozet(kurum)`: özet verisini üretir (vadesi geçmiş faturalar, 7 gün içinde vadesi gelenler, 90 gün içinde biten sözleşmeler, geciken görevler; listeler en çok 10 satır, sayılar tümünü kapsar). Yalnızca `service_role` çağırabilir; tarayıcıdan çağrılamaz.
+- E-posta gönderimi `supabase/functions/gunluk-ozet/index.ts` Edge Function'ındadır; alıcı yalnızca `OZET_ALICI` gizli ayarından gelir (tek adres).

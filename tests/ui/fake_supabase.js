@@ -40,6 +40,7 @@ const tablo = {
   invoices: [], invoice_items: [], payments: [], expenses: [], allocation_rules: [], overhead_allocations: [],
   expense_categories: [['Kira', 'isletme', 'ortak', false], ['Araç yakıtı', 'isletme', 'ortak', false], ['Uzman maaşları', 'personel', 'dogrudan', true]]
     .map(([name, nature, tur, payroll], i) => ({ id: uid(), organization_id: ORG, name, nature, default_cost_type: tur, is_payroll: payroll, is_income_tax: false, sort_order: i + 1 })),
+  email_digest_log: [],
   settings: [{ key: 'kapasite_dakika', value: 11700, valid_from: '2000-01-01' }, { key: 'marj_esigi_yuzde', value: 20, valid_from: '2000-01-01' }, { key: 'varsayilan_kdv_orani', value: 20, valid_from: '2000-01-01' }],
   service_time_rules: [
     ['is_guvenligi_uzmani', 'az_tehlikeli', 10], ['is_guvenligi_uzmani', 'tehlikeli', 20], ['is_guvenligi_uzmani', 'cok_tehlikeli', 40],
@@ -54,7 +55,8 @@ const izinVar = (modul, alan) => {
 
 const dinleyiciler = new Set();
 const gunluk = [];
-globalThis.__fake = { tablo, gunluk, hesaplar };
+const ozetAyar = { varsa: true, sonuc: 'ok' }; // UI testleri: varsa=false → fonksiyon kurulu değil (404); sonuc: 'ok' | 'yapilandirma' | 'ag'
+globalThis.__fake = { tablo, gunluk, hesaplar, ozetAyar };
 
 const hata = (message, code) => ({ message, code });
 const bugun = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
@@ -178,6 +180,7 @@ function kurucu(ad) {
     is(k, v) { durum.filtre.push([k, v]); return q; },
     order(k, o = {}) { durum.sira = { k, artan: o.ascending !== false }; return q; },
     range(a, b) { durum.aralik = [a, b]; return q; },
+    limit(n) { durum.aralik = [0, n - 1]; return q; },
     single() { durum.tek = 'single'; return q; },
     maybeSingle() { durum.tek = 'maybe'; return q; },
     then(res, rej) { return new Promise((r) => setTimeout(r, 5)).then(calistir).then(res, rej); },
@@ -511,6 +514,20 @@ export function createClient() {
       },
     },
     from: kurucu,
+    functions: {
+      async invoke(ad, { body } = {}) {
+        gunluk.push(`fn ${ad}`);
+        await new Promise((r) => setTimeout(r, 5));
+        const yanit = (durum, govde) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status: durum, json: async () => govde } } });
+        if (ad !== 'gunluk-ozet' || !ozetAyar.varsa) return yanit(404, { error: 'NOT_FOUND' });
+        if (!izinVar('settings', 'can_create') || !izinVar('settings', 'can_edit')) return yanit(403, { ok: false, mesaj: 'Bu işlem için ayarlar modülünde oluşturma ve düzenleme izni gerekir.' });
+        const kayit = (durum, ayrinti) => tablo.email_digest_log.push({ id: uid(), organization_id: ORG, gun: bugun(), tur: body?.test ? 'test' : 'gunluk', durum, ayrinti, created_at: new Date().toISOString() });
+        if (ozetAyar.sonuc === 'yapilandirma') { kayit('hata', 'OZET_ALICI tanımlı değil.'); return { data: { ok: false, mesaj: 'OZET_ALICI tanımlı değil. Supabase gizli ayarlarına e-posta adresinizi ekleyin.' }, error: null }; }
+        if (ozetAyar.sonuc === 'ag') return { data: null, error: { name: 'FunctionsFetchError', message: 'Failed to send a request to the Edge Function', context: undefined } };
+        kayit('gonderildi', '[TEST] g***@gmail.com adresine gönderildi');
+        return { data: { ok: true, mesaj: 'Gönderildi.' }, error: null };
+      },
+    },
     async rpc(ad, args) {
       gunluk.push(`rpc ${ad}`);
       await new Promise((r) => setTimeout(r, 5));

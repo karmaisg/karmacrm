@@ -1654,6 +1654,50 @@ await test('mobil 375px: ayarlar sayfasında yatay taşma yok', async (s) => {
   await ekran(s, '32-mobil-ayarlar');
 }, { genislik: 375, yukseklik: 800 });
 
+// ====================================================================== Aşama 10: günlük özet e-postası (yalnızca sahibe)
+await test('özet e-postası: kart, test gönderimi, günlük kaydı', async (s) => {
+  await girisYap(s);
+  await git(s, '#/ayarlar'); await s.waitForSelector('#ozet-kart');
+  const kart = await s.locator('#ozet-kart').innerText();
+  for (const b of ['yalnızca sizin e-posta adresinize', 'Müşterilere hiçbir şey gönderilmez', 'Henüz gönderim kaydı yok']) if (!kart.includes(b)) throw new Error(`kartta "${b}" yok: ${kart}`);
+  if (/@/.test(kart)) throw new Error('kartta e-posta adresi görünmemeli');
+  await s.click('#ozet-test');
+  await s.waitForSelector('.toast:has-text("Test e-postası gönderildi")');
+  await s.waitForSelector('#ozet-gunlugu tbody tr');
+  const satir = await s.locator('#ozet-gunlugu tbody tr').first().innerText();
+  if (!satir.includes('Test') || !satir.includes('Gönderildi')) throw new Error(`günlük satırı: ${satir}`);
+  await ekran(s, '33-ozet-eposta');
+});
+
+await test('özet e-postası: fonksiyon kurulu değilse ve yapılandırma eksikse anlaşılır uyarı', async (s) => {
+  await girisYap(s);
+  await s.evaluate(() => { globalThis.__fake.ozetAyar.varsa = false; });
+  await git(s, '#/ayarlar'); await s.waitForSelector('#ozet-test');
+  await s.click('#ozet-test');
+  await s.waitForSelector('.toast:has-text("henüz kurulmamış")');
+  await s.evaluate(() => { globalThis.__fake.ozetAyar.varsa = true; globalThis.__fake.ozetAyar.sonuc = 'yapilandirma'; });
+  await s.waitForFunction(() => !document.querySelector('#ozet-test').disabled);
+  await s.click('#ozet-test');
+  await s.waitForSelector('.toast:has-text("OZET_ALICI tanımlı değil")');
+  await s.waitForSelector('#ozet-gunlugu tbody tr');
+  if (!(await s.locator('#ozet-gunlugu').innerText()).includes('Hata')) throw new Error('hata kaydı görünmüyor');
+  await s.evaluate(() => { globalThis.__fake.ozetAyar.sonuc = 'ag'; });
+  await s.waitForFunction(() => !document.querySelector('#ozet-test').disabled);
+  await s.click('#ozet-test');
+  await s.waitForSelector('.toast:has-text("fonksiyona ulaşılamadı")');
+});
+
+await test('özet e-postası: günlük tablosu yoksa sayfa açılır, kart kurulum uyarısı verir; salt okunur rol test düğmesi görmez', async (s) => {
+  await girisYap(s);
+  await s.evaluate(() => { delete globalThis.__fake.tablo.email_digest_log; });
+  await git(s, '#/ayarlar'); await s.waitForSelector('#ozet-kart');
+  await var_(s.locator('#ozet-kart .notice:has-text("kurulmamış")'), 'kurulum uyarısı');
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; t.email_digest_log = []; const r = t.roles.find((x) => x.key === 'finans'); t.role_permissions.find((x) => x.role_id === r.id && x.module === 'settings').can_view = true; });
+  await cikisYapGir(s, 'finans@test.com');
+  await git(s, '#/ayarlar'); await s.waitForSelector('#ozet-kart');
+  esit(await s.locator('#ozet-test').count(), 0, 'salt okunur rol test düğmesi görmez');
+});
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }
