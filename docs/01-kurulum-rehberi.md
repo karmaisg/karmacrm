@@ -208,3 +208,18 @@ Kullanım:
 - Excel (.xlsx) dosyasını doğrudan okumuyoruz: Excel'de **Farklı kaydet > CSV UTF-8 (virgülle ayrılmış)** seçin.
 - İçe aktarma izni: Veri içe/dışa aktarma modülünde "oluşturma" izni ve aktarılacak modülde (firma veya kişi) oluşturma izni gerekir. Varsayılan olarak yalnızca işletme sahibi ve sistem yöneticisi bu izne sahiptir.
 - Toplu aktarımın geri alma düğmesi yoktur; yanlış eklenen kayıtlar tek tek arşivlenebilir. Büyük dosyalardan önce 2-3 satırlık deneme dosyasıyla deneyin.
+
+---
+
+## Aşama 9 kurulumu (sistem ayarları)
+
+1. Supabase > **SQL Editor** > **New query**.
+2. `supabase/09_asama9.sql` dosyasının **tamamını** yapıştırıp **Run** deyin. Beklenen: "Success. No rows returned".
+3. (Önce 01, 03, 04, 05, 06, 07 ve 08 numaralı dosyalar çalıştırılmış olmalıdır.) Dosya tekrar çalıştırılırsa zarar vermez.
+4. GitHub'daki dosyaları yeni sürümle değiştirin, tarayıcıda Ctrl+F5 yapın.
+
+Kullanım: **Sistem ayarları** sayfasında dört genel parametre (aylık kapasite, kurumlar vergisi oranı, kâr marjı eşiği, varsayılan KDV oranı) ve altı hizmet süresi kuralı (uzman/hekim × az tehlikeli/tehlikeli/çok tehlikeli, çalışan başına dakika) değiştirilir. Her değişiklik, seçtiğiniz ayın 1'inden itibaren geçerli olur; geçmiş aylar eski değerle kalır ve **geçmiş aya değişiklik yapılamaz**. "Bu ay" seçerseniz bu ayın rakamları da değişir; çoğu zaman "gelecek ay" daha güvenlidir.
+
+Varsayılan olarak yalnızca işletme sahibi ve sistem yöneticisi bu sayfayı görür ve değiştirir. Başka bir role görüntüleme izni verirseniz sayfa salt okunur açılır.
+
+Bu aşamada değiştirilemeyenler: sözleşme yenileme uyarı günleri (90/60/30 sabittir) ve e-posta/SMS gönderimi (henüz yok; ayrı bir karar gerektirir).

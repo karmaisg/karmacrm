@@ -154,3 +154,10 @@ users.role_id -> roles
 - İçe aktarma mevcut işlemleri kullanır: firmalar `firma_olustur` (çalışan sayısı + tehlike sınıfı varsa ilk dönem kaydıyla), kişiler doğrudan `contacts` ekleme. Böylece tüm kurallar, denetim kaydı ve yetki kontrolleri veri tabanında yine uygulanır.
 - Mükerrer kuralı: aktif bir firmayla aynı vergi numarası ya da aynı ad (büyük/küçük harf ve boşluk fark etmez) atlanır; arşivdeki firmayla aynı vergi numarası yalnızca uyarıdır. Kişilerde aynı firmada aynı e-posta ya da aynı ad soyad atlanır.
 - CSV dosyalarında formül enjeksiyonuna karşı metin hücreleri `=`, `+`, `-`, `@` ile başlıyorsa başına `'` konur.
+
+## Aşama 9 ile eklenenler
+
+- Yeni tablo yok; `settings` ve `service_time_rules` (01_sema'da vardı) artık yalnızca fonksiyonlarla değiştirilir.
+- `ayar_kaydet(anahtar, değer, geçerlilik)`: yalnızca dört sayısal ayar (kapasite_dakika, kurumlar_vergisi_orani, marj_esigi_yuzde, varsayilan_kdv_orani) kabul edilir; aralık denetlenir (kapasite 60-44.640 tam sayı, oranlar 0-100). Tarih ayın 1'i olmalı ve bu aydan önce olamaz. Aynı tarihe tekrar kayıt değeri düzeltir.
+- `hizmet_suresi_kurali_ekle(personel türü, tehlike, dakika, geçerlilik, not)`: açık kural bir gün önce kapatılır, yenisi açılır; dakika 0-600; sonradan başlayan kural varken öne eklenemez; aynı dakika girilirse değişiklik yapılmaz. Çakışma ayrıca veri tabanı dışlama kısıtıyla da engellenir.
+- İkisi de "settings" modülünde oluşturma + düzenleme izni ister; okuma kurumdaki tüm kullanıcılara açıktır (hesaplamalar için).

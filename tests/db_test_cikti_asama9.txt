@@ -1,0 +1,313 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama9.sql:71: NOTICE:  PASS | Sahip: kapasiteyi bu ayın 1'inden 10.000 yapar
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:72: NOTICE:  PASS | Değer kaydedildi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:73: NOTICE:  PASS | Eski kayıt (2000-01-01) korunuyor
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:75: NOTICE:  PASS | Aynı tarihe tekrar kayıt değeri düzeltir (çift satır oluşmaz)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:76: NOTICE:  PASS | Tek satır, yeni değer
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:77: NOTICE:  PASS | Gelecek aya KDV oranı 10
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:78: NOTICE:  PASS | Ondalık vergi oranı (22,5)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:79: NOTICE:  PASS | Ondalık değer korunur
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:80: NOTICE:  PASS | Marj eşiği 15
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:81: NOTICE:  PASS | Geçmiş aya ayar yazılamaz [Geçmiş aylar için ayar değiştirilemez (raporlar bozulmasın diye). En erken bu ayın 1'inden]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:82: NOTICE:  PASS | Ayın 1'i olmayan tarih reddedilir [Ayar ayın 1'inden itibaren geçerli olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:83: NOTICE:  PASS | Boş tarih reddedilir [Ayar ayın 1'inden itibaren geçerli olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:84: NOTICE:  PASS | Vergi oranı %101 olamaz [Kurumlar vergisi oranı 0 ile 100 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:85: NOTICE:  PASS | Negatif KDV olamaz [Varsayılan KDV oranı 0 ile 100 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:86: NOTICE:  PASS | Kapasite 59 dakika olamaz [Aylık kapasite (dakika) 60 ile 44640 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:87: NOTICE:  PASS | Kapasite ayın dakikasından fazla olamaz [Aylık kapasite (dakika) 60 ile 44640 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:88: NOTICE:  PASS | Kapasite tam sayı olmalı [Aylık kapasite tam sayı (dakika) olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:89: NOTICE:  PASS | Metin değer reddedilir [Ayar değeri bir sayı olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:90: NOTICE:  PASS | Dizi değer reddedilir [Ayar değeri bir sayı olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:91: NOTICE:  PASS | NULL değer reddedilir [Ayar değeri bir sayı olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:92: NOTICE:  PASS | Tanımsız anahtar reddedilir [Bu ayar buradan değiştirilemez: gizli_anahtar]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:93: NOTICE:  PASS | Yenileme uyarı günleri buradan değişmez [Bu ayar buradan değiştirilemez: yenileme_uyari_gunleri]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:99: NOTICE:  PASS | Uzman/tehlikeli 20 → 25 dk, gelecek ayın 1'inden
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:101: NOTICE:  PASS | Eski kural bir gün önce kapandı, yenisi açık
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:103: NOTICE:  PASS | Aynı dakika tekrar: değişiklik yok
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:104: NOTICE:  PASS | Hâlâ iki kural
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:106: NOTICE:  PASS | Başlangıçtan önceki/aynı tarihe kural eklenemez [Yeni kural, mevcut kuralın başlangıcından (01.11.2026) sonra olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:108: NOTICE:  PASS | Sonradan başlayan kural varken önceye eklenemez [Bu tarihten sonra başlayan bir kural zaten var.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:109: NOTICE:  PASS | Geçmiş aya kural eklenemez [Geçmiş aylar için kural değiştirilemez (raporlar bozulmasın diye). En erken bu ayın 1'inde]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:110: NOTICE:  PASS | Ayın 1'i olmayan tarih reddedilir [Kural ayın 1'inden itibaren geçerli olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:111: NOTICE:  PASS | Negatif dakika reddedilir [Çalışan başına dakika 0 ile 600 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:112: NOTICE:  PASS | 600 dakikadan fazla reddedilir [Çalışan başına dakika 0 ile 600 arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:113: NOTICE:  PASS | Sıfır dakika geçerli (hizmet yok)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:114: NOTICE:  PASS | Boş not NULL yazılır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:115: NOTICE:  PASS | Diğer kombinasyonlar etkilenmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:117: NOTICE:  PASS | Doğrudan tabloya çakışan kural eklenemez (dışlama kısıtı) [conflicting key value violates exclusion constraint "service_time_rules_organization_id_st]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama9.sql:123: NOTICE:  PASS | Satış: ayar değiştiremez [Sistem ayarlarını değiştirme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:124: NOTICE:  PASS | Satış: kural ekleyemez [Hizmet süresi kurallarını değiştirme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:125: NOTICE:  PASS | Satış: ayar tablosuna doğrudan yazamaz [new row violates row-level security policy for table "settings"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:126: NOTICE:  PASS | Satış: ayarları okuyabilir (hesaplamalar için)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama9.sql:128: NOTICE:  PASS | Finans: ayar değiştiremez [Sistem ayarlarını değiştirme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:129: NOTICE:  PASS | Finans: kural ekleyemez [Hizmet süresi kurallarını değiştirme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama9.sql:131: NOTICE:  PASS | Yabancı kurumun sahibi kendi ayarını değiştirir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:132: NOTICE:  PASS | Yabancı kurum kendi kurumunu görür, diğerini görmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:136: NOTICE:  PASS | Kurumlar birbirinden bağımsız: ilk kurumun marj eşiği 15, ikincinin 40
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:137: NOTICE:  PASS | Yabancı kurumun kuralları değişmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:138: NOTICE:  PASS | Denetim kaydı: ayar değişimi loglandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama9.sql:141: NOTICE:  ÖZET: tamamlandı

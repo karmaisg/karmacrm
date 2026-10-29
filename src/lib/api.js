@@ -157,6 +157,10 @@ export function createApi(db) {
     // ----- parametreler (kurumdaki herkes okuyabilir)
     listServiceRules: () => bir(T('service_time_rules').select('*')),
     listSettings: () => bir(T('settings').select('*')),
+    saveSetting: ({ anahtar, deger, gecerlilik }) => bir(db.rpc('ayar_kaydet', { p_anahtar: anahtar, p_deger: deger, p_gecerlilik: gecerlilik })),
+    addServiceRule: ({ tur, tehlike, dakika, gecerlilik, not }) => bir(db.rpc('hizmet_suresi_kurali_ekle', {
+      p_personel_turu: tur, p_tehlike: tehlike, p_dakika: dakika, p_gecerlilik: gecerlilik, p_not: not ?? null,
+    })),
 
     // ----- kişiler
     listContacts: () => hepsiniOku(() => T('contacts').select('*').order('id')),

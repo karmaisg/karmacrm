@@ -92,7 +92,8 @@ await test('giriş: başarılı giriş, boş panel ve menü', async (s) => {
   if (!/^(Günaydın|İyi günler|İyi akşamlar|İyi geceler), Barış$/.test(h1)) throw new Error(`karşılama: ${h1}`);
   await var_(s.locator('.empty h3:has-text("ilk firmanızı")'), 'boş durum');
   await var_(s.locator('.nav-item:has-text("Kullanıcılar ve yetkiler")'), 'kullanıcılar menüsü');
-  await var_(s.locator('.nav-item:has-text("Sistem ayarları") .nav-tag:has-text("Yakında")'), 'yakında etiketi');
+  esit(await s.locator('.nav-tag').count(), 0, 'tüm modüller hazır: menüde etiket kalmadı');
+  esit(await s.locator('.nav-item:has-text("Sistem ayarları") .nav-tag').count(), 0, 'ayarlar artık hazır');
   esit(await s.locator('.nav-item:has-text("Raporlar") .nav-tag').count(), 0, 'raporlar artık hazır');
   esit(await s.locator('.nav-item:has-text("Veri içe/dışa aktarma") .nav-tag').count(), 0, 'aktarım artık hazır');
   esit(await s.locator('.nav-item:has-text("Teklifler") .nav-tag').count(), 0, 'teklifler artık hazır');
@@ -324,10 +325,10 @@ await test('kabuk: koyu tema kalıcı, yer imi arama, çıkış', async (s) => {
   esit(await s.getAttribute('html', 'data-theme'), 'dark', 'yenilemeden sonra tema');
 });
 
-await test('kabuk: yakında sayfası ve olmayan adres', async (s) => {
+await test('kabuk: olmayan adres 404 sayfası verir', async (s) => {
   await girisYap(s);
-  await git(s, '#/ayarlar');
-  await var_(s.locator('h3:has-text("sonraki aşamalarda eklenecek")'), 'yakında');
+  await git(s, '#/yok-boyle-sayfa');
+  await var_(s.locator('h3:has-text("Bu adreste sayfa yok")'), '404');
   await git(s, '#/yok-boyle-sayfa');
   await var_(s.locator('h3:has-text("Bu adreste sayfa yok")'), '404');
 });
@@ -1562,6 +1563,95 @@ await test('mobil 375px: raporlar ve aktarım sayfalarında yatay taşma yok', a
     if (t > 1) { const w = await s.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map((e) => `${e.tagName}.${e.className}#${e.id}:${Math.round(e.getBoundingClientRect().right)}`).join(' | ')); throw new Error(`${h} yatay taşma ${t}px: ${w}`); }
   }
   await ekran(s, '30-mobil-aktarim');
+}, { genislik: 375, yukseklik: 800 });
+
+
+// ====================================================================== Aşama 9: sistem ayarları
+const ayBaslari = (s) => s.evaluate(() => { const t = new Date(); const f = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; return [f(t), f(new Date(t.getFullYear(), t.getMonth() + 1, 1))]; });
+
+await test('ayarlar: sayfa, doğrulama, planlanan değişiklik ve geçmiş', async (s) => {
+  await girisYap(s);
+  await git(s, '#/ayarlar'); await s.waitForSelector('#ayar-tablo');
+  esit(await s.locator('#ayar-tablo tbody tr').count(), 4, 'dört ayar');
+  esit(await s.locator('#kural-tablo tbody td[data-kural-hucre]').count(), 6, 'altı kural hücresi');
+  const kap = await s.locator('[data-ayar-satir="kapasite_dakika"]').innerText();
+  if (!kap.includes('11.700 dk')) throw new Error(`kapasite: ${kap}`);
+  if (!(await s.locator('[data-ayar-satir="kurumlar_vergisi_orani"]').innerText()).includes('%25')) throw new Error('vergi varsayılanı %25 olmalı');
+  await ekran(s, '31-ayarlar');
+  // doğrulama
+  await s.click('[data-ayar="kapasite_dakika"]'); await s.waitForSelector('#f-deger');
+  await s.fill('#f-deger', 'abc'); await modal(s).locator('button[type=submit]').click();
+  if (!(await s.locator('#e-deger').innerText()).includes('sayı olmalıdır')) throw new Error('sayı hatası');
+  await s.fill('#f-deger', '59'); await modal(s).locator('button[type=submit]').click();
+  if (!(await s.locator('#e-deger').innerText()).includes('60 ile 44640')) throw new Error('aralık hatası');
+  await s.fill('#f-deger', '11700'); await s.selectOption('#f-baslangic', { index: 0 }); await modal(s).locator('button[type=submit]').click();
+  if (!(await s.locator('#e-deger').innerText()).includes('aynı')) throw new Error('aynı değer hatası');
+  // gelecek aydan itibaren 10.000
+  await s.fill('#f-deger', '10.000'); await s.selectOption('#f-baslangic', { index: 1 }); await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('[data-ayar-satir="kapasite_dakika"] .pill:has-text("10.000 dk")');
+  if (!(await s.locator('[data-ayar-satir="kapasite_dakika"]').innerText()).includes('11.700 dk')) throw new Error('şu anki değer değişmemeli');
+  const [bu, gelecek] = await ayBaslari(s);
+  esit(await s.evaluate((g) => globalThis.__fake.tablo.settings.find((x) => x.key === 'kapasite_dakika' && x.valid_from === g)?.value, gelecek), 10000, 'veritabanına yazıldı');
+  await var_(s.locator('#ayar-gecmis tbody tr:has-text("Aylık kapasite"):has-text("10.000 dk")'), 'geçmişte görünür');
+  // bu ay, ondalık vergi oranı: hemen geçerli olur
+  await s.click('[data-ayar="kurumlar_vergisi_orani"]'); await s.waitForSelector('#f-deger');
+  await s.fill('#f-deger', '22,5'); await s.selectOption('#f-baslangic', { index: 0 }); await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('[data-ayar-satir="kurumlar_vergisi_orani"] td.num:has-text("%22,5")');
+  esit((await s.locator('[data-ayar-satir="kurumlar_vergisi_orani"]').innerText()).includes('varsayılan'), false, 'artık varsayılan değil');
+  esit(await s.evaluate((b) => globalThis.__fake.tablo.settings.find((x) => x.key === 'kurumlar_vergisi_orani' && x.valid_from === b)?.value, bu), 22.5, 'ondalık değer');
+});
+
+await test('ayarlar: hizmet süresi kuralı tarihçeli değişir; eski kural kapanır', async (s) => {
+  await girisYap(s);
+  await git(s, '#/ayarlar'); await s.waitForSelector('#kural-tablo');
+  const hucre = '[data-kural-hucre="is_guvenligi_uzmani|tehlikeli"]';
+  if (!(await s.locator(hucre).innerText()).includes('20 dk')) throw new Error('uzman/tehlikeli 20 dk olmalı');
+  await s.click(`${hucre} [data-kural]`); await s.waitForSelector('#f-dakika');
+  await s.fill('#f-dakika', '601'); await modal(s).locator('button[type=submit]').click();
+  if (!(await s.locator('#e-dakika').innerText()).includes('0 ile 600')) throw new Error('aralık hatası');
+  await s.fill('#f-dakika', '20'); await modal(s).locator('button[type=submit]').click();
+  if (!(await s.locator('#e-dakika').innerText()).includes('aynı')) throw new Error('aynı değer hatası');
+  await s.fill('#f-dakika', '25'); await s.selectOption('#f-baslangic', { index: 1 }); await s.fill('#f-not', 'Yönetmelik değişikliği');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector(`${hucre} small:has-text("25 dk")`);
+  if (!(await s.locator(hucre).innerText()).includes('20 dk')) throw new Error('şu anki kural 20 dk kalmalı');
+  const [, gelecek] = await ayBaslari(s);
+  const r = await s.evaluate(() => globalThis.__fake.tablo.service_time_rules.filter((k) => k.staff_type === 'is_guvenligi_uzmani' && k.hazard_class === 'tehlikeli').map((k) => [k.minutes_per_employee, k.valid_from, k.valid_to, k.note]));
+  esit(r.length, 2, 'iki kural');
+  const eski = r.find((k) => k[0] === 20); const yeni = r.find((k) => k[0] === 25);
+  esit(yeni[1], gelecek, 'yeni kural gelecek ayın 1\'inde başlar'); esit(yeni[2], null, 'yeni kural açık'); esit(yeni[3], 'Yönetmelik değişikliği', 'not');
+  const onceki = new Date(`${gelecek}T00:00:00Z`); onceki.setUTCDate(0);
+  esit(eski[2], onceki.toISOString().slice(0, 10), 'eski kural bir gün önce kapanır');
+  await var_(s.locator('#ayar-gecmis tbody tr:has-text("Uzman · Tehlikeli"):has-text("tarihine kadar")'), 'eski kural geçmişte kapanış tarihiyle');
+  // planlanan varken tekrar değişim: sonradan başlayan kural hatası (bu ay için)
+  await s.click(`${hucre} [data-kural]`); await s.waitForSelector('#f-dakika');
+  await s.fill('#f-dakika', '30'); await s.selectOption('#f-baslangic', { index: 0 }); await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.form-error:not([hidden])');
+  if (!(await s.locator('.form-error').innerText()).includes('zaten var')) throw new Error('çakışma mesajı');
+});
+
+await test('ayarlar: yetki — satış ve finans menüyü/sayfayı göremez; salt okunur rol değiştiremez', async (s) => {
+  await girisYap(s);
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; const r = t.roles.find((x) => x.key === 'finans'); const p = t.role_permissions.find((x) => x.role_id === r.id && x.module === 'settings'); p.can_view = true; });
+  await cikisYapGir(s, 'satis@test.com');
+  esit(await s.locator('a[href="#/ayarlar"]').count(), 0, 'satış menüde görmez');
+  await git(s, '#/ayarlar'); await var_(s.locator('h3:has-text("görme izniniz yok")'), 'satış sayfaya giremez');
+  await cikisYapGir(s, 'finans@test.com');
+  await var_(s.locator('a[href="#/ayarlar"]'), 'görüntüleme izni olan görür');
+  await git(s, '#/ayarlar'); await s.waitForSelector('#ayar-tablo');
+  await var_(s.locator('.notice:has-text("yalnızca görüntüleyebilirsiniz")'), 'salt okunur uyarısı');
+  esit(await s.locator('[data-ayar], [data-kural]').count(), 0, 'değiştirme düğmesi yok');
+  // sunucu da reddeder (sayfayı atlayıp doğrudan RPC)
+  const sonuc = await s.evaluate(async () => { const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm'); return (await createClient('x', 'y').rpc('ayar_kaydet', { p_anahtar: 'marj_esigi_yuzde', p_deger: 30, p_gecerlilik: '2099-01-01' })).error?.message ?? null; });
+  if (!sonuc || !sonuc.includes('yetkiniz yok')) throw new Error(`RPC reddedilmedi: ${sonuc}`);
+});
+
+await test('mobil 375px: ayarlar sayfasında yatay taşma yok', async (s) => {
+  await girisYap(s);
+  await git(s, '#/ayarlar'); await s.waitForSelector('#ayar-tablo'); await s.waitForTimeout(300);
+  const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (t > 1) { const w = await s.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map((e) => `${e.tagName}.${e.className}#${e.id}:${Math.round(e.getBoundingClientRect().right)}`).join(' | ')); throw new Error(`yatay taşma ${t}px: ${w}`); }
+  await ekran(s, '32-mobil-ayarlar');
 }, { genislik: 375, yukseklik: 800 });
 
 await tarayici.close(); sunucu.close();

@@ -47,12 +47,17 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 let oturum = null;
+const izinVar = (modul, alan) => {
+  const rol = tablo.roles.find((r) => r.id === tablo.users.find((u) => u.id === oturum?.user?.id)?.role_id);
+  return !!tablo.role_permissions.find((x) => x.role_id === rol?.id && x.module === modul)?.[alan];
+};
+
 const dinleyiciler = new Set();
 const gunluk = [];
 globalThis.__fake = { tablo, gunluk, hesaplar };
 
 const hata = (message, code) => ({ message, code });
-const bugun = () => new Date().toISOString().slice(0, 10);
+const bugun = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
 const kopya = (x) => JSON.parse(JSON.stringify(x));
 const bildir = (olay, o) => { for (const cb of dinleyiciler) cb(olay, o); };
 
@@ -422,6 +427,36 @@ const rpcler = {
       zaman: tablo.time_entries.filter((t) => !t.archived_at && t.work_date >= bas && t.work_date <= bit).map((t) => ({ employee_id: t.employee_id, company_id: t.company_id, work_date: t.work_date, activity_type: t.activity_type, onsite_minutes: t.onsite_minutes, reporting_minutes: t.reporting_minutes, archived_at: null })),
       personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
     } };
+  },
+  ayar_kaydet({ p_anahtar, p_deger, p_gecerlilik }) {
+    if (!izinVar('settings', 'can_create') || !izinVar('settings', 'can_edit')) return { error: hata('Sistem ayarlarını değiştirme yetkiniz yok.', 'P0001') };
+    const sinir = { kapasite_dakika: [60, 44640, 'Aylık kapasite (dakika)'], kurumlar_vergisi_orani: [0, 100, 'Kurumlar vergisi oranı'], marj_esigi_yuzde: [0, 100, 'Kâr marjı eşiği'], varsayilan_kdv_orani: [0, 100, 'Varsayılan KDV oranı'] }[p_anahtar];
+    if (typeof p_deger !== 'number') return { error: hata('Ayar değeri bir sayı olmalıdır.', 'P0001') };
+    if (!sinir) return { error: hata(`Bu ayar buradan değiştirilemez: ${p_anahtar}`, 'P0001') };
+    if (p_deger < sinir[0] || p_deger > sinir[1]) return { error: hata(`${sinir[2]} ${sinir[0]} ile ${sinir[1]} arasında olmalıdır.`, 'P0001') };
+    if (p_anahtar === 'kapasite_dakika' && !Number.isInteger(p_deger)) return { error: hata('Aylık kapasite tam sayı (dakika) olmalıdır.', 'P0001') };
+    if (!p_gecerlilik || p_gecerlilik.slice(8, 10) !== '01') return { error: hata('Ayar ayın 1\'inden itibaren geçerli olmalıdır.', 'P0001') };
+    if (p_gecerlilik < `${bugun().slice(0, 7)}-01`) return { error: hata('Geçmiş aylar için ayar değiştirilemez (raporlar bozulmasın diye). En erken bu ayın 1\'inden itibaren geçerli olabilir.', 'P0001') };
+    const var_ = tablo.settings.find((x) => x.key === p_anahtar && x.valid_from === p_gecerlilik);
+    if (var_) { var_.value = p_deger; return { data: kopya(var_) }; }
+    const yeni = { id: uid(), organization_id: ORG, key: p_anahtar, value: p_deger, valid_from: p_gecerlilik };
+    tablo.settings.push(yeni); return { data: kopya(yeni) };
+  },
+  hizmet_suresi_kurali_ekle({ p_personel_turu, p_tehlike, p_dakika, p_gecerlilik, p_not }) {
+    if (!izinVar('settings', 'can_create') || !izinVar('settings', 'can_edit')) return { error: hata('Hizmet süresi kurallarını değiştirme yetkiniz yok.', 'P0001') };
+    if (typeof p_dakika !== 'number' || p_dakika < 0 || p_dakika > 600) return { error: hata('Çalışan başına dakika 0 ile 600 arasında olmalıdır.', 'P0001') };
+    if (!p_gecerlilik || p_gecerlilik.slice(8, 10) !== '01') return { error: hata('Kural ayın 1\'inden itibaren geçerli olmalıdır.', 'P0001') };
+    if (p_gecerlilik < `${bugun().slice(0, 7)}-01`) return { error: hata('Geçmiş aylar için kural değiştirilemez (raporlar bozulmasın diye). En erken bu ayın 1\'inden itibaren geçerli olabilir.', 'P0001') };
+    const ayni = tablo.service_time_rules.filter((k) => k.staff_type === p_personel_turu && k.hazard_class === p_tehlike);
+    if (ayni.some((k) => k.valid_from > p_gecerlilik)) return { error: hata('Bu tarihten sonra başlayan bir kural zaten var.', 'P0001') };
+    const acik = ayni.find((k) => !k.valid_to);
+    if (acik) {
+      if (Number(acik.minutes_per_employee) === p_dakika) return { data: kopya(acik) };
+      if (p_gecerlilik <= acik.valid_from) return { error: hata(`Yeni kural, mevcut kuralın başlangıcından (${acik.valid_from.split('-').reverse().join('.')}) sonra olmalıdır.`, 'P0001') };
+      const d = new Date(`${p_gecerlilik}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 1); acik.valid_to = d.toISOString().slice(0, 10);
+    }
+    const yeni = { id: uid(), organization_id: ORG, staff_type: p_personel_turu, hazard_class: p_tehlike, minutes_per_employee: p_dakika, valid_from: p_gecerlilik, valid_to: null, note: (p_not ?? '').trim() || null };
+    tablo.service_time_rules.push(yeni); return { data: kopya(yeni) };
   },
   dagitim_olcutu_ayarla({ p_kategori, p_olcut, p_baslangic }) {
     const acik = tablo.allocation_rules.find((r) => r.category_id === p_kategori && !r.valid_to);
