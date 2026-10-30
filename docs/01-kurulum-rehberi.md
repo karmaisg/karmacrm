@@ -235,9 +235,7 @@ Her sabah 08:00'de **yalnızca sizin e-posta adresinize** özet gider: vadesi ge
    - `OZET_ALICI` = özetin gideceği tek e-posta adresi (Resend hesabınızdakiyle aynı olmalı)
    - `OZET_CRON_SIRRI` = kendi ürettiğiniz uzun rastgele bir metin (en az 30 karakter; başka yere yazmayın)
 4. **Fonksiyonu yükleyin:** Edge Functions > "Deploy a new function" > editörle; adı tam olarak `gunluk-ozet`; `supabase/functions/gunluk-ozet/index.ts` dosyasının içeriğini yapıştırıp Deploy edin. Fonksiyon ayarlarında **"Verify JWT"** seçeneğini **kapatın** (kimlik doğrulamayı fonksiyon kendisi yapar: ya gizli başlık ya da giriş yapmış yetkili kullanıcı).
-
 5. **Test:** Uygulamada Sistem ayarları > "Günlük özet e-postası" kartında **Test e-postası gönder**'e basın. Gelen kutunuzda "[TEST]" ile başlayan e-posta görünmeli; kartta "Gönderildi" kaydı çıkar. Hata olursa kartta ve uyarıda nedeni yazar (ör. `OZET_ALICI tanımlı değil`).
-
 6. **Zamanlama:** Database > Extensions'dan `pg_cron` ve `pg_net`'i açın. SQL Editor'de aşağıdakini **kendi değerlerinizle** çalıştırın (`BURAYA_SIRRI_YAZIN` = 3. adımdaki `OZET_CRON_SIRRI` ile aynı metin):
 
 ```sql
@@ -262,3 +260,17 @@ select cron.schedule('osgb360-gunluk-ozet-2', '0 6 * * *', $$
 Saatler UTC'dir; Türkiye UTC+3 olduğu için `0 5` = 08:00, `0 6` = 09:00. Kapatmak için: `select cron.unschedule('osgb360-gunluk-ozet-1');`
 
 **Gizlilik notu:** Özette müşteri adları ve tutarlar bulunur ve e-posta Resend üzerinden geçer. Alıcı adresi ve anahtar kodda ya da GitHub'da değil, yalnızca Supabase gizli ayarlarındadır; uygulama bunları göstermez.
+
+## Aşama 11 kurulumu (denetim kaydı ve yedekleme)
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/11_asama11.sql` dosyasının tamamını çalıştırın ("Success" görmelisiniz). Dosya güvenle yeniden çalıştırılabilir.
+2. **Denetim kaydı:** menüde Yönetim > **Denetim kaydı**. Kim, neyi, ne zaman değiştirdi; tür, işlem, kullanıcı ve tarihe göre süzülür. Bir satırdaki "alan değişti" yazısına tıklayınca eski ve yeni değer görünür. Kayıtlar değiştirilemez ve silinemez.
+3. **Yedekleme:** Yönetim > **Yedekleme** > "Yedeği indir". Tüm veriler tek bir `.json` dosyası olarak bilgisayarınıza iner. En az haftada bir alın; dosyayı bilgisayarınız dışında da (ör. şifreli bir bulut klasörü) saklayın.
+4. **Yedeği doğrulama:** aynı sayfadaki "Yedek dosyasını doğrula" ile eski bir yedeğin bozulmadığını kontrol edebilirsiniz (veri yüklenmez, değişmez).
+
+**Bilmeniz gerekenler**
+- Supabase ücretsiz planında otomatik yedek **yoktur**; bu ekran sizin tek yedeğinizdir. Ücretli planda günlük yedek vardır (ayrıntı: Supabase fiyatlandırma sayfası).
+- Yedek dosyası maaşlar ve müşteri bilgileri içerir. Başkalarıyla paylaşmayın, e-postayla göndermeyin.
+- Kullanıcı giriş şifreleri yedekte yoktur (Supabase Auth'ta ayrı tutulur).
+- Bu ekran **geri yüklemez**. Veri kaybı olursa yedek dosyasını saklayıp destek alın; yanlış bir geri yükleme güncel kayıtları ezebilir.
+- Tam yedek yalnızca tüm modülleri görebilen kullanıcıya (işletme sahibi, sistem yöneticisi) açıktır; aksi halde yedek eksik veri içerirdi.

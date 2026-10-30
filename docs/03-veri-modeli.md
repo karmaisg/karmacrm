@@ -167,3 +167,11 @@ users.role_id -> roles
 - `email_digest_log`: günlük özet gönderim kaydı (kurum, gün, tür `gunluk`/`test`, durum `gonderildi`/`atlandi`/`hata`, ayrıntı). Yalnızca "settings" görüntüleme izni olanlar okur; kimse tarayıcıdan yazamaz (yazma yalnızca Edge Function'dan). Aynı kurum için günde en çok bir başarılı `gunluk` kaydı olabilir (benzersiz indeks) — aynı gün ikinci e-postayı veri tabanı da engeller.
 - `gunluk_ozet(kurum)`: özet verisini üretir (vadesi geçmiş faturalar, 7 gün içinde vadesi gelenler, 90 gün içinde biten sözleşmeler, geciken görevler; listeler en çok 10 satır, sayılar tümünü kapsar). Yalnızca `service_role` çağırabilir; tarayıcıdan çağrılamaz.
 - E-posta gönderimi `supabase/functions/gunluk-ozet/index.ts` Edge Function'ındadır; alıcı yalnızca `OZET_ALICI` gizli ayarından gelir (tek adres).
+
+## Aşama 11 ile eklenenler
+
+- Yeni tablo yok. `audit_logs` (01_sema'dan beri tetikleyicilerle dolar) artık bir ekrandan okunur.
+- Denetim kaydı okuma izni daraltıldı: "Kullanıcılar" görüntüleme izni **ve** kaydın ait olduğu modülün görüntüleme izni gerekir (`app.audit_modul(tablo)` eşlemesi). Böylece yetkisi devredilen biri maaş (`employee_costs` → `payroll`) değişikliklerini göremez.
+- `app.tam_yetkili()`: 21 modülün hepsinde görüntüleme izni var mı. `yedek_kaydi(tablo_sayisi, satir_sayisi, dosya)` yalnızca buna sahip kullanıcıya çalışır ve denetim kaydına `yedek / BACKUP` satırı yazar (içerik değil, yalnızca sayılar). Tarayıcıdan `audit_logs`'a yazmanın tek yolu budur; güncelleme ve silme kapalıdır.
+- Yedek dosyası (JSON, sürüm 1): `uygulama`, `surum`, `olusturma`, `kurum`, `sayilar`, `toplam_satir`, `eksik_tablolar`, `ozet_sha256` (tüm tablo verisinin SHA-256 özeti) ve `tablolar`. Doğrulama özeti yeniden hesaplar; dosya değişmişse ya da bozulmuşsa yakalar.
+- Denetim kaydı yalnızca ekleme ve güncellemeyi içerir; fiziksel silme zaten kapalı olduğundan "silme" arşivleme olarak (güncelleme) görünür.
