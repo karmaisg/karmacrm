@@ -274,3 +274,21 @@ Saatler UTC'dir; Türkiye UTC+3 olduğu için `0 5` = 08:00, `0 6` = 09:00. Kapa
 - Kullanıcı giriş şifreleri yedekte yoktur (Supabase Auth'ta ayrı tutulur).
 - Bu ekran **geri yüklemez**. Veri kaybı olursa yedek dosyasını saklayıp destek alın; yanlış bir geri yükleme güncel kayıtları ezebilir.
 - Tam yedek yalnızca tüm modülleri görebilen kullanıcıya (işletme sahibi, sistem yöneticisi) açıktır; aksi halde yedek eksik veri içerirdi.
+
+## Aşama 12 kurulumu (müşteriye teklif bağlantısı)
+
+Teklifi müşteriye giriş gerektirmeyen gizli bir bağlantıyla gösterirsiniz; müşteri teklifi görür, yazdırır ve **Kabul ediyorum / Kabul etmiyorum** yanıtı verebilir. **Sistem müşteriye hiçbir e-posta veya mesaj göndermez**; bağlantıyı siz kopyalayıp WhatsApp, e-posta vb. ile iletirsiniz.
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/12_asama12.sql` dosyasının tamamını çalıştırın ("Success" görmelisiniz). Güvenle yeniden çalıştırılabilir. Başka kurulum adımı yoktur.
+2. **Bağlantı oluşturma:** bir teklifi açın, teklifi **"Müşteriye gönderildi"** yapın (taslakta bağlantı oluşturulamaz). Sayfanın altındaki **Müşteri bağlantısı** kartında "Bağlantı oluştur"a basın, süreyi (7–90 gün) ve istersen müşteriye kısa bir not seçin.
+3. **Bağlantıyı kopyalayın:** açılan pencerede bağlantı **yalnızca o an** gösterilir (güvenlik için sistemde yalnızca özeti saklanır). Kopyalamayı unutursanız yeni bağlantı oluşturun; eskisi kapanır.
+4. **Müşteri yanıtı:** müşteri yanıt verince teklif sayfasındaki kartta "Müşteri yanıtı: KABUL/RED" (ad, zaman, not) görünür ve **Görevler**'e yüksek öncelikli bir görev eklenir (günlük özet e-postasında da çıkar). Teklif durumu ve sözleşme **kendiliğinden değişmez**: müşteriyle görüştükten sonra "Kabul edildi, sözleşme oluştur" ya da "Reddedildi" işlemini siz yaparsınız.
+5. **İptal:** kartın "Bağlantıyı iptal et" düğmesi bağlantıyı hemen kapatır. Teklif arşivlenirse, süre dolarsa veya yeni bağlantı oluşturulursa eski bağlantı da kapanır.
+
+**Güvenlik özeti**
+- Bağlantıdaki anahtar 64 karakterdir ve tahmin edilemez; adresin `#` sonrasındadır, yani sunucu kayıtlarına ve yönlendiren (Referer) bilgisine girmez. Bağlantıya sahip olan herkes teklifi görebilir; yalnızca güvendiğiniz kişiye gönderin.
+- Müşteriye yalnızca fiyat, kalem, firma adı, geçerlilik ve sizin yazdığınız not gösterilir. **Maliyet tahmini, kâr marjı, iç açıklama ve hazırlayan kişi asla gösterilmez** (veri tabanı bu alanları hiç döndürmez).
+- Müşteri yalnızca bir kez yanıt verebilir; sonradan değiştirmek için sizinle iletişime geçmesi istenir.
+- Müşterinin yanıtı ön bilgi niteliğindedir; hizmet sözleşmesini yine kendi süreçlerinizle düzenleyip imzalatın.
+
+**Not:** Teklif sayfasındaki "Yazdır / PDF" artık kârlılık, fiyat senaryoları ve bağlantı kartını yazdırmaz (eskiden iç kârlılık da çıktıya girerdi). Müşteriye PDF göndermek isterseniz bağlantıyı açıp oradan "Yazdır / PDF" kullanın.

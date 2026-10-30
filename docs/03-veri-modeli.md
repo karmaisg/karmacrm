@@ -175,3 +175,10 @@ users.role_id -> roles
 - `app.tam_yetkili()`: 21 modülün hepsinde görüntüleme izni var mı. `yedek_kaydi(tablo_sayisi, satir_sayisi, dosya)` yalnızca buna sahip kullanıcıya çalışır ve denetim kaydına `yedek / BACKUP` satırı yazar (içerik değil, yalnızca sayılar). Tarayıcıdan `audit_logs`'a yazmanın tek yolu budur; güncelleme ve silme kapalıdır.
 - Yedek dosyası (JSON, sürüm 1): `uygulama`, `surum`, `olusturma`, `kurum`, `sayilar`, `toplam_satir`, `eksik_tablolar`, `ozet_sha256` (tüm tablo verisinin SHA-256 özeti) ve `tablolar`. Doğrulama özeti yeniden hesaplar; dosya değişmişse ya da bozulmuşsa yakalar.
 - Denetim kaydı yalnızca ekleme ve güncellemeyi içerir; fiziksel silme zaten kapalı olduğundan "silme" arşivleme olarak (güncelleme) görünür.
+
+## Aşama 12 ile eklenenler
+
+- `offer_shares`: teklif başına müşteri bağlantıları (anahtarın **SHA-256 özeti** `token_hash`, son geçerlilik, iptal, görüntüleme sayacı, müşteri yanıtı ve notu). Bir teklif için iptal edilmemiş en çok bir bağlantı vardır. Girişsiz kullanıcı tabloya hiç erişemez; girişli kullanıcı yalnızca okur ve `token_hash` sütununu okuyamaz. Denetim kaydına `token_hash` yazılmaz.
+- Sahip fonksiyonları (giriş + "Teklifler" düzenleme izni): `teklif_baglantisi_olustur(teklif, gün, not)` anahtarı **bir kez** döndürür; `teklif_baglantisi_iptal(teklif)`.
+- Müşteri fonksiyonları (girişsiz çağrılabilir, yalnızca izinli alanları döndürür): `teklif_paylasim_goruntule(anahtar)` ve `teklif_paylasim_yanitla(anahtar, karar, ad, not)`. Geçersiz, süresi dolmuş, iptal edilmiş, arşivlenmiş teklif bağlantıları birbirinden ayırt edilemez ("geçersiz"). Yanıt teklif durumunu **değiştirmez**; `offer_share:<id>` kaynaklı yüksek öncelikli bir görev üretir (mükerrer olmaz).
+- Bağlantılar yedek dosyasına **girmez** (gizli anahtar özeti içerir; geri yüklemede zaten yeniden oluşturulur).

@@ -197,6 +197,16 @@ export function createApi(db) {
     readAllRows: (tablo, sira) => hepsiniOku(() => T(tablo).select('*').order(sira)),
     recordBackup: ({ tabloSayisi, satirSayisi, dosya }) => bir(db.rpc('yedek_kaydi', { p_tablo_sayisi: tabloSayisi, p_satir_sayisi: satirSayisi, p_dosya: dosya ?? null })),
 
+    // ----- müşteri teklif bağlantısı (Aşama 12)
+    createOfferShare: ({ offer, gun, not }) => bir(db.rpc('teklif_baglantisi_olustur', { p_offer: offer, p_gun: gun, p_not: not ?? null })),
+    revokeOfferShare: (offer) => bir(db.rpc('teklif_baglantisi_iptal', { p_offer: offer })),
+    // token_hash sütunu bilerek istenmez (veri tabanı da vermez)
+    listOfferShares: (offerId) => bir(T('offer_shares').select('id,offer_id,customer_note,expires_at,revoked_at,created_at,first_viewed_at,last_viewed_at,view_count,response,responded_at,responder_name,responder_note')
+      .eq('offer_id', offerId).order('created_at', { ascending: false })),
+    // Girişsiz müşteri sayfası bunları kullanır
+    getPublicOffer: (token) => bir(db.rpc('teklif_paylasim_goruntule', { p_token: token })),
+    answerPublicOffer: ({ token, karar, ad, not }) => bir(db.rpc('teklif_paylasim_yanitla', { p_token: token, p_karar: karar, p_ad: ad, p_not: not ?? null })),
+
     // ----- kişiler
     listContacts: () => hepsiniOku(() => T('contacts').select('*').order('id')),
     listContactsByCompany: (companyId) => bir(T('contacts').select('*').eq('company_id', companyId).order('full_name')),

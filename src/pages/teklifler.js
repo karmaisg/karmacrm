@@ -1,11 +1,12 @@
 // OSGB 360 - Teklifler: liste, form (canlı kârlılık), teklif sayfası, kalemler, durum işlemleri, kabul → sözleşme.
 import {
-  html, bugun, tarih, gunEkle, para, sayi, icerir, trSirala, TEHLIKE, TEHLIKE_SIRASI,
+  html, bugun, tarih, tarihSaat, gunEkle, para, sayi, icerir, trSirala, TEHLIKE, TEHLIKE_SIRASI,
 } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import {
-  avatar, pill, emptyState, field, openFormModal, confirmDialog, toast, sayfalama,
+  avatar, pill, emptyState, field, openFormModal, openModal, confirmDialog, toast, sayfalama,
 } from '../ui/components.js';
+import { SURE_SECENEKLERI, baglantiAdresi, baglantiDurumu } from '../lib/musteri.js';
 import { fiyatSenaryolari } from '../lib/hesaplama.js';
 import {
   FIYATLAMA, KDV_MODU, TEKLIF_DURUMLARI, TEKLIF_TON, TEKLIF_GECISLERI, teklifKilitli, kabulEdilebilir, teklifHesabi,
@@ -236,9 +237,10 @@ export async function teklifSayfasi(app, id) {
     return { baslik: 'Teklif bulunamadı', altBaslik: '', eylemler: html`<a class="btn btn-secondary" href="#/teklifler">${icon('arrowL', 18)} Tekliflere dön</a>`,
       govde: emptyState({ simge: 'file', baslik: 'Bu teklif yok ya da erişim izniniz yok' }) };
   }
-  const [kalemler, sozlesmeler] = await Promise.all([
+  const [kalemler, sozlesmeler, paylasimlar] = await Promise.all([
     app.api.listOfferItems(id),
     app.can('contracts', 'view') ? app.api.listContracts() : [],
+    app.api.listOfferShares(id).catch(() => null),   // null: 12_asama12.sql çalıştırılmamış
   ]);
   const esik = marjEsigi(ayarlar);
   const firma = firmalar.find((f) => f.id === o.company_id);
@@ -275,6 +277,27 @@ export async function teklifSayfasi(app, id) {
     return (TEKLIF_GECISLERI[o.status] ?? []).map((d) => html`<button type="button" class="btn btn-secondary" data-gecis="${d}">${etiket[d] ?? TEKLIF_DURUMLARI[d]}</button>`);
   };
 
+  const paylasimKarti = () => {
+    if (paylasimlar === null) return html`<section class="card pad grid-full yazdirma-gizli" id="paylasim-karti"><h2 class="card-title">Müşteri bağlantısı</h2>
+      <div class="notice notice-info" role="note">Bu özellik için Supabase'de <strong>12_asama12.sql</strong> dosyasını çalıştırın.</div></section>`;
+    const aktif = paylasimlar.find((x) => !x.revoked_at); const durum = baglantiDurumu(aktif);
+    const yanitli = paylasimlar.find((x) => x.response);
+    const olusturabilir = duzenleyebilir && kabulEdilebilir(o.status);
+    return html`<section class="card card-flush grid-full yazdirma-gizli" id="paylasim-karti"><div class="card-head"><div><h2 class="card-title">Müşteri bağlantısı</h2>
+      <p class="card-sub">Teklifi müşteriye giriş gerektirmeyen gizli bir bağlantıyla gösterin; müşteri kabul veya ret yanıtı verebilir. Sistem müşteriye hiçbir mesaj göndermez; bağlantıyı siz iletirsiniz.</p></div>
+      <div class="action-row">${olusturabilir ? html`<button type="button" class="btn btn-primary btn-sm" data-action="paylasim-olustur">${icon('plus', 16)} ${aktif && durum.ad === 'aktif' ? 'Yeni bağlantı oluştur' : 'Bağlantı oluştur'}</button>` : ''}
+        ${duzenleyebilir && durum.ad === 'aktif' ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="paylasim-iptal">Bağlantıyı iptal et</button>` : ''}</div></div>
+      <div class="pad">
+        ${aktif ? html`<p>${pill(durum.metin, durum.ad === 'aktif' ? 'success' : 'neutral')} <span class="muted">Son geçerlilik: ${tarihSaat(aktif.expires_at)} · ${aktif.view_count} görüntüleme${aktif.last_viewed_at ? ` · son: ${tarihSaat(aktif.last_viewed_at)}` : ''}</span></p>
+          ${aktif.customer_note ? html`<p class="fine">Müşteriye notunuz: <span class="prewrap">${aktif.customer_note}</span></p>` : ''}`
+          : html`<p class="muted">${olusturabilir ? 'Henüz bağlantı oluşturulmadı.' : 'Bağlantı oluşturmak için teklifi önce "Müşteriye gönderildi" olarak işaretleyin.'}</p>`}
+        ${durum.ad === 'aktif' ? html`<p class="fine">Güvenlik gereği bağlantının kendisi yalnızca oluşturulduğu anda gösterilir. Kaybettiyseniz yeni bağlantı oluşturun; eskisi kapanır.</p>` : ''}
+        ${yanitli ? html`<div class="notice ${yanitli.response === 'kabul' ? 'notice-ok' : 'notice-warn'}" role="status" id="musteri-yaniti"><strong>Müşteri yanıtı: ${yanitli.response === 'kabul' ? 'KABUL' : 'RED'}</strong> — ${yanitli.responder_name}, ${tarihSaat(yanitli.responded_at)}
+          ${yanitli.responder_note ? html`<span class="block prewrap">Not: ${yanitli.responder_note}</span>` : ''}
+          <span class="block fine">Teklif durumu kendiliğinden değişmez; görüştükten sonra aşağıdaki işlemlerle siz güncellersiniz. Size bir görev de eklendi.</span></div>` : ''}
+      </div></section>`;
+  };
+
   return {
     baslik: o.offer_no, altBaslik: '', geri: { href: '#/teklifler', ad: 'Teklifler' },
     ozelBaslik: html`<div class="company-head">${avatar(firma?.name ?? aday?.name ?? o.offer_no, 'lg')}<div><h1>${o.offer_no}</h1>
@@ -298,8 +321,8 @@ export async function teklifSayfasi(app, id) {
           <div class="kv"><dt>İndirim</dt><dd>%${sayi(Number(o.discount_pct))}</dd></div>
           <div class="kv"><dt>Hazırlayan</dt><dd>${uyeAdi.get(o.created_by) || html`<span class="muted">—</span>`}</dd></div>
         </dl></section>
-        <section class="card"><h2 class="card-title">Kârlılık</h2>${h ? hesapOzeti(o, esik) : html`<p class="muted">Hesaplanamadı.</p>`}</section>
-        ${senaryo ? html`<section class="card grid-full"><h2 class="card-title">Fiyat senaryoları</h2>
+        <section class="card yazdirma-gizli"><h2 class="card-title">Kârlılık</h2>${h ? hesapOzeti(o, esik) : html`<p class="muted">Hesaplanamadı.</p>`}</section>
+        ${senaryo ? html`<section class="card grid-full yazdirma-gizli"><h2 class="card-title">Fiyat senaryoları</h2>
           <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Senaryo</th><th scope="col" class="num">Aylık gelir (KDV hariç)</th><th scope="col" class="num">Katkı kârı</th><th scope="col" class="num">Marj</th></tr></thead><tbody>
             <tr><td>Mevcut teklif</td><td class="num">${para(senaryo.mevcut.aylikGelirKdvHaric)}</td><td class="num">${para(senaryo.mevcut.katkiKari)}</td><td class="num">${yuzde(senaryo.mevcut.katkiMarji)}</td></tr>
             <tr><td>Ek %5 indirim verilirse</td><td class="num">${para(senaryo.indirimli.aylikGelirKdvHaric)}</td><td class="num">${para(senaryo.indirimli.katkiKari)}</td><td class="num">${yuzde(senaryo.indirimli.katkiMarji)}</td></tr>
@@ -307,6 +330,7 @@ export async function teklifSayfasi(app, id) {
           <p class="fine">Maliyetler sizin girdiğiniz tahminlerdir; gerçek maliyet Aşama 7'de fiilî sürelerle hesaplanır.</p></section>` : ''}
         ${o.description ? html`<section class="card grid-full"><h2 class="card-title">Kapsam / açıklama</h2><p class="prewrap">${o.description}</p></section>` : ''}
         <div class="grid-full">${kalemTablosu()}</div>
+        ${paylasimKarti()}
       </div>`,
     mount(kok) {
       kok.addEventListener('click', async (e) => {
@@ -325,6 +349,11 @@ export async function teklifSayfasi(app, id) {
         const x = a.dataset.action;
         if (x === 'duzenle') teklifFormuAc(app, { teklif: o });
         else if (x === 'kalem-ekle') kalemFormu(app, o);
+        else if (x === 'paylasim-olustur') paylasimFormu(app, o);
+        else if (x === 'paylasim-iptal') {
+          if (!(await confirmDialog({ baslik: 'Bağlantıyı iptal et', onayEtiketi: 'İptal et', tehlikeli: true, mesaj: 'Müşteri bu bağlantıyla teklife bir daha ulaşamaz. Daha önce verdiği yanıt saklanır.' }))) return;
+          try { await app.api.revokeOfferShare(o.id); toast('Müşteri bağlantısı iptal edildi.'); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
+        }
         else if (x === 'kabul') kabulFormu(app, o);
         else if (x === 'kopyala') {
           try { const k = await app.api.copyOffer(o.id); toast(`Yeni taslak oluşturuldu (${k.offer_no}).`); app.git(`teklifler/${k.id}`); } catch (err) { toast(humanError(err), 'hata'); }
@@ -358,6 +387,36 @@ function kalemFormu(app, o) {
     },
     onDone: () => app.yenile(),
   });
+}
+
+function paylasimFormu(app, o) {
+  let token = null;
+  openFormModal({
+    baslik: 'Müşteri bağlantısı oluştur', altBaslik: `${o.offer_no}. Varsa önceki bağlantı kapanır.`, gonderEtiketi: 'Bağlantıyı oluştur',
+    govde: html`${field({ ad: 'gun', etiket: 'Bağlantı kaç gün açık kalsın', zorunlu: true, deger: '30', secenekler: SURE_SECENEKLERI.map((g) => ({ deger: String(g), etiket: `${g} gün` })) })}
+      ${field({ ad: 'not', etiket: 'Müşteriye kısa not (isteğe bağlı)', tur: 'textarea', tam: true, maksUzunluk: 1000, ipucu: 'Teklif sayfasında müşteri görür. İç bilgi yazmayın.' })}`,
+    async onSubmit(fd) {
+      token = await app.api.createOfferShare({ offer: o.id, gun: Number(fd.get('gun')), not: String(fd.get('not') ?? '').trim() || null });
+    },
+    onDone: async () => { if (token) baglantiGoster(token); app.yenile(); },
+  });
+}
+
+function baglantiGoster(token) {
+  const adres = baglantiAdresi(token, window.location);
+  const m = openModal({
+    baslik: 'Müşteri bağlantısı hazır', boyut: 'md', arkaPlanKapatir: false,
+    govde: html`<p>Bu bağlantıyı müşteriye WhatsApp, e-posta veya mesajla siz iletin. Bağlantıya sahip olan herkes teklifi görebilir.</p>
+      <div class="field"><label for="m-link">Bağlantı</label><input id="m-link" type="text" readonly value="${adres}"></div>
+      <div class="notice notice-warn" role="note"><strong>Önemli:</strong> Bu bağlantı güvenlik için yalnızca şimdi gösterilir. Kopyalamayı unutursanız yeni bağlantı oluşturun (eskisi kapanır).</div>
+      <div class="modal-actions"><button type="button" class="btn btn-secondary" data-close>Kapat</button><button type="button" class="btn btn-primary" data-kopyala>${icon('file', 16)} Kopyala</button></div>`,
+  });
+  m.el.querySelector('[data-kopyala]').addEventListener('click', async () => {
+    const girdi = m.el.querySelector('#m-link');
+    try { await navigator.clipboard.writeText(adres); toast('Bağlantı kopyalandı.'); }
+    catch { girdi.focus(); girdi.select(); toast('Kopyalanamadı; bağlantı seçildi, Ctrl+C ile kopyalayın.', 'bilgi'); }
+  });
+  m.el.querySelector('#m-link').addEventListener('focus', (e) => e.target.select());
 }
 
 function kabulFormu(app, o) {

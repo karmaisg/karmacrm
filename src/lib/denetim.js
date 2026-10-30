@@ -9,7 +9,7 @@ export const TABLO_ADLARI = {
   time_entries: 'Zaman kaydı', invoices: 'Fatura', invoice_items: 'Fatura kalemi', payments: 'Tahsilat', expenses: 'Gider',
   expense_categories: 'Gider kategorisi', allocation_rules: 'Dağıtım kuralı', overhead_allocations: 'Ortak gider dağıtımı',
   settings: 'Ayar', service_time_rules: 'Hizmet süresi kuralı', users: 'Kullanıcı', role_permissions: 'Yetki', attachments: 'Ek dosya',
-  notifications: 'Bildirim', outbound_messages: 'Giden mesaj', yedek: 'Yedek',
+  notifications: 'Bildirim', outbound_messages: 'Giden mesaj', offer_shares: 'Teklif bağlantısı', yedek: 'Yedek',
 };
 export const tabloAdi = (t) => TABLO_ADLARI[t] ?? t;
 
@@ -25,6 +25,8 @@ export const ALAN_ADLARI = {
   can_edit: 'Düzenleme', can_archive: 'Arşivleme', module: 'Modül', role_id: 'Rol', minutes_per_employee: 'Çalışan başına dakika',
   company_id: 'Firma', employee_id: 'Personel', contract_id: 'Sözleşme', invoice_id: 'Fatura', offer_id: 'Teklif', category_id: 'Kategori',
   start_at: 'Başlangıç zamanı', end_at: 'Bitiş zamanı', minutes: 'Dakika', kind: 'Tür', source: 'Kaynak', loss_reason: 'Kayıp nedeni',
+  response: 'Müşteri yanıtı', responded_at: 'Yanıt zamanı', responder_name: 'Yanıtlayan', responder_note: 'Yanıt notu', expires_at: 'Son geçerlilik', revoked_at: 'İptal zamanı',
+  view_count: 'Görüntüleme', customer_note: 'Müşteriye not', first_viewed_at: 'İlk görüntüleme', last_viewed_at: 'Son görüntüleme', offer_id: 'Teklif',
   expense_date: 'Gider tarihi', period: 'Dönem', completed_at: 'Tamamlanma', tablo_sayisi: 'Tablo sayısı', satir_sayisi: 'Satır sayısı', dosya: 'Dosya',
 };
 export const alanAdi = (a) => ALAN_ADLARI[a] ?? a.replace(/_/g, ' ');

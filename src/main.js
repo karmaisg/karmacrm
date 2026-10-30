@@ -28,6 +28,8 @@ import { aktarimSayfasi } from './pages/aktarim.js';
 import { ayarlarSayfasi } from './pages/ayarlar.js';
 import { denetimSayfasi } from './pages/denetim.js';
 import { yedekSayfasi } from './pages/yedek.js';
+import { musteriTeklifSayfasi } from './pages/musteri-teklif.js';
+import { musteriAnahtari } from './lib/musteri.js';
 import { personelListeSayfasi, personelSayfasi } from './pages/personel.js';
 import { gorevlendirmelerSayfasi } from './pages/gorevlendirmeler.js';
 import { zamanSayfasi } from './pages/zaman.js';
@@ -217,6 +219,13 @@ async function basla() {
   } catch (e) {
     console.error(e);
     olumcul('Gerekli kütüphane yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.');
+    return;
+  }
+  // Müşteri teklif bağlantısı (#/t/<anahtar>): oturum ve uygulama kabuğu hiç yüklenmez; adres değişirse sayfa baştan açılır.
+  const musteri = musteriAnahtari(location.hash);
+  if (musteri !== null) {
+    window.addEventListener('hashchange', () => location.reload());
+    await musteriTeklifSayfasi(app.api, musteri);
     return;
   }
   dinle(() => { if (kabuk) sayfayiCiz(); });

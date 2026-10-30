@@ -45,18 +45,19 @@ karmacrm/
 │  ├─ 09_asama9.sql          Aşama 9: sistem ayarları (ayar_kaydet, hizmet_suresi_kurali_ekle) (bir kez)
 │  ├─ 10_asama10.sql         Aşama 10: günlük özet (email_digest_log, gunluk_ozet) (bir kez)
 │  ├─ 11_asama11.sql         Aşama 11: denetim kaydı okuma izni, tam yetki, yedek kaydı (bir kez)
+│  ├─ 12_asama12.sql         Aşama 12: müşteri teklif bağlantısı (offer_shares, girişsiz müşteri fonksiyonları) (bir kez)
 │  └─ functions/gunluk-ozet/index.ts   Günlük özet e-postası Edge Function'ı (yalnızca sahibe)
 ├─ src/
 │  ├─ main.js                Açılış, oturum, yönlendirme
 │  ├─ config.js              Supabase adresi ve anon anahtarı (gizli değildir)
 │  ├─ modules.js             Menü ve modül tanımları
-│  ├─ lib/                   api.js (Supabase), hesaplama.js, ticari.js, operasyon.js, finans.js, karlilik.js, csv.js, aktarim.js, ayarlar.js, denetim.js, yedek.js, format.js, veri.js, router.js
-│  ├─ pages/                 auth, panel, firmalar, firma, kisiler, kullanicilar, crm, firsatlar, gorevler, gorusmeler, teklifler, sozlesmeler, personel, gorevlendirmeler, zaman, kapasite, faturalar, giderler, karlilik, raporlar, aktarim, ayarlar, denetim, yedek, placeholder
+│  ├─ lib/                   api.js (Supabase), hesaplama.js, ticari.js, operasyon.js, finans.js, karlilik.js, csv.js, aktarim.js, ayarlar.js, denetim.js, yedek.js, musteri.js, format.js, veri.js, router.js
+│  ├─ pages/                 auth, panel, firmalar, firma, kisiler, kullanicilar, crm, firsatlar, gorevler, gorusmeler, teklifler, sozlesmeler, personel, gorevlendirmeler, zaman, kapasite, faturalar, giderler, karlilik, raporlar, aktarim, ayarlar, denetim, yedek, musteri-teklif, placeholder
 │  ├─ ui/                    components.js, shell.js (kenar menü/üst çubuk/arama), icons.js, indir.js (CSV indirme)
 │  └─ styles/                tokens.css, app.css
 ├─ tests/
-│  ├─ hesaplama.test.js, puanlama, operasyon, finans, karlilik, csv, aktarim, ayarlar, ozet, denetim, yedek .test.js   Motor ve CSV testleri (Node)
-│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql, db_tests_asama4.sql, db_tests_asama5.sql, db_tests_asama6.sql, db_tests_asama7.sql, db_tests_asama9.sql, db_tests_asama10.sql, db_tests_asama11.sql   Veri tabanı testleri (PostgreSQL)
+│  ├─ hesaplama.test.js, puanlama, operasyon, finans, karlilik, csv, aktarim, ayarlar, ozet, denetim, yedek, musteri .test.js   Motor ve CSV testleri (Node)
+│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql, db_tests_asama4.sql, db_tests_asama5.sql, db_tests_asama6.sql, db_tests_asama7.sql, db_tests_asama9.sql, db_tests_asama10.sql, db_tests_asama11.sql, db_tests_asama12.sql   Veri tabanı testleri (PostgreSQL)
 │  ├─ ui/                    Arayüz testleri (Playwright + sahte Supabase istemcisi)
 │  ├─ supabase_stub.sql      Yalnızca yerel test için Supabase taklidi
 │  └─ db_test_cikti*.txt     Son DB test çıktıları
@@ -85,10 +86,12 @@ psql -d osgb -f supabase/08_asama7.sql
 psql -d osgb -f supabase/09_asama9.sql
 psql -d osgb -f supabase/10_asama10.sql
 psql -d osgb -f supabase/11_asama11.sql
+psql -d osgb -f supabase/12_asama12.sql
 psql -d osgb -f tests/db_tests_asama7.sql
 psql -d osgb -f tests/db_tests_asama9.sql
 psql -d osgb -f tests/db_tests_asama10.sql
 psql -d osgb -f tests/db_tests_asama11.sql
+psql -d osgb -f tests/db_tests_asama12.sql
 psql -d osgb -f tests/db_tests.sql
 psql -d osgb -f tests/db_tests_asama2.sql
 psql -d osgb -f tests/db_tests_asama3.sql
