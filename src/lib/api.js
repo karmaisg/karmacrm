@@ -178,6 +178,25 @@ export function createApi(db) {
       return data;
     },
 
+    // ----- denetim kaydı ve yedekleme (Aşama 11)
+    /** Süzgeçlere uyan denetim satırları, en yeniden eskiye; `boyut + 1` satır döner (fazlası "sonraki sayfa var" demektir). */
+    listAuditLogs: ({ tablo, islem, kullanici, bas, bit, kayit, sira = 0, boyut = 50 } = {}) => {
+      let q = T('audit_logs').select('*');
+      if (tablo) q = q.eq('table_name', tablo);
+      if (islem) q = q.eq('action', islem);
+      if (kullanici) q = q.eq('user_id', kullanici);
+      if (kayit) q = q.eq('record_id', kayit);
+      if (bas) q = q.gte('created_at', bas);
+      if (bit) q = q.lte('created_at', bit);
+      return bir(q.order('created_at', { ascending: false }).range(sira, sira + boyut));
+    },
+    async lastBackup() {
+      const l = await bir(T('audit_logs').select('*').eq('table_name', 'yedek').order('created_at', { ascending: false }).limit(1));
+      return l[0] ?? null;
+    },
+    readAllRows: (tablo, sira) => hepsiniOku(() => T(tablo).select('*').order(sira)),
+    recordBackup: ({ tabloSayisi, satirSayisi, dosya }) => bir(db.rpc('yedek_kaydi', { p_tablo_sayisi: tabloSayisi, p_satir_sayisi: satirSayisi, p_dosya: dosya ?? null })),
+
     // ----- kişiler
     listContacts: () => hepsiniOku(() => T('contacts').select('*').order('id')),
     listContactsByCompany: (companyId) => bir(T('contacts').select('*').eq('company_id', companyId).order('full_name')),

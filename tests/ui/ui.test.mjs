@@ -3,6 +3,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
@@ -1697,6 +1698,120 @@ await test('özet e-postası: günlük tablosu yoksa sayfa açılır, kart kurul
   await git(s, '#/ayarlar'); await s.waitForSelector('#ozet-kart');
   esit(await s.locator('#ozet-test').count(), 0, 'salt okunur rol test düğmesi görmez');
 });
+
+// ====================================================================== Aşama 11: denetim kaydı ve yedekleme
+const denetimTohumla = (s, ekstra = 0) => s.evaluate((n) => {
+  const t = globalThis.__fake.tablo; const sahip = t.users.find((u) => u.email === 'sahip@test.com').id; const satis = t.users.find((u) => u.email === 'satis@test.com').id;
+  const org = t.organizations[0].id; let id = t.audit_logs.length; const zaman = (dk) => new Date(Date.now() - dk * 60000).toISOString();
+  const ekle = (o) => t.audit_logs.push({ id: ++id, organization_id: org, record_id: null, old_data: null, new_data: null, ...o });
+  ekle({ table_name: 'companies', record_id: '11111111-2222-4333-8444-555555555555', action: 'INSERT', user_id: satis, created_at: zaman(60), new_data: { id: '11111111-2222-4333-8444-555555555555', name: 'Alfa <b>Gıda</b>', city: 'Ankara', is_active: true, updated_at: 'x' } });
+  ekle({ table_name: 'companies', record_id: '11111111-2222-4333-8444-555555555555', action: 'UPDATE', user_id: sahip, created_at: zaman(30), old_data: { name: 'Alfa <b>Gıda</b>', city: 'Ankara', archived_at: null }, new_data: { name: 'Alfa <b>Gıda</b>', city: 'İzmir', archived_at: null } });
+  ekle({ table_name: 'invoices', record_id: 'f1', action: 'UPDATE', user_id: sahip, created_at: zaman(20), old_data: { invoice_no: 'F-1', archived_at: null }, new_data: { invoice_no: 'F-1', archived_at: '2026-10-01T00:00:00Z' } });
+  for (let i = 0; i < n; i += 1) ekle({ table_name: 'tasks', record_id: `g${i}`, action: 'INSERT', user_id: null, created_at: zaman(100 + i), new_data: { title: `Görev ${i}` } });
+}, ekstra);
+
+await test('denetim kaydı: liste, okunur özet, süzgeçler ve XSS güvenliği', async (s) => {
+  await girisYap(s); await denetimTohumla(s);
+  await var_(s.locator('a[href="#/denetim"]'), 'menüde Denetim kaydı'); await var_(s.locator('a[href="#/yedek"]'), 'menüde Yedekleme');
+  await git(s, '#/denetim'); await s.waitForSelector('#denetim-tablo tbody tr');
+  esit(await s.locator('#denetim-tablo tbody tr').count(), 3, 'üç kayıt');
+  const metin = await s.locator('#denetim-tablo').innerText();
+  for (const b of ['Selin Satış', 'Barış Sahip', 'Eklendi', 'Güncellendi', 'Arşivlendi', 'Firma', 'Fatura', 'F-1']) if (!metin.includes(b)) throw new Error(`tabloda "${b}" yok: ${metin}`);
+  esit(await s.locator('#denetim-tablo b').count(), 0, 'kayıt adındaki HTML etiketi çalışmamalı (kaçırılmalı)');
+  const sehirKutu = s.locator('#denetim-tablo details').filter({ hasText: 'Şehir' }).first();
+  await sehirKutu.locator('summary').click();
+  const ayr = await sehirKutu.innerText();
+  if (!ayr.includes('Şehir') || !ayr.includes('Ankara') || !ayr.includes('İzmir')) throw new Error(`ayrıntı: ${ayr}`);
+  await ekran(s, '34-denetim');
+  await s.selectOption('#f-tablo', 'invoices'); await s.click('#denetim-suz button[type=submit]');
+  await s.waitForFunction(() => document.querySelectorAll('#denetim-tablo tbody tr').length === 1);
+  await s.selectOption('#f-tablo', ''); await s.selectOption('#f-islem', 'INSERT'); await s.click('#denetim-suz button[type=submit]');
+  await s.waitForFunction(() => document.querySelectorAll('#denetim-tablo tbody tr').length === 1 && document.querySelector('#denetim-tablo').innerText.includes('Eklendi'));
+  await s.click('#denetim-temizle');
+  await s.waitForFunction(() => document.querySelectorAll('#denetim-tablo tbody tr').length === 3);
+  const sahipId = await s.evaluate(() => globalThis.__fake.tablo.users.find((u) => u.email === 'sahip@test.com').id);
+  await s.selectOption('#f-kullanici', sahipId); await s.click('#denetim-suz button[type=submit]');
+  await s.waitForFunction(() => document.querySelectorAll('#denetim-tablo tbody tr').length === 2);
+  await s.click('#denetim-temizle'); await s.waitForFunction(() => document.querySelectorAll('#denetim-tablo tbody tr').length === 3);
+  await s.fill('#f-kayit', '11111111-2222-4333-8444-555555555555'); await s.click('#denetim-suz button[type=submit]');
+  await s.waitForFunction(() => document.querySelectorAll('#denetim-tablo tbody tr').length === 2);
+  await s.fill('#f-kayit', 'abc'); await s.click('#denetim-suz button[type=submit]');
+  await s.waitForSelector('.toast:has-text("geçerli bir kimlik değil")');
+  await s.click('#denetim-temizle');
+  await s.fill('#f-bas', '2030-01-02'); await s.fill('#f-bit', '2030-01-01'); await s.click('#denetim-suz button[type=submit]');
+  await s.waitForSelector('#denetim-sonuc:has-text("Başlangıç tarihi bitiş tarihinden sonra olamaz")');
+  await s.click('#denetim-temizle'); await s.fill('#f-bas', '2000-01-01'); await s.fill('#f-bit', '2000-01-02'); await s.click('#denetim-suz button[type=submit]');
+  await s.waitForSelector('#denetim-sonuc:has-text("Kayıt bulunamadı")');
+});
+
+await test('denetim kaydı: sayfalama (50 kayıt) ve boş durum', async (s) => {
+  await girisYap(s); await git(s, '#/denetim'); await s.waitForSelector('#denetim-sonuc .empty');
+  await denetimTohumla(s, 57);
+  await s.click('#denetim-temizle'); await s.waitForSelector('#denetim-tablo tbody tr');
+  esit(await s.locator('#denetim-tablo tbody tr').count(), 50, 'ilk sayfa 50');
+  esit(await s.locator('#denetim-onceki').isDisabled(), true, 'önceki kapalı');
+  await s.click('#denetim-sonraki');
+  await s.waitForFunction(() => document.querySelectorAll('#denetim-tablo tbody tr').length === 10);
+  esit(await s.locator('#denetim-sonraki').isDisabled(), true, 'son sayfada sonraki kapalı');
+  await s.click('#denetim-onceki'); await s.waitForFunction(() => document.querySelectorAll('#denetim-tablo tbody tr').length === 50);
+});
+
+await test('yedekleme: indirir, denetime yazar, dosya doğrulanır; bozulmuş dosya reddedilir', async (s) => {
+  await girisYap(s); await denetimTohumla(s);
+  await git(s, '#/yedek'); await s.waitForSelector('#yedek-al');
+  await var_(s.locator('#yedek-son .pill:has-text("Henüz yedek alınmadı")'), 'başlangıçta uyarı');
+  const f = await indirOku(s, () => s.click('#yedek-al'));
+  if (!/^osgb360-yedek-\d{4}-\d{2}-\d{2}-\d{4}\.json$/.test(f.ad)) throw new Error(`dosya adı: ${f.ad}`);
+  const yedek = JSON.parse(f.metin);
+  esit(yedek.uygulama, 'osgb360', 'uygulama'); esit(yedek.kurum, 'Test OSGB', 'kurum');
+  esit(yedek.tablolar.audit_logs.length >= 3, true, 'denetim kaydı yedekte');
+  esit(yedek.tablolar.roles.length, 6, 'altı rol'); esit(yedek.eksik_tablolar.length, 0, 'eksik tablo yok');
+  const { yedekDogrula } = await import('../../src/lib/yedek.js');
+  esit((await yedekDogrula(f.metin)).gecerli, true, 'indirilen yedek doğrulanır');
+  await s.waitForSelector('#yedek-son .pill:has-text("Bugün alındı")');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.audit_logs.filter((x) => x.table_name === 'yedek').length), 1, 'denetimde yedek kaydı');
+  await ekran(s, '35-yedek');
+  const gecerliYol = path.join(os.tmpdir(), 'gecerli-yedek.json'); fs.writeFileSync(gecerliYol, f.metin);
+  await s.setInputFiles('#yedek-dosya', gecerliYol); await s.click('#yedek-dogrula');
+  await s.waitForSelector('#yedek-sonuc:has-text("Yedek dosyası sağlam")'); await var_(s.locator('#yedek-tablolar'), 'tablo sayıları');
+  yedek.tablolar.companies.push({ id: 'x', name: 'Sonradan eklendi' });
+  const bozukYol = path.join(os.tmpdir(), 'bozuk-yedek.json'); fs.writeFileSync(bozukYol, JSON.stringify(yedek));
+  await s.setInputFiles('#yedek-dosya', bozukYol); await s.click('#yedek-dogrula');
+  await s.waitForSelector('#yedek-sonuc:has-text("sorun var")');
+  if (!(await s.locator('#yedek-sonuc').innerText()).includes('SHA-256')) throw new Error('özet uyuşmazlığı belirtilmeli');
+  fs.writeFileSync(bozukYol, 'bu bir yedek değil'); await s.setInputFiles('#yedek-dosya', bozukYol); await s.click('#yedek-dogrula');
+  await s.waitForSelector('#yedek-sonuc:has-text("geçerli bir JSON değil")');
+  await s.setInputFiles('#yedek-dosya', []); await s.click('#yedek-dogrula'); await s.waitForSelector('.toast:has-text("Önce bir yedek dosyası seçin")');
+});
+
+await test('yedekleme: okunamayan tablo uyarı verir; yetkisiz rol yedek alamaz; satış menüde görmez', async (s) => {
+  await girisYap(s);
+  await s.evaluate(() => { delete globalThis.__fake.tablo.notifications; });
+  await git(s, '#/yedek'); await s.waitForSelector('#yedek-al');
+  const f = await indirOku(s, () => s.click('#yedek-al'));
+  await s.waitForSelector('.toast:has-text("1 tablo okunamadı: notifications")');
+  esit(JSON.parse(f.metin).eksik_tablolar[0], 'notifications', 'eksik tablo dosyada kayıtlı');
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; t.notifications = []; const r = t.roles.find((x) => x.key === 'finans'); for (const m of ['settings', 'users']) t.role_permissions.find((x) => x.role_id === r.id && x.module === m).can_view = true; });
+  await cikisYapGir(s, 'finans@test.com');
+  await git(s, '#/yedek'); await s.waitForSelector('#sayfa h1');
+  await var_(s.locator('.notice:has-text("Tam yedek için tüm modülleri")'), 'yetki uyarısı');
+  esit(await s.locator('#yedek-al').count(), 0, 'yetkisiz rolde yedek düğmesi yok');
+  const sonuc = await s.evaluate(async () => { const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm'); return (await createClient('x', 'y').rpc('yedek_kaydi', { p_tablo_sayisi: 5, p_satir_sayisi: 10 })).error?.message ?? null; });
+  if (!sonuc || !sonuc.includes('tüm modülleri')) throw new Error(`RPC reddedilmedi: ${sonuc}`);
+  await cikisYapGir(s, 'satis@test.com');
+  esit(await s.locator('a[href="#/denetim"], a[href="#/yedek"]').count(), 0, 'satış menüde görmez');
+  await git(s, '#/denetim'); await var_(s.locator('h3:has-text("görme izniniz yok")'), 'satış denetime giremez');
+});
+
+await test('mobil 375px: denetim ve yedek sayfalarında yatay taşma yok', async (s) => {
+  await girisYap(s); await denetimTohumla(s);
+  for (const h of ['#/denetim', '#/yedek']) {
+    await git(s, h); await s.waitForSelector('#sayfa h1'); await s.waitForTimeout(300);
+    const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (t > 1) { const w = await s.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map((e) => `${e.tagName}.${e.className}#${e.id}:${Math.round(e.getBoundingClientRect().right)}`).join(' | ')); throw new Error(`${h} yatay taşma ${t}px: ${w}`); }
+  }
+  await ekran(s, '36-mobil-denetim');
+}, { genislik: 375, yukseklik: 800 });
 
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);

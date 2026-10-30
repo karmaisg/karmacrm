@@ -47,6 +47,8 @@ const tablo = {
     ['isyeri_hekimi', 'az_tehlikeli', 5], ['isyeri_hekimi', 'tehlikeli', 10], ['isyeri_hekimi', 'cok_tehlikeli', 15],
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
+// Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
+for (const ad of ['company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs']) tablo[ad] ??= [];
 let oturum = null;
 const izinVar = (modul, alan) => {
   const rol = tablo.roles.find((r) => r.id === tablo.users.find((u) => u.id === oturum?.user?.id)?.role_id);
@@ -430,6 +432,13 @@ const rpcler = {
       zaman: tablo.time_entries.filter((t) => !t.archived_at && t.work_date >= bas && t.work_date <= bit).map((t) => ({ employee_id: t.employee_id, company_id: t.company_id, work_date: t.work_date, activity_type: t.activity_type, onsite_minutes: t.onsite_minutes, reporting_minutes: t.reporting_minutes, archived_at: null })),
       personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
     } };
+  },
+  yedek_kaydi({ p_tablo_sayisi, p_satir_sayisi, p_dosya }) {
+    const modul = ['dashboard', 'crm', 'companies', 'contacts', 'opportunities', 'offers', 'contracts', 'staff', 'assignments', 'time', 'invoices', 'expenses', 'payroll', 'staff_profit', 'company_profit', 'capacity', 'reports', 'tasks', 'import_export', 'users', 'settings'];
+    if (!modul.every((m) => izinVar(m, 'can_view'))) return { error: hata('Yedek almak için tüm modülleri görüntüleme yetkisi gerekir.', 'P0001') };
+    if (!(p_tablo_sayisi >= 1) || !(p_satir_sayisi >= 0)) return { error: hata('Geçersiz yedek bilgisi.', 'P0001') };
+    const satir = { id: tablo.audit_logs.length + 1, organization_id: ORG, table_name: 'yedek', record_id: null, action: 'BACKUP', old_data: null, new_data: { tablo_sayisi: p_tablo_sayisi, satir_sayisi: p_satir_sayisi, dosya: p_dosya }, user_id: oturum?.user?.id ?? null, created_at: new Date().toISOString() };
+    tablo.audit_logs.push(satir); return { data: satir.id };
   },
   ayar_kaydet({ p_anahtar, p_deger, p_gecerlilik }) {
     if (!izinVar('settings', 'can_create') || !izinVar('settings', 'can_edit')) return { error: hata('Sistem ayarlarını değiştirme yetkiniz yok.', 'P0001') };

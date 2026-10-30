@@ -90,6 +90,10 @@ export const MENU = [
   { id: 'aktarim', grup: 'yonetim', modul: 'import_export', ad: 'Veri içe/dışa aktarma', simge: 'upload', yapildi: true,
     aciklama: 'Excel ve CSV içe aktarma: sütun eşleştirme, önizleme ve mükerrer kayıt kontrolü.' },
   { id: 'kullanicilar', grup: 'yonetim', modul: 'users', ad: 'Kullanıcılar ve yetkiler', simge: 'lock', yapildi: true },
+  { id: 'denetim', grup: 'yonetim', modul: 'users', ad: 'Denetim kaydı', simge: 'history', yapildi: true,
+    aciklama: 'Kim, neyi, ne zaman değiştirdi: süzülebilir değişiklik geçmişi.' },
+  { id: 'yedek', grup: 'yonetim', modul: 'settings', ad: 'Yedekleme', simge: 'archive', yapildi: true,
+    aciklama: 'Tüm verinin tek dosyada yedeği ve yedek dosyası doğrulama.' },
   { id: 'ayarlar', grup: 'yonetim', modul: 'settings', ad: 'Sistem ayarları', simge: 'settings', yapildi: true,
     aciklama: 'Hizmet süresi parametreleri, kâr marjı eşiği, vergi oranı ve gider dağıtım kuralları.' },
 ];
