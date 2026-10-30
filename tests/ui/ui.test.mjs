@@ -1813,6 +1813,160 @@ await test('mobil 375px: denetim ve yedek sayfalarında yatay taşma yok', async
   await ekran(s, '36-mobil-denetim');
 }, { genislik: 375, yukseklik: 800 });
 
+// ====================================================================== Aşama 12: müşteri teklif bağlantısı
+// Müşteri, girişsiz yeni bir sayfadır; sahte veri tabanı mevcut durumla (anlık görüntü) başlatılır.
+const musteriSayfasi = async (s, ctx, adres) => {
+  const tohum = await s.evaluate(() => JSON.stringify(globalThis.__fake.tablo));
+  const m = await ctx.newPage();
+  m.__hatalar = [];
+  m.on('pageerror', (e) => m.__hatalar.push(`pageerror: ${e.message}`));
+  m.on('console', (c) => { if (c.type() === 'error' && !/Failed to load resource/.test(c.text())) m.__hatalar.push(`console: ${c.text()}`); });
+  await m.route('**/cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', headers: { 'access-control-allow-origin': '*' }, body: FAKE }));
+  await m.route('**/*.supabase.co/**', (r) => r.abort());
+  await m.addInitScript((t) => { globalThis.__fakeTohum = t; }, tohum);
+  await m.goto(adres);
+  return m;
+};
+const musteriDurumunuSahibeAktar = async (m, s) => {
+  const t = await m.evaluate(() => JSON.stringify(globalThis.__fake.tablo));
+  await s.evaluate((x) => { const tb = globalThis.__fake.tablo; for (const [k, v] of Object.entries(JSON.parse(x))) { if (Array.isArray(tb[k])) tb[k].splice(0, tb[k].length, ...v); } }, t);
+};
+const baglantiOlustur = async (s, { gun = '30', not = '' } = {}) => {
+  await s.click('[data-action="paylasim-olustur"]');
+  await modal(s).locator('#f-gun').selectOption(gun);
+  if (not) await modal(s).locator('#f-not').fill(not);
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#m-link');
+  return s.locator('#m-link').inputValue();
+};
+const gonderilmisTeklif = async (s, firma, { kalem = true } = {}) => {
+  await firmaEkle(s, { ad: firma, vergi: String(Math.floor(1e9 + Math.random() * 9e9)), calisan: 25, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head');
+  await teklifOlustur(s, firma, { calisan: 25, tehlike: 'tehlikeli', birim: '100', uzman: '900', indirim: '10' });
+  if (kalem) {
+    await s.click('[data-action="kalem-ekle"]');
+    await modal(s).locator('#f-description').fill('Yıllık eğitim paketi'); await modal(s).locator('#f-unit_price').fill('3000');
+    await modal(s).locator('button[type=submit]').click(); await s.waitForSelector('td:has-text("Yıllık eğitim paketi")');
+  }
+  await s.click('[data-gecis="gonderildi"]'); await s.waitForSelector('.company-meta .pill:has-text("Gönderildi")');
+};
+
+await test('müşteri bağlantısı: oluştur, müşteri sayfası, kabul, sahibe yansır', async (s, ctx) => {
+  await girisYap(s);
+  await gonderilmisTeklif(s, 'Portal Gıda A.Ş.');
+  await var_(s.locator('#paylasim-karti'), 'bağlantı kartı');
+  const kartMetni = await s.locator('#paylasim-karti').innerText();
+  if (!kartMetni.includes('Henüz bağlantı oluşturulmadı') || !kartMetni.includes('hiçbir mesaj göndermez')) throw new Error(`kart: ${kartMetni}`);
+  const link = await baglantiOlustur(s, { gun: '14', not: 'Merhaba, teklifimiz ektedir.' });
+  if (!new RegExp(`#/t/[0-9a-f]{64}$`).test(link)) throw new Error(`bağlantı biçimi: ${link}`);
+  esit(link.split('#')[0].includes(link.split('/t/')[1]), false, 'anahtar adres çubuğunun # öncesinde olmamalı');
+  await s.click('[data-kopyala]'); await s.waitForSelector('.toast');
+  await ekran(s, '37-baglanti-olustu');
+  await s.click('.modal-actions [data-close]');
+  await s.waitForSelector('#paylasim-karti .pill:has-text("Aktif")');
+  const sonra = await s.locator('#paylasim-karti').innerText();
+  if (!sonra.includes('0 görüntüleme') || !sonra.includes('Merhaba, teklifimiz ektedir.') || !sonra.includes('Yeni bağlantı oluştur')) throw new Error(`kart: ${sonra}`);
+  if (sonra.includes(link.split('/t/')[1])) throw new Error('anahtar sahibin sayfasında tekrar gösterilmemeli');
+
+  // müşteri (girişsiz, yeni sayfa)
+  const m = await musteriSayfasi(s, ctx, link);
+  await m.waitForSelector('#aylik-toplam');
+  esit(await m.locator('#kabuk, .sidebar, .topbar').count(), 0, 'müşteride uygulama kabuğu yok');
+  esit(await m.evaluate(() => document.querySelector('meta[name=robots]')?.content), 'noindex,nofollow,noarchive', 'arama motoru engeli');
+  const metin = await m.locator('main').innerText();
+  for (const b of ['Portal Gıda A.Ş.', 'TKL-', 'Merhaba, teklifimiz ektedir.', 'Yıllık eğitim paketi', 'Aylık toplam (KDV dahil)', 'Yanıtınız']) if (!metin.includes(b)) throw new Error(`müşteri sayfasında "${b}" yok: ${metin}`);
+  for (const yasak of ['Kârlılık', 'maliyet', 'Katkı', 'marj', 'Marj', 'Fiyat senaryoları']) if (metin.includes(yasak)) throw new Error(`müşteriye iç bilgi sızdı: ${yasak}`);
+  esit((await m.locator('#aylik-toplam').innerText()).replace(/\s/g, '').includes('2.700,00'), true, '25 × 100 − %10 = 2.250 + KDV = 2.700,00');
+  await ekran(m, '38-musteri-teklif');
+  // kabul: boş ad reddedilir
+  await m.click('[data-karar="kabul"]'); await m.waitForSelector('#yanit-form:not([hidden])');
+  await m.click('#yanit-gonder'); await m.waitForSelector('#e-ad:not(:empty)');
+  esit(await m.locator('#yanit-bilgi').count(), 0, 'ad girilmeden yanıt gitmemeli');
+  await m.fill('#f-ad', 'Ali Veli'); await m.fill('#f-not', 'Sözleşme taslağını bekliyoruz.'); await m.click('#yanit-gonder');
+  await m.waitForSelector('#yanit-bilgi');
+  const bilgi = await m.locator('#yanit-bilgi').innerText();
+  if (!bilgi.includes('Yanıtınız alındı') || !bilgi.includes('kabul')) throw new Error(`yanıt bilgisi: ${bilgi}`);
+  esit(await m.locator('#yanit-kart').count(), 0, 'yanıttan sonra form kalkar');
+  const durum = await m.evaluate(() => { const t = globalThis.__fake.tablo; return { teklif: t.offers[0].status, gorev: t.tasks.filter((x) => x.source_ref?.startsWith('offer_share:')).length, sozlesme: t.contracts.length }; });
+  esit(durum.teklif, 'gonderildi', 'teklif durumu kendiliğinden değişmez'); esit(durum.gorev, 1, 'sahibe görev düştü'); esit(durum.sozlesme, 0, 'sözleşme kendiliğinden oluşmaz');
+  esit(m.__hatalar.length, 0, `müşteri sayfası hataları: ${m.__hatalar.join(' | ')}`);
+  // sahibe yansır
+  await musteriDurumunuSahibeAktar(m, s); await m.close();
+  await git(s, '#/panel'); await git(s, '#/teklifler'); await s.waitForSelector('#teklif-tablo tbody tr'); await s.click('#teklif-tablo tbody tr a');
+  await s.waitForSelector('#musteri-yaniti');
+  const y = await s.locator('#musteri-yaniti').innerText();
+  for (const b of ['KABUL', 'Ali Veli', 'Sözleşme taslağını bekliyoruz.', 'kendiliğinden değişmez']) if (!y.includes(b)) throw new Error(`müşteri yanıtı kartında "${b}" yok: ${y}`);
+  await ekran(s, '39-musteri-yaniti');
+  await git(s, '#/gorevler'); await s.waitForSelector('text=Müşteri teklifi KABUL ETTİ');
+});
+
+await test('müşteri bağlantısı: iptal, geçersiz bağlantılar, XSS ve izinler', async (s, ctx) => {
+  await girisYap(s);
+  await gonderilmisTeklif(s, 'Güvenlik Ltd.', { kalem: false });
+  const link = await baglantiOlustur(s); await s.click('.modal-actions [data-close]');
+  const anahtar = link.split('/t/')[1];
+  // geçersiz biçimler ve bilinmeyen anahtar
+  for (const h of ['#/t/abc', `#/t/${'a'.repeat(64)}`, `#/t/${anahtar.toUpperCase()}`, '#/t/']) {
+    const m = await musteriSayfasi(s, ctx, ADRES + h);
+    await m.waitForSelector('h1:has-text("geçersiz ya da süresi dolmuş")');
+    const t = await m.locator('main').innerText(); if (t.includes('Güvenlik Ltd.')) throw new Error(`geçersiz bağlantıda veri sızdı (${h})`);
+    await m.close();
+  }
+  // XSS: müşteri adı ve notu sahibin sayfasında kaçırılır
+  let m = await musteriSayfasi(s, ctx, link); await m.waitForSelector('#aylik-toplam');
+  await m.click('[data-karar="red"]'); await m.fill('#f-ad', '<img src=x onerror=window.__xss=1>'); await m.fill('#f-not', '<script>window.__xss=2</script>'); await m.click('#yanit-gonder');
+  await m.waitForSelector('#yanit-bilgi');
+  esit(await m.evaluate(() => window.__xss ?? 0), 0, 'müşteri sayfasında XSS çalışmamalı');
+  await musteriDurumunuSahibeAktar(m, s); await m.close();
+  await git(s, '#/panel'); await git(s, '#/teklifler'); await s.waitForSelector('#teklif-tablo tbody tr'); await s.click('#teklif-tablo tbody tr a');
+  await s.waitForSelector('#musteri-yaniti');
+  esit(await s.evaluate(() => window.__xss ?? 0), 0, 'sahip sayfasında XSS çalışmamalı');
+  if (!(await s.locator('#musteri-yaniti').innerText()).includes('RED')) throw new Error('red gösterilmedi');
+  // yeni bağlantı eskisini kapatır; iptal bağlantıyı kapatır
+  const link2 = await baglantiOlustur(s); await s.click('.modal-actions [data-close]');
+  m = await musteriSayfasi(s, ctx, link); await m.waitForSelector('h1:has-text("geçersiz ya da süresi dolmuş")'); await m.close();
+  await s.click('[data-action="paylasim-iptal"]'); await s.click('[data-ok]');
+  await s.waitForSelector('.toast:has-text("iptal edildi")');
+  m = await musteriSayfasi(s, ctx, link2); await m.waitForSelector('h1:has-text("geçersiz ya da süresi dolmuş")'); await m.close();
+  // salt okunur rol: kartı görür ama düğme yok
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; const r = t.roles.find((x) => x.key === 'satis'); t.role_permissions.find((x) => x.role_id === r.id && x.module === 'offers').can_edit = false; });
+  await cikisYapGir(s, 'satis@test.com');
+  await git(s, '#/teklifler'); await s.waitForSelector('#teklif-tablo tbody tr'); await s.click('#teklif-tablo tbody tr a'); await s.waitForSelector('#paylasim-karti');
+  esit(await s.locator('[data-action="paylasim-olustur"], [data-action="paylasim-iptal"]').count(), 0, 'düzenleme izni olmayan bağlantı oluşturamaz');
+});
+
+await test('müşteri bağlantısı: taslakta oluşturulamaz; süresi dolmuş teklife yanıt verilemez; yazdırmada iç bilgi yok', async (s, ctx) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Taslak Ltd.', vergi: '5555555555', calisan: 10, tehlike: 'tehlikeli' }); await s.waitForSelector('.company-head');
+  await teklifOlustur(s, 'Taslak Ltd.', { calisan: 10, tehlike: 'tehlikeli', birim: '100', uzman: '500' });
+  esit(await s.locator('[data-action="paylasim-olustur"]').count(), 0, 'taslakta bağlantı düğmesi yok');
+  if (!(await s.locator('#paylasim-karti').innerText()).includes('Müşteriye gönderildi')) throw new Error('taslak ipucu yok');
+  // iç sayfa yazdırılınca kârlılık ve bağlantı kartı gizlenir
+  await s.emulateMedia({ media: 'print' });
+  esit(await s.locator('section:has(h2:has-text("Kârlılık"))').first().isVisible(), false, 'yazdırmada kârlılık gizli');
+  esit(await s.locator('#paylasim-karti').isVisible(), false, 'yazdırmada bağlantı kartı gizli');
+  await s.emulateMedia({ media: 'screen' });
+  await s.click('[data-gecis="gonderildi"]'); await s.waitForSelector('.company-meta .pill:has-text("Gönderildi")');
+  const link = await baglantiOlustur(s); await s.click('.modal-actions [data-close]');
+  await s.evaluate(() => { globalThis.__fake.tablo.offers[0].valid_until = '2020-01-01'; });
+  const m = await musteriSayfasi(s, ctx, link); await m.waitForSelector('#aylik-toplam');
+  await var_(m.locator('.notice-warn:has-text("geçerlilik süresi dolmuştur")'), 'süre uyarısı');
+  esit(await m.locator('#yanit-kart').count(), 0, 'süresi dolmuş teklife yanıt formu yok');
+  await m.emulateMedia({ media: 'print' }); esit(await m.locator('#yazdir').isVisible(), false, 'yazdırmada düğmeler gizli');
+  await m.close();
+});
+
+await test('mobil 375px: müşteri teklif sayfasında yatay taşma yok', async (s, ctx) => {
+  await girisYap(s);
+  await gonderilmisTeklif(s, 'Mobil Ltd.');
+  const link = await baglantiOlustur(s, { not: 'Uzun bir not '.repeat(20) }); await s.click('.modal-actions [data-close]');
+  const m = await musteriSayfasi(s, ctx, link); await m.waitForSelector('#aylik-toplam'); await m.click('[data-karar="kabul"]'); await m.waitForTimeout(200);
+  await m.setViewportSize({ width: 375, height: 800 });
+  const t = await m.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (t > 1) { const w = await m.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map((e) => `${e.tagName}.${e.className}#${e.id}:${Math.round(e.getBoundingClientRect().right)}`).join(' | ')); throw new Error(`yatay taşma ${t}px: ${w}`); }
+  await ekran(m, '40-mobil-musteri'); await m.close();
+});
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }

@@ -1,0 +1,570 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama12.sql:89: NOTICE:  PASS | Satış (teklif düzenleme izni var): bağlantı oluşturur
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:90: NOTICE:  PASS | Anahtar 64 onaltılık karakter
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:91: NOTICE:  PASS | Taslak teklif için bağlantı oluşturulamaz [Müşteri bağlantısı yalnızca "Gönderildi" veya "Görüşülüyor" durumundaki teklif için oluştu]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:92: NOTICE:  PASS | Başka kurumun teklifi için oluşturulamaz [Teklif bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:93: NOTICE:  PASS | Süre 0 gün reddedilir [Bağlantı süresi 1 ile 90 gün arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:94: NOTICE:  PASS | Süre 91 gün reddedilir [Bağlantı süresi 1 ile 90 gün arasında olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:95: NOTICE:  PASS | 1001 karakterlik not reddedilir [Müşteri notu en çok 1000 karakter olabilir.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama12.sql:97: NOTICE:  PASS | Finans (teklif izni yok) bağlantı oluşturamaz [Teklifi düzenleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:98: NOTICE:  PASS | Finans bağlantı iptal edemez [Teklifi düzenleme yetkiniz yok.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama12.sql:100: NOTICE:  PASS | Başka kurumun sahibi bu teklif için bağlantı oluşturamaz [Teklif bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:101: NOTICE:  PASS | Başka kurumun sahibi iptal edemez [Teklif bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:106: NOTICE:  PASS | Veri tabanında anahtarın kendisi yok, yalnızca SHA-256 özeti var
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:107: NOTICE:  PASS | Not kırpılarak saklanır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:108: NOTICE:  PASS | Süre ~30 gün
+ ok 
+----
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:113: NOTICE:  PASS | Anon: geçerli anahtarla teklif görünür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:116: NOTICE:  PASS | Anon: alıcı, kurum, teklif no, kalem doğru
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:120: NOTICE:  PASS | Anon: yalnızca izin verilen alanlar döner (maliyet, iç not, hazırlayan YOK)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:122: NOTICE:  PASS | Anon: yanıtta maliyet/iç not/hazırlayan değeri geçmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:123: NOTICE:  PASS | Anon: arşivlenmiş kalem görünmez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:124: NOTICE:  PASS | Anon: yanıt verilebilir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:125: NOTICE:  PASS | Anon: yanlış anahtar → geçersiz
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:126: NOTICE:  PASS | Anon: biçimi bozuk anahtar → geçersiz
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:127: NOTICE:  PASS | Geçersiz yanıtta başka bilgi yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:128: NOTICE:  PASS | Anon: tabloyu doğrudan okuyamaz [permission denied for table offer_shares]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:129: NOTICE:  PASS | Anon: tabloya doğrudan yazamaz [permission denied for table offer_shares]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:130: NOTICE:  PASS | Anon: teklifler tablosunu okuyamaz [permission denied for table offers]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:131: NOTICE:  PASS | Anon: sahip fonksiyonunu çağıramaz [permission denied for function teklif_baglantisi_olustur]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:132: NOTICE:  PASS | Anon: iç yardımcıyı çağıramaz [permission denied for schema app]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:135: NOTICE:  PASS | Görüntüleme sayacı işledi (3 geçerli görüntüleme sonrası)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama12.sql:140: NOTICE:  PASS | Satış bağlantı durumunu okur (token_hash hariç sütunlar)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:141: NOTICE:  PASS | Girişli kullanıcı token_hash sütununu okuyamaz [permission denied for table offer_shares]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:142: NOTICE:  PASS | Girişli kullanıcı select * yapamaz (token_hash sütunu kapalı) [permission denied for table offer_shares]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:143: NOTICE:  PASS | Girişli kullanıcı doğrudan ekleyemez [permission denied for table offer_shares]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:144: NOTICE:  PASS | Girişli kullanıcı doğrudan güncelleyemez (yanıtı değiştirmek) [permission denied for table offer_shares]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:145: NOTICE:  PASS | Girişli kullanıcı silemez [permission denied for table offer_shares]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama12.sql:147: NOTICE:  PASS | Finans (teklif izni yok) bağlantıları görmez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama12.sql:149: NOTICE:  PASS | Başka kurum bağlantıları görmez
+ ok 
+----
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:154: NOTICE:  PASS | Yanıt: geçersiz anahtar reddedilir [Bu bağlantı geçersiz ya da süresi dolmuş.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:155: NOTICE:  PASS | Yanıt: geçersiz karar reddedilir [Geçersiz yanıt.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:156: NOTICE:  PASS | Yanıt: çok kısa ad reddedilir [Lütfen adınızı ve soyadınızı yazın (2-80 karakter).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:157: NOTICE:  PASS | Yanıt: boş ad reddedilir [Lütfen adınızı ve soyadınızı yazın (2-80 karakter).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:158: NOTICE:  PASS | Yanıt: 81 karakterlik ad reddedilir [Lütfen adınızı ve soyadınızı yazın (2-80 karakter).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:159: NOTICE:  PASS | Yanıt: 501 karakterlik not reddedilir [Notunuz en çok 500 karakter olabilir.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:161: NOTICE:  PASS | Reddedilen denemeler hiçbir şey kaydetmedi
+ ok 
+----
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:163: NOTICE:  PASS | Yanıt: müşteri KABUL eder
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:164: NOTICE:  PASS | Yanıt: ikinci kez yanıtlanamaz [Bu teklife zaten yanıt verilmiş. Değişiklik için lütfen bizimle iletişime geçin.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:166: NOTICE:  PASS | Anon: yanıt görünür, tekrar yanıt verilemez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:168: NOTICE:  PASS | Yanıt kaydı: kontrol karakterleri temizlenmiş ad, not, zaman
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:169: NOTICE:  PASS | Teklif durumu kendiliğinden DEĞİŞMEDİ (karar sahipte)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:170: NOTICE:  PASS | Sözleşme oluşmadı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:172: NOTICE:  PASS | Sahibe görev düştü: yüksek öncelik, açık, hazırlayana atanmış, teklif takibi
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama12.sql:176: NOTICE:  PASS | Yeni bağlantı (T-5)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:177: NOTICE:  PASS | Yeni bağlantı (T-4, süresi dolmuş teklif)
+ works 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:180: NOTICE:  PASS | Süresi dolmuş teklif görüntülenir ama yanıt verilemez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:181: NOTICE:  PASS | Süresi dolmuş teklife yanıt verilemez [Teklifin geçerlilik süresi dolmuş. Lütfen bizimle iletişime geçin.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:182: NOTICE:  PASS | Müşteri REDDEDER
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:184: NOTICE:  PASS | Red görevi oluştu
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:185: NOTICE:  PASS | Red sonrası teklif durumu değişmedi
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama12.sql:189: NOTICE:  PASS | T-1 için yeni bağlantı eskisini iptal eder
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:192: NOTICE:  PASS | Eski bağlantı iptal edildi, yeni aktif; teklif başına tek aktif bağlantı
+ ok 
+----
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:194: NOTICE:  PASS | Anon: iptal edilen eski bağlantı artık geçersiz
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:195: NOTICE:  PASS | Anon: yeni bağlantı geçerli ve yanıt sayfası boş
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama12.sql:198: NOTICE:  PASS | İptal fonksiyonu 1 bağlantıyı kapatır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:199: NOTICE:  PASS | Tekrar iptal 0 döner
+ ok 
+----
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:202: NOTICE:  PASS | Anon: iptal edilen bağlantı geçersiz
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama12.sql:206: NOTICE:  PASS | T-5 için bağlantı
+ works 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:210: NOTICE:  PASS | Anon: süresi dolan bağlantı geçersiz
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:211: NOTICE:  PASS | Süresi dolan bağlantıyla yanıt verilemez [Bu bağlantı geçersiz ya da süresi dolmuş.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama12.sql:215: NOTICE:  PASS | T-5 yeni bağlantı
+ works 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:219: NOTICE:  PASS | Teklif reddedildi olunca: görüntülenir, durum belirtilir, yanıt verilemez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:225: NOTICE:  PASS | Teklif arşivlenince bağlantı geçersiz
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama12.sql:229: NOTICE:  PASS | Arşivlenmiş/reddedilmiş teklif için bağlantı oluşturulamaz [Teklif bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:234: NOTICE:  PASS | Denetim: bağlantı oluşturma/yanıt kaydı var, token_hash içermez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:235: NOTICE:  PASS | Denetim: yanıt güncellemesi görünür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama12.sql:236: NOTICE:  PASS | audit_modul: offer_shares → offers
+ ok 
+----
+ 
+(1 row)
+

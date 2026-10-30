@@ -48,13 +48,20 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs']) tablo[ad] ??= [];
+for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs']) tablo[ad] ??= [];
+if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
   const rol = tablo.roles.find((r) => r.id === tablo.users.find((u) => u.id === oturum?.user?.id)?.role_id);
   return !!tablo.role_permissions.find((x) => x.role_id === rol?.id && x.module === modul)?.[alan];
 };
 
+function paylasimBul(token) {
+  if (!/^[0-9a-f]{64}$/.test(String(token ?? ''))) return null;
+  const s = tablo.offer_shares.find((x) => x.token_hash === token && !x.revoked_at && new Date(x.expires_at).getTime() > Date.now());
+  const o = s && tablo.offers.find((x) => x.id === s.offer_id);
+  return s && o && !o.archived_at && !['taslak', 'onay_bekliyor'].includes(o.status) ? s : null;
+}
 const dinleyiciler = new Set();
 const gunluk = [];
 const ozetAyar = { varsa: true, sonuc: 'ok' }; // UI testleri: varsa=false → fonksiyon kurulu değil (404); sonuc: 'ok' | 'yapilandirma' | 'ag'
@@ -432,6 +439,55 @@ const rpcler = {
       zaman: tablo.time_entries.filter((t) => !t.archived_at && t.work_date >= bas && t.work_date <= bit).map((t) => ({ employee_id: t.employee_id, company_id: t.company_id, work_date: t.work_date, activity_type: t.activity_type, onsite_minutes: t.onsite_minutes, reporting_minutes: t.reporting_minutes, archived_at: null })),
       personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
     } };
+  },
+  teklif_baglantisi_olustur({ p_offer, p_gun, p_not }) {
+    if (!izinVar('offers', 'can_edit')) return { error: hata('Teklifi düzenleme yetkiniz yok.', 'P0001') };
+    const o = tablo.offers.find((x) => x.id === p_offer && !x.archived_at);
+    if (!o) return { error: hata('Teklif bulunamadı.', 'P0001') };
+    if (!['gonderildi', 'gorusuluyor'].includes(o.status)) return { error: hata('Müşteri bağlantısı yalnızca "Gönderildi" veya "Görüşülüyor" durumundaki teklif için oluşturulabilir. Önce teklifi müşteriye gönderildi olarak işaretleyin.', 'P0001') };
+    if (!(p_gun >= 1 && p_gun <= 90)) return { error: hata('Bağlantı süresi 1 ile 90 gün arasında olmalıdır.', 'P0001') };
+    const token = Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+    const simdi = new Date().toISOString();
+    tablo.offer_shares.filter((x) => x.offer_id === o.id && !x.revoked_at).forEach((x) => { x.revoked_at = simdi; });
+    tablo.offer_shares.push({ id: uid(), organization_id: ORG, offer_id: o.id, token_hash: token, customer_note: (p_not ?? '').trim() || null, expires_at: new Date(Date.now() + p_gun * 864e5).toISOString(), revoked_at: null,
+      created_at: simdi, first_viewed_at: null, last_viewed_at: null, view_count: 0, response: null, responded_at: null, responder_name: null, responder_note: null });
+    return { data: token };
+  },
+  teklif_baglantisi_iptal({ p_offer }) {
+    if (!izinVar('offers', 'can_edit')) return { error: hata('Teklifi düzenleme yetkiniz yok.', 'P0001') };
+    const a = tablo.offer_shares.filter((x) => x.offer_id === p_offer && !x.revoked_at); a.forEach((x) => { x.revoked_at = new Date().toISOString(); });
+    return { data: a.length };
+  },
+  teklif_paylasim_goruntule({ p_token }) {
+    const s = paylasimBul(p_token);
+    if (!s) return { data: { durum: 'gecersiz' } };
+    const o = tablo.offers.find((x) => x.id === s.offer_id);
+    const c = tablo.companies.find((x) => x.id === o.company_id);
+    s.view_count += 1; s.last_viewed_at = new Date().toISOString(); s.first_viewed_at ??= s.last_viewed_at;
+    return { data: { durum: 'gecerli', kurum: tablo.organizations[0].name, alici: c?.name ?? 'Müşteri', teklif_no: o.offer_no, teklif_tarihi: o.offer_date, gecerlilik: o.valid_until ?? null,
+      calisan_sayisi: o.employee_count, tehlike: o.hazard_class, fiyatlama: o.pricing, birim_fiyat: o.unit_price ?? null, sabit_fiyat: o.fixed_monthly_price ?? null, kdv_modu: o.vat_mode, kdv_orani: o.vat_rate, indirim: o.discount_pct ?? 0,
+      kalemler: tablo.offer_items.filter((i) => i.offer_id === o.id && !i.archived_at).map((i) => ({ aciklama: i.description, miktar: i.quantity, birim_fiyat: i.unit_price, kdv_modu: i.vat_mode, kdv_orani: i.vat_rate })),
+      musteri_notu: s.customer_note, teklif_durumu: ['kabul_edildi', 'reddedildi', 'suresi_doldu'].includes(o.status) ? o.status : 'acik',
+      sure_bitti: !!(o.valid_until && o.valid_until < bugun()),
+      yanit: s.response ? { karar: s.response, tarih: s.responded_at, ad: s.responder_name } : null,
+      yanit_verilebilir: !s.response && ['gonderildi', 'gorusuluyor'].includes(o.status) && !(o.valid_until && o.valid_until < bugun()) } };
+  },
+  teklif_paylasim_yanitla({ p_token, p_karar, p_ad, p_not }) {
+    const s = paylasimBul(p_token);
+    if (!s) return { error: hata('Bu bağlantı geçersiz ya da süresi dolmuş.', 'P0001') };
+    const o = tablo.offers.find((x) => x.id === s.offer_id);
+    if (s.response) return { error: hata('Bu teklife zaten yanıt verilmiş. Değişiklik için lütfen bizimle iletişime geçin.', 'P0001') };
+    if (!['gonderildi', 'gorusuluyor'].includes(o.status)) return { error: hata('Bu teklif artık yanıt kabul etmiyor. Lütfen bizimle iletişime geçin.', 'P0001') };
+    if (o.valid_until && o.valid_until < bugun()) return { error: hata('Teklifin geçerlilik süresi dolmuş. Lütfen bizimle iletişime geçin.', 'P0001') };
+    if (!['kabul', 'red'].includes(p_karar)) return { error: hata('Geçersiz yanıt.', 'P0001') };
+    const ad = String(p_ad ?? '').replace(/[\u0000-\u001f]+/g, ' ').trim();
+    if (ad.length < 2 || ad.length > 80) return { error: hata('Lütfen adınızı ve soyadınızı yazın (2-80 karakter).', 'P0001') };
+    const not = String(p_not ?? '').trim() || null;
+    if (not && not.length > 500) return { error: hata('Notunuz en çok 500 karakter olabilir.', 'P0001') };
+    Object.assign(s, { response: p_karar, responded_at: new Date().toISOString(), responder_name: ad, responder_note: not });
+    tablo.tasks.push({ id: uid(), organization_id: ORG, kind: 'teklif_takibi', title: `${p_karar === 'kabul' ? 'Müşteri teklifi KABUL ETTİ: ' : 'Müşteri teklifi reddetti: '}${o.offer_no}`, company_id: o.company_id ?? null, lead_id: o.lead_id ?? null, assignee: o.created_by ?? null,
+      priority: 'yuksek', due_at: new Date().toISOString(), status: 'acik', description: `Yanıtlayan: ${ad}`, source_ref: `offer_share:${s.id}`, created_at: new Date().toISOString(), archived_at: null });
+    return { data: { ok: true, karar: p_karar } };
   },
   yedek_kaydi({ p_tablo_sayisi, p_satir_sayisi, p_dosya }) {
     const modul = ['dashboard', 'crm', 'companies', 'contacts', 'opportunities', 'offers', 'contracts', 'staff', 'assignments', 'time', 'invoices', 'expenses', 'payroll', 'staff_profit', 'company_profit', 'capacity', 'reports', 'tasks', 'import_export', 'users', 'settings'];
