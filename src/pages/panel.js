@@ -5,6 +5,7 @@ import { avatar, emptyState } from '../ui/components.js';
 import { firmaAylikIhtiyac } from '../lib/hesaplama.js';
 import { profilleriGrupla, guncelProfil, kapasiteDakika } from '../lib/veri.js';
 import { tehlikePill } from './firmalar.js';
+import { yanitHaritasi, yanitDurumu } from '../lib/musteri.js';
 import { huniOzeti, takipDurumu } from '../lib/puanlama.js';
 import { para } from '../lib/format.js';
 import { gorevZamani } from './gorevler.js';
@@ -24,7 +25,7 @@ export async function panelSayfasi(app) {
     };
   }
 
-  const [firmalar, profiller, kurallar, ayarlar, firsatlar, gorevler, adaylar, teklifler, sozlesmeler, sozlesmeFiyatlari, faturalar, tahsilatlar] = await Promise.all([
+  const [firmalar, profiller, kurallar, ayarlar, firsatlar, gorevler, adaylar, teklifler, sozlesmeler, sozlesmeFiyatlari, faturalar, tahsilatlar, yanitlar] = await Promise.all([
     app.api.listCompanies(), app.api.listAllProfiles(), app.api.listServiceRules(), app.api.listSettings(),
     app.can('opportunities', 'view') ? app.api.listOpportunities() : [],
     app.can('tasks', 'view') ? app.api.listTasks() : [],
@@ -34,6 +35,7 @@ export async function panelSayfasi(app) {
     app.can('contracts', 'view') ? app.api.listAllContractPrices() : [],
     app.can('invoices', 'view') ? app.api.listInvoices() : [],
     app.can('invoices', 'view') ? app.api.listPayments() : [],
+    app.can('offers', 'view') ? app.api.listOfferResponses().catch(() => []) : [],
   ]);
   const bugunStr = bugun();
   const ay = ayBasi(bugunStr);
@@ -83,11 +85,14 @@ export async function panelSayfasi(app) {
       ${app.can('crm', 'view') ? html`<li><a class="link" href="#/crm">Açık potansiyel müşteri</a><strong>${sayi(adaylar.filter((l) => !l.archived_at && !l.converted_company_id).length)}</strong></li>
         <li><a class="link" href="#/crm">Takibi gecikmiş aday</a><strong>${sayi(gecikenTakip.length)}</strong></li>` : ''}
     </ul></section>`);
-  const acikTeklif = teklifler.filter((o) => !o.archived_at && ['gonderildi', 'gorusuluyor'].includes(o.status));
+  const yanitHarita = yanitHaritasi(yanitlar);
+  const acikTeklif = teklifler.filter((o) => yanitDurumu(o, yanitHarita) === 'bekliyor');
+  const yanitGelen = teklifler.filter((o) => ['kabul', 'red'].includes(yanitDurumu(o, yanitHarita)));
   const taslakTeklif = teklifler.filter((o) => !o.archived_at && ['taslak', 'onay_bekliyor'].includes(o.status));
   const soz = app.can('contracts', 'view') ? sozlesmeOzeti(sozlesmeler, sozlesmeFiyatlari, profiller, bugunStr) : null;
   const ticariKart = () => (!soz && !app.can('offers', 'view') ? '' : html`<section class="card"><h2 class="card-title">Teklif ve sözleşmeler</h2><ul class="list">
     ${app.can('offers', 'view') ? html`<li><a class="link" href="#/teklifler">Müşteri yanıtı bekleyen teklif</a><strong>${sayi(acikTeklif.length)}</strong></li>
+      <li><a class="link" href="#/teklifler">Yanıt geldi, işlenmedi</a><strong id="panel-yanit-gelen">${sayi(yanitGelen.length)}</strong></li>
       <li><a class="link" href="#/teklifler">Taslak teklif</a><strong>${sayi(taslakTeklif.length)}</strong></li>` : ''}
     ${soz ? html`<li><a class="link" href="#/sozlesmeler">Aktif sözleşme</a><strong>${sayi(soz.aktifSayisi)}</strong></li>
       <li><a class="link" href="#/sozlesmeler">Aylık yinelenen gelir (KDV hariç)</a><strong>${para(soz.aylikGelir)}</strong></li>

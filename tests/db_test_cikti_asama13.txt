@@ -1,0 +1,211 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama13.sql:97: NOTICE:  PASS | Bağlantı T-1
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:98: NOTICE:  PASS | Bağlantı T-5
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:99: NOTICE:  PASS | Bağlantı T-4
+ works 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:104: NOTICE:  PASS | Vault boşken müşteri yanıtı yine de kaydedilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:107: NOTICE:  PASS | Vault boşken: yanıt ve görev var, e-posta çağrısı yok
+ ok 
+----
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:112: NOTICE:  PASS | Red yanıtı
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:114: NOTICE:  PASS | Tam olarak bir bildirim çağrısı yapıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:115: NOTICE:  PASS | Çağrı: doğru adres
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:116: NOTICE:  PASS | Çağrı: gizli başlık ve içerik türü
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:119: NOTICE:  PASS | Çağrı gövdesi yalnızca olay ve yanıt kimliği içerir (müşteri metni, ad, not YOK)
+ ok 
+----
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:123: NOTICE:  PASS | Süresi dolmuş teklif: reddedilir [Teklifin geçerlilik süresi dolmuş. Lütfen bizimle iletişime geçin.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:124: NOTICE:  PASS | İkinci yanıt: reddedilir [Bu teklife zaten yanıt verilmiş. Değişiklik için lütfen bizimle iletişime geçin.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:126: NOTICE:  PASS | Başarısız denemeler ek bildirim üretmedi
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama13.sql:135: NOTICE:  PASS | Bağlantı T-2
+ works 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:138: NOTICE:  PASS | Geçersiz ad: reddedilir [Lütfen adınızı ve soyadınızı yazın (2-80 karakter).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:139: NOTICE:  PASS | pg_net hata verse de müşteri yanıtı başarılı döner
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:142: NOTICE:  PASS | pg_net hatasında yanıt ve görev kaydedildi
+ ok 
+----
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:146: NOTICE:  PASS | Anon: bildirim yardımcısını doğrudan çağıramaz [permission denied for schema app]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama13.sql:149: NOTICE:  PASS | Girişli kullanıcı da çağıramaz [permission denied for function sahibe_yanit_bildir]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:151: NOTICE:  PASS | Günlük tablosu yanit türünü kabul eder
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:152: NOTICE:  PASS | Aynı yanıt için ikinci başarılı bildirim engellenir [duplicate key value violates unique constraint "email_digest_log_yanit_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:153: NOTICE:  PASS | Hata kaydı tekrar edilebilir (yeniden denemeler)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:154: NOTICE:  PASS | Geçersiz tür reddedilir [new row for relation "email_digest_log" violates check constraint "email_digest_log_tur_ch]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:155: NOTICE:  PASS | Günlük özet kuralı etkilenmedi (aynı gün tek başarılı günlük)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:156: NOTICE:  PASS | İkinci günlük başarılı kayıt hâlâ engelli [duplicate key value violates unique constraint "email_digest_log_gun_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama13.sql:157: NOTICE:  PASS | Yanıt, durum ve sayı: teklif durumları kendiliğinden değişmedi
+ ok 
+----
+ 
+(1 row)
+

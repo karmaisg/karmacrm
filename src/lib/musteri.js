@@ -58,3 +58,25 @@ export function baglantiDurumu(s, simdi = new Date()) {
   if (new Date(s.expires_at).getTime() <= simdi.getTime()) return { ad: 'doldu', metin: 'Süresi doldu' };
   return { ad: 'aktif', metin: 'Aktif' };
 }
+
+/** Paylaşım kayıtlarından teklif başına en son müşteri yanıtı (offer_id -> {response, responded_at}). */
+export function yanitHaritasi(paylasimlar) {
+  const h = new Map();
+  for (const s of paylasimlar ?? []) {
+    if (!s?.response) continue;
+    const eski = h.get(s.offer_id);
+    if (!eski || String(s.responded_at) > String(eski.responded_at)) h.set(s.offer_id, { response: s.response, responded_at: s.responded_at });
+  }
+  return h;
+}
+
+/**
+ * Gönderilmiş (müşteri kararı bekleyen) teklifin yanıt durumu: 'bekliyor' | 'kabul' | 'red'.
+ * Teklif durumu kendiliğinden değişmediği için "yanıt geldi, işlenmedi" ayrımı burada yapılır.
+ * Durumu işlenmiş (kabul/ret/süresi dolmuş/taslak) veya arşivli teklifler için null döner.
+ */
+export function yanitDurumu(teklif, harita) {
+  if (!teklif || teklif.archived_at || !['gonderildi', 'gorusuluyor'].includes(teklif.status)) return null;
+  const y = harita?.get(teklif.id);
+  return y ? y.response : 'bekliyor';
+}

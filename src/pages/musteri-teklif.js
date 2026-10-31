@@ -69,13 +69,13 @@ export async function musteriTeklifSayfasi(api, token) {
           <tr><th scope="row">Toplam</th><td></td><td></td><td class="num"><strong>${tl(o.kalemHaric)}</strong></td><td class="num"><strong>${tl(o.kalemDahil)}</strong></td></tr></tbody></table></div></section>` : ''}
       ${p.yanit_verilebilir ? html`<section class="card pad pad-t yazdirma-gizli" id="yanit-kart"><h2 class="card-title">Yanıtınız</h2>
         <p class="card-sub">Yanıtınız teklif sahibine iletilir. Hizmet sözleşmesi ayrıca düzenlenir.</p>
-        <div class="musteri-dugmeler" id="yanit-dugmeler"><button type="button" class="btn btn-primary" data-karar="kabul">${icon('check', 18)} Teklifi kabul ediyorum</button>
-          <button type="button" class="btn btn-secondary" data-karar="red">Kabul etmiyorum</button></div>
+        <div class="musteri-dugmeler" id="yanit-dugmeler"><button type="button" class="btn btn-success" data-karar="kabul">${icon('check', 18)} Teklifi kabul ediyorum</button>
+          <button type="button" class="btn btn-danger" data-karar="red">${icon('x', 18)} Kabul etmiyorum</button></div>
         <form id="yanit-form" class="form" novalidate hidden><div class="form-grid">
           ${field({ ad: 'ad', etiket: 'Adınız ve soyadınız', zorunlu: true, maksUzunluk: 80, otomatik: 'name', tam: true })}
           ${field({ ad: 'not', etiket: 'Notunuz (isteğe bağlı)', tur: 'textarea', maksUzunluk: 500, tam: true })}</div>
           <div class="form-error" role="alert" hidden></div>
-          <div class="modal-actions"><button type="button" class="btn btn-secondary" id="yanit-vazgec">Vazgeç</button><button type="submit" class="btn btn-primary" id="yanit-gonder">Gönder</button></div></form></section>` : ''}
+          <div class="modal-actions"><button type="button" class="btn btn-secondary" id="yanit-vazgec">Vazgeç</button><button type="submit" class="btn btn-success" id="yanit-gonder">Gönder</button></div></form></section>` : ''}
       <p class="fine musteri-alt">Bu sayfa size özel bir bağlantıyla açılmıştır; lütfen başkalarıyla paylaşmayın.</p>`));
     bagla();
   }
@@ -87,7 +87,9 @@ export async function musteriTeklifSayfasi(api, token) {
     dugmeler.addEventListener('click', (e) => {
       const b = e.target.closest('[data-karar]'); if (!b) return;
       secim = b.dataset.karar; dugmeler.hidden = true; form.hidden = false;
-      gonder.textContent = secim === 'kabul' ? 'Kabulümü gönder' : 'Yanıtımı gönder';
+      gonder.textContent = secim === 'kabul' ? 'Kabulümü gönder' : 'Reddimi gönder';
+      gonder.classList.toggle('btn-success', secim === 'kabul'); gonder.classList.toggle('btn-danger', secim !== 'kabul');
+      form.dataset.karar = secim;
       form.querySelector('#f-ad').focus();
     });
     kok.querySelector('#yanit-vazgec').addEventListener('click', () => { form.hidden = true; dugmeler.hidden = false; secim = null; hataKutusu.hidden = true; showFieldErrors(form, {}); });
@@ -102,7 +104,7 @@ export async function musteriTeklifSayfasi(api, token) {
         if (await yukle()) { ciz(); kok.querySelector('#yanit-bilgi')?.focus?.(); }
       } catch (err) {
         hataKutusu.textContent = humanError(err); hataKutusu.hidden = false;
-        gonder.disabled = false; gonder.textContent = secim === 'kabul' ? 'Kabulümü gönder' : 'Yanıtımı gönder';
+        gonder.disabled = false; gonder.textContent = secim === 'kabul' ? 'Kabulümü gönder' : 'Reddimi gönder';
       }
       gonderiyor = false;
     });

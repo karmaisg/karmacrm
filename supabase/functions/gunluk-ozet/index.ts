@@ -101,6 +101,60 @@ const esitMi = (a, b) => { // sabit süreli karşılaştırma
  * @param istek  Request
  * @param b      { env, fetch, istemci(url, anahtar), simdi() } — test için dışarıdan verilir
  */
+
+// ---------------------------------------------------------------- teklif yanıtı bildirimi (yalnızca işletme sahibine)
+export const yanitKonu = (y) => `${y.karar === 'kabul' ? 'Teklif KABUL EDİLDİ' : 'Teklif reddedildi'}: ${[y.teklif_no, y.firma].filter(Boolean).join(' - ')}`.trim();
+export function yanitMetni(y, adres = VARSAYILAN_ADRES) {
+  const s = [y.karar === 'kabul' ? 'Müşteri teklifi KABUL ETTİ.' : 'Müşteri teklifi REDDETTİ.', '',
+    `Teklif: ${y.teklif_no ?? '-'}`, `Firma: ${y.firma ?? '-'}`, `Yanıtlayan: ${y.ad ?? '-'}`, `Tarih: ${tarih(y.tarih)}`];
+  if (y.not) s.push(`Not: ${y.not}`);
+  s.push('', 'Teklifin durumu otomatik değiştirilmedi. Teklifler sayfasından sonucu işleyin.', adres);
+  return s.join('\n');
+}
+export function yanitHtml(y, adres = VARSAYILAN_ADRES) {
+  const kabul = y.karar === 'kabul';
+  const satir = (a, d) => `<tr><td style="padding:4px 12px 4px 0;color:#555">${esc(a)}</td><td style="padding:4px 0"><b>${esc(d)}</b></td></tr>`;
+  return `<div style="font-family:Arial,sans-serif;font-size:15px;color:#222;max-width:560px">
+<h2 style="margin:0 0 12px;color:${kabul ? '#15803d' : '#b91c1c'}">${kabul ? 'Müşteri teklifi KABUL ETTİ' : 'Müşteri teklifi reddetti'}</h2>
+<table>${satir('Teklif', y.teklif_no ?? '-')}${satir('Firma', y.firma ?? '-')}${satir('Yanıtlayan', y.ad ?? '-')}${satir('Tarih', tarih(y.tarih))}${y.not ? satir('Not', y.not) : ''}</table>
+<p style="margin-top:16px">Teklifin durumu otomatik değiştirilmedi. Teklifler sayfasından sonucu işleyin.</p>
+<p><a href="${esc(adres)}">${esc(adres)}</a></p></div>`;
+}
+
+async function yanitBildir(b, db, env, govde, cevap) {
+  const id = String(govde?.paylasim ?? '');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return cevap({ ok: false, hata: 'Geçersiz istek.' }, 400);
+  const { data: pay } = await db.from('offer_shares').select('id, organization_id, offer_id, response, responder_name, responder_note, responded_at').eq('id', id).maybeSingle();
+  if (!pay || !pay.response) return cevap({ ok: false, hata: 'Yanıt bulunamadı.' }, 404);
+  const org = pay.organization_id; const kaynak = `paylasim:${id}`;
+  const gun = istanbulGunu(b.simdi());
+  const kayit = async (durum, ayrinti) => {
+    try { await db.from('email_digest_log').insert({ organization_id: org, gun, tur: 'yanit', durum, kaynak, ayrinti: String(ayrinti ?? '').slice(0, 300) }); } catch (_) { /* akış sürer */ }
+  };
+  const { data: var_ } = await db.from('email_digest_log').select('id').eq('organization_id', org).eq('kaynak', kaynak).eq('tur', 'yanit').eq('durum', 'gonderildi').limit(1);
+  if (var_?.length) return cevap({ ok: true, mesaj: 'Bu yanıt için bildirim zaten gönderildi.', sonuc: 'atlandi' });
+  const anahtar = env.RESEND_API_KEY; const alici = String(env.OZET_ALICI ?? '').trim();
+  const eksik = !anahtar ? 'RESEND_API_KEY tanımlı değil.' : !alici ? 'OZET_ALICI tanımlı değil.' : !ALICI.test(alici) ? 'OZET_ALICI tek bir geçerli e-posta adresi olmalıdır.' : null;
+  if (eksik) { await kayit('hata', eksik); return cevap({ ok: false, mesaj: eksik }); }
+  const { data: o } = await db.from('offers').select('offer_no, company_id, lead_id').eq('id', pay.offer_id).maybeSingle();
+  let firma = null;
+  if (o?.company_id) { const { data: f } = await db.from('companies').select('name').eq('id', o.company_id).maybeSingle(); firma = f?.name ?? null; }
+  else if (o?.lead_id) { const { data: f } = await db.from('leads').select('name').eq('id', o.lead_id).maybeSingle(); firma = f?.name ?? null; }
+  const y = { karar: pay.response, teklif_no: o?.offer_no ?? '', firma: firma ?? '', ad: pay.responder_name, not: pay.responder_note, tarih: pay.responded_at };
+  const gonderen = env.OZET_GONDEREN || VARSAYILAN_GONDEREN; const adres = env.OZET_UYGULAMA_ADRESI || VARSAYILAN_ADRES;
+  let yanit;
+  try {
+    yanit = await b.fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${anahtar}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ from: gonderen, to: [alici], subject: yanitKonu(y), html: yanitHtml(y, adres), text: yanitMetni(y, adres) }),
+    });
+  } catch (_) { const m = 'E-posta servisine ulaşılamadı.'; await kayit('hata', m); return cevap({ ok: false, mesaj: m }); }
+  if (yanit.ok) { await kayit('gonderildi', `Gönderildi: ${maskele(alici)}`); return cevap({ ok: true, mesaj: `Bildirim gönderildi: ${maskele(alici)}`, sonuc: 'gonderildi' }); }
+  const m = yanit.status === 401 ? 'RESEND_API_KEY geçersiz görünüyor.' : `E-posta servisi hata verdi (${yanit.status}).`;
+  await kayit('hata', m); return cevap({ ok: false, mesaj: m });
+}
+
 export async function isle(istek, b) {
   const cevap = (govde, durum = 200) => new Response(JSON.stringify(govde), { status: durum, headers: { ...CORS, 'content-type': 'application/json; charset=utf-8' } });
   if (istek.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
@@ -115,6 +169,8 @@ export async function isle(istek, b) {
   const sirri = istek.headers.get('x-ozet-sirri');
   if (sirri) {
     if (!env.OZET_CRON_SIRRI || !esitMi(sirri, env.OZET_CRON_SIRRI)) return cevap({ ok: false, hata: 'Yetkisiz.' }, 401);
+    const govde = await istek.clone().json().catch(() => null);
+    if (govde?.olay === 'teklif_yaniti') return await yanitBildir(b, db, env, govde, cevap);
     mod = 'gunluk';
     const { data, error } = await db.from('organizations').select('id');
     if (error) return cevap({ ok: false, hata: 'Kurumlar okunamadı.' }, 500);

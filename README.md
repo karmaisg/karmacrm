@@ -46,6 +46,7 @@ karmacrm/
 │  ├─ 10_asama10.sql         Aşama 10: günlük özet (email_digest_log, gunluk_ozet) (bir kez)
 │  ├─ 11_asama11.sql         Aşama 11: denetim kaydı okuma izni, tam yetki, yedek kaydı (bir kez)
 │  ├─ 12_asama12.sql         Aşama 12: müşteri teklif bağlantısı (offer_shares, girişsiz müşteri fonksiyonları) (bir kez)
+│  ├─ 13_asama13.sql         Aşama 12.1: müşteri yanıtında sahibe e-posta bildirimi (pg_net ile Edge Function'a) (bir kez)
 │  └─ functions/gunluk-ozet/index.ts   Günlük özet e-postası Edge Function'ı (yalnızca sahibe)
 ├─ src/
 │  ├─ main.js                Açılış, oturum, yönlendirme
@@ -57,7 +58,7 @@ karmacrm/
 │  └─ styles/                tokens.css, app.css
 ├─ tests/
 │  ├─ hesaplama.test.js, puanlama, operasyon, finans, karlilik, csv, aktarim, ayarlar, ozet, denetim, yedek, musteri .test.js   Motor ve CSV testleri (Node)
-│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql, db_tests_asama4.sql, db_tests_asama5.sql, db_tests_asama6.sql, db_tests_asama7.sql, db_tests_asama9.sql, db_tests_asama10.sql, db_tests_asama11.sql, db_tests_asama12.sql   Veri tabanı testleri (PostgreSQL)
+│  ├─ db_tests.sql, db_tests_asama2.sql, db_tests_asama3.sql, db_tests_asama4.sql, db_tests_asama5.sql, db_tests_asama6.sql, db_tests_asama7.sql, db_tests_asama9.sql, db_tests_asama10.sql, db_tests_asama11.sql, db_tests_asama12.sql, db_tests_asama13.sql   Veri tabanı testleri (PostgreSQL)
 │  ├─ ui/                    Arayüz testleri (Playwright + sahte Supabase istemcisi)
 │  ├─ supabase_stub.sql      Yalnızca yerel test için Supabase taklidi
 │  └─ db_test_cikti*.txt     Son DB test çıktıları
@@ -87,11 +88,13 @@ psql -d osgb -f supabase/09_asama9.sql
 psql -d osgb -f supabase/10_asama10.sql
 psql -d osgb -f supabase/11_asama11.sql
 psql -d osgb -f supabase/12_asama12.sql
+psql -d osgb -f supabase/13_asama13.sql
 psql -d osgb -f tests/db_tests_asama7.sql
 psql -d osgb -f tests/db_tests_asama9.sql
 psql -d osgb -f tests/db_tests_asama10.sql
 psql -d osgb -f tests/db_tests_asama11.sql
 psql -d osgb -f tests/db_tests_asama12.sql
+psql -d osgb -f tests/db_tests_asama13.sql
 psql -d osgb -f tests/db_tests.sql
 psql -d osgb -f tests/db_tests_asama2.sql
 psql -d osgb -f tests/db_tests_asama3.sql

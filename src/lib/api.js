@@ -203,6 +203,8 @@ export function createApi(db) {
     // token_hash sütunu bilerek istenmez (veri tabanı da vermez)
     listOfferShares: (offerId) => bir(T('offer_shares').select('id,offer_id,customer_note,expires_at,revoked_at,created_at,first_viewed_at,last_viewed_at,view_count,response,responded_at,responder_name,responder_note')
       .eq('offer_id', offerId).order('created_at', { ascending: false })),
+    // Tüm tekliflerin müşteri yanıtları (liste ve panel için); 12_asama12.sql yoksa boş döner
+    listOfferResponses: async () => { try { const r = await bir(T('offer_shares').select('offer_id,response,responded_at').order('responded_at', { ascending: false })); return r.filter((x) => x.response); } catch (_) { return []; } },
     // Girişsiz müşteri sayfası bunları kullanır
     getPublicOffer: (token) => bir(db.rpc('teklif_paylasim_goruntule', { p_token: token })),
     answerPublicOffer: ({ token, karar, ad, not }) => bir(db.rpc('teklif_paylasim_yanitla', { p_token: token, p_karar: karar, p_ad: ad, p_not: not ?? null })),

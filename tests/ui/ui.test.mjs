@@ -1868,6 +1868,11 @@ await test('müşteri bağlantısı: oluştur, müşteri sayfası, kabul, sahibe
   if (!sonra.includes('0 görüntüleme') || !sonra.includes('Merhaba, teklifimiz ektedir.') || !sonra.includes('Yeni bağlantı oluştur')) throw new Error(`kart: ${sonra}`);
   if (sonra.includes(link.split('/t/')[1])) throw new Error('anahtar sahibin sayfasında tekrar gösterilmemeli');
 
+  // yanıt gelmeden: liste ve panel "bekleniyor" der
+  await git(s, '#/teklifler'); await s.waitForSelector('#teklif-tablo tbody tr');
+  if (!(await s.locator('#teklif-tablo').innerText()).includes('Müşteri yanıtı bekleniyor')) throw new Error('listede bekleniyor rozeti yok');
+  await git(s, '#/panel'); await s.waitForSelector('#panel-yanit-gelen'); esit((await s.locator('#panel-yanit-gelen').innerText()).trim(), '0', 'panelde işlenmemiş yanıt yok');
+  await git(s, '#/teklifler'); await s.waitForSelector('#teklif-tablo tbody tr'); await s.click('#teklif-tablo tbody tr a'); await s.waitForSelector('#paylasim-karti');
   // müşteri (girişsiz, yeni sayfa)
   const m = await musteriSayfasi(s, ctx, link);
   await m.waitForSelector('#aylik-toplam');
@@ -1878,6 +1883,16 @@ await test('müşteri bağlantısı: oluştur, müşteri sayfası, kabul, sahibe
   for (const yasak of ['Kârlılık', 'maliyet', 'Katkı', 'marj', 'Marj', 'Fiyat senaryoları']) if (metin.includes(yasak)) throw new Error(`müşteriye iç bilgi sızdı: ${yasak}`);
   esit((await m.locator('#aylik-toplam').innerText()).replace(/\s/g, '').includes('2.700,00'), true, '25 × 100 − %10 = 2.250 + KDV = 2.700,00');
   await ekran(m, '38-musteri-teklif');
+  // düğme renkleri: kabul yeşil, ret kırmızı
+  const renk = (sec) => m.evaluate((q) => { const c = getComputedStyle(document.querySelector(q)).backgroundColor.match(/\d+/g).map(Number); return { r: c[0], g: c[1], b: c[2] }; }, sec);
+  const yesil = await renk('[data-karar="kabul"]'); const kirmizi = await renk('[data-karar="red"]');
+  if (!(yesil.g > yesil.r)) throw new Error(`kabul düğmesi yeşil değil: ${JSON.stringify(yesil)}`);
+  if (!(kirmizi.r > kirmizi.g + 60 && kirmizi.r > kirmizi.b + 60)) throw new Error(`ret düğmesi kırmızı değil: ${JSON.stringify(kirmizi)}`);
+  await m.click('[data-karar="red"]'); await m.waitForSelector('#yanit-form:not([hidden])');
+  await m.waitForTimeout(500); const retGonder = await renk('#yanit-gonder'); esit((await m.locator('#yanit-gonder').innerText()).trim(), 'Reddimi gönder', 'ret gönder metni');
+  if (!(retGonder.r > retGonder.g + 60)) throw new Error('ret gönder düğmesi kırmızı olmalı');
+  await ekran(m, '38b-ret-secildi');
+  await m.click('#yanit-vazgec'); await m.waitForSelector('#yanit-dugmeler:not([hidden])');
   // kabul: boş ad reddedilir
   await m.click('[data-karar="kabul"]'); await m.waitForSelector('#yanit-form:not([hidden])');
   await m.click('#yanit-gonder'); await m.waitForSelector('#e-ad:not(:empty)');
@@ -1898,6 +1913,27 @@ await test('müşteri bağlantısı: oluştur, müşteri sayfası, kabul, sahibe
   for (const b of ['KABUL', 'Ali Veli', 'Sözleşme taslağını bekliyoruz.', 'kendiliğinden değişmez']) if (!y.includes(b)) throw new Error(`müşteri yanıtı kartında "${b}" yok: ${y}`);
   await ekran(s, '39-musteri-yaniti');
   await git(s, '#/gorevler'); await s.waitForSelector('text=Müşteri teklifi KABUL ETTİ');
+  // liste: durum "Gönderildi" kalır ama yanıt rozeti ve filtreler gerçeği gösterir
+  await git(s, '#/teklifler'); await s.waitForSelector('#teklif-tablo tbody tr');
+  const liste = await s.locator('#teklif-tablo').innerText();
+  if (!liste.includes('Gönderildi') || !liste.includes('Müşteri KABUL etti — işleyin')) throw new Error(`liste rozetleri: ${liste}`);
+  const chip = async (ad) => (await s.locator(`#teklif-filtre [data-filtre="${ad}"]`).innerText()).replace(/\s+/g, ' ');
+  if (!(await chip('yanit_gelen')).endsWith('1')) throw new Error(`yanıt geldi sayacı: ${await chip('yanit_gelen')}`);
+  if (!(await chip('yanit_bekleyen')).endsWith('0')) throw new Error(`yanıt bekleyen sayacı: ${await chip('yanit_bekleyen')}`);
+  await s.click('#teklif-filtre [data-filtre="yanit_gelen"]'); await s.waitForSelector('#teklif-tablo tbody tr');
+  esit(await s.locator('#teklif-tablo tbody tr').count(), 1, 'filtre: yanıt gelen 1 teklif');
+  await s.click('#teklif-filtre [data-filtre="yanit_bekleyen"]');
+  esit(await s.locator('#teklif-tablo tbody tr').count(), 0, 'filtre: bekleyen yok');
+  await ekran(s, '39b-liste-yanit-rozeti');
+  // panel: bekleyen 0, yanıt gelen 1
+  await git(s, '#/panel'); await s.waitForSelector('#panel-yanit-gelen');
+  esit((await s.locator('#panel-yanit-gelen').innerText()).trim(), '1', 'panelde yanıt gelen 1');
+  if (!(await s.locator('main').innerText()).includes('Yanıt geldi, işlenmedi')) throw new Error('panel satırı yok');
+  // teklif sayfası: rozet ve sıradaki adım
+  await git(s, '#/teklifler'); await s.waitForSelector('#teklif-tablo tbody tr'); await s.click('#teklif-tablo tbody tr a'); await s.waitForSelector('#musteri-yaniti');
+  const ust = await s.locator('.company-meta').innerText();
+  if (!ust.includes('Müşteri KABUL etti — işleyin')) throw new Error(`teklif başlığı: ${ust}`);
+  if (!(await s.locator('#musteri-yaniti').innerText()).includes('Kabul edildi, sözleşme oluştur')) throw new Error('sıradaki adım metni yok');
 });
 
 await test('müşteri bağlantısı: iptal, geçersiz bağlantılar, XSS ve izinler', async (s, ctx) => {

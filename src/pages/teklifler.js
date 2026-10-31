@@ -6,7 +6,7 @@ import { icon } from '../ui/icons.js';
 import {
   avatar, pill, emptyState, field, openFormModal, openModal, confirmDialog, toast, sayfalama,
 } from '../ui/components.js';
-import { SURE_SECENEKLERI, baglantiAdresi, baglantiDurumu } from '../lib/musteri.js';
+import { SURE_SECENEKLERI, baglantiAdresi, baglantiDurumu, yanitHaritasi, yanitDurumu } from '../lib/musteri.js';
 import { fiyatSenaryolari } from '../lib/hesaplama.js';
 import {
   FIYATLAMA, KDV_MODU, TEKLIF_DURUMLARI, TEKLIF_TON, TEKLIF_GECISLERI, teklifKilitli, kabulEdilebilir, teklifHesabi,
@@ -16,6 +16,8 @@ import { humanError } from '../lib/api.js';
 
 const SAYFA_BASI = 25;
 export const teklifPill = (d) => pill(TEKLIF_DURUMLARI[d] ?? d, TEKLIF_TON[d] ?? 'neutral');
+/** Gönderilmiş teklifte müşteri yanıtı rozeti (durum rozetinin yanına). */
+export const yanitPill = (y) => (y === 'kabul' ? pill('Müşteri KABUL etti — işleyin', 'success') : y === 'red' ? pill('Müşteri reddetti — işleyin', 'danger') : y === 'bekliyor' ? pill('Müşteri yanıtı bekleniyor', 'warning') : '');
 const yuzde = (m) => (m === null || m === undefined ? '—' : `%${(m * 100).toFixed(1).replace('.', ',')}`);
 
 const marjEsigi = (ayarlar) => Number(ayarDegeri(ayarlar, 'marj_esigi_yuzde', bugun(), 20)) || 20;
@@ -151,12 +153,15 @@ export async function teklifFormuAc(app, { teklif = null, leadId = null, company
 
 // ---------------------------------------------------------------- liste
 export async function tekliflerSayfasi(app) {
-  const [teklifler, firmalar, adaylar, ayarlar] = await Promise.all([
+  const [teklifler, firmalar, adaylar, ayarlar, yanitlar] = await Promise.all([
     app.api.listOffers(),
     app.can('companies', 'view') ? app.api.listCompanies() : [],
     app.can('crm', 'view') ? app.api.listLeads() : [],
     app.api.listSettings(),
+    app.api.listOfferResponses().catch(() => []),
   ]);
+  const yanitHarita = yanitHaritasi(yanitlar);
+  const yanitOf = (o) => yanitDurumu(o, yanitHarita);
   const esik = marjEsigi(ayarlar);
   const firmaAdi = new Map(firmalar.map((f) => [f.id, f.name]));
   const adayAdi = new Map(adaylar.map((l) => [l.id, l.name]));
@@ -166,10 +171,11 @@ export async function tekliflerSayfasi(app) {
   const GRUP = {
     tumu: (o) => !o.archived_at, taslak: (o) => !o.archived_at && ['taslak', 'onay_bekliyor'].includes(o.status),
     gonderilen: (o) => !o.archived_at && ['gonderildi', 'gorusuluyor'].includes(o.status),
+    yanit_bekleyen: (o) => yanitOf(o) === 'bekliyor', yanit_gelen: (o) => ['kabul', 'red'].includes(yanitOf(o)),
     kabul: (o) => !o.archived_at && o.status === 'kabul_edildi',
     kapanan: (o) => !o.archived_at && ['reddedildi', 'suresi_doldu'].includes(o.status), arsiv: (o) => !!o.archived_at,
   };
-  const FILTRELER = [['tumu', 'Tümü'], ['taslak', 'Taslak'], ['gonderilen', 'Gönderilen'], ['kabul', 'Kabul edilen'], ['kapanan', 'Reddedilen / süresi dolan'], ['arsiv', 'Arşivli']];
+  const FILTRELER = [['tumu', 'Tümü'], ['taslak', 'Taslak'], ['gonderilen', 'Gönderilen'], ['yanit_bekleyen', 'Yanıt bekleyen'], ['yanit_gelen', 'Yanıt geldi (işlenmedi)'], ['kabul', 'Kabul edilen'], ['kapanan', 'Reddedilen / süresi dolan'], ['arsiv', 'Arşivli']];
   const sayilar = Object.fromEntries(Object.entries(GRUP).map(([k, f]) => [k, teklifler.filter(f).length]));
 
   const satir = (o) => {
@@ -180,7 +186,7 @@ export async function tekliflerSayfasi(app) {
       <td class="num">${h ? para(h.aylikGelirKdvHaric) : '—'}</td>
       <td class="hide-md">${h ? (h.esikAltinda ? pill(yuzde(h.katkiMarji), 'danger') : yuzde(h.katkiMarji)) : '—'}</td>
       <td class="hide-md">${o.valid_until ? tarih(o.valid_until) : html`<span class="muted">—</span>`}</td>
-      <td>${teklifPill(o.status)}</td></tr>`;
+      <td>${teklifPill(o.status)}${yanitOf(o) ? html`<small class="block">${yanitPill(yanitOf(o))}</small>` : ''}</td></tr>`;
   };
   function tablo() {
     if (!teklifler.length) {
@@ -277,6 +283,7 @@ export async function teklifSayfasi(app, id) {
     return (TEKLIF_GECISLERI[o.status] ?? []).map((d) => html`<button type="button" class="btn btn-secondary" data-gecis="${d}">${etiket[d] ?? TEKLIF_DURUMLARI[d]}</button>`);
   };
 
+  const yanitliPay = (paylasimlar ?? []).find((x) => x.response);
   const paylasimKarti = () => {
     if (paylasimlar === null) return html`<section class="card pad grid-full yazdirma-gizli" id="paylasim-karti"><h2 class="card-title">Müşteri bağlantısı</h2>
       <div class="notice notice-info" role="note">Bu özellik için Supabase'de <strong>12_asama12.sql</strong> dosyasını çalıştırın.</div></section>`;
@@ -294,14 +301,14 @@ export async function teklifSayfasi(app, id) {
         ${durum.ad === 'aktif' ? html`<p class="fine">Güvenlik gereği bağlantının kendisi yalnızca oluşturulduğu anda gösterilir. Kaybettiyseniz yeni bağlantı oluşturun; eskisi kapanır.</p>` : ''}
         ${yanitli ? html`<div class="notice ${yanitli.response === 'kabul' ? 'notice-ok' : 'notice-warn'}" role="status" id="musteri-yaniti"><strong>Müşteri yanıtı: ${yanitli.response === 'kabul' ? 'KABUL' : 'RED'}</strong> — ${yanitli.responder_name}, ${tarihSaat(yanitli.responded_at)}
           ${yanitli.responder_note ? html`<span class="block prewrap">Not: ${yanitli.responder_note}</span>` : ''}
-          <span class="block fine">Teklif durumu kendiliğinden değişmez; görüştükten sonra aşağıdaki işlemlerle siz güncellersiniz. Size bir görev de eklendi.</span></div>` : ''}
+          <span class="block fine">${['gonderildi', 'gorusuluyor'].includes(o.status) ? (yanitli.response === 'kabul' ? 'Sıradaki adım: müşteriyle görüşüp "Kabul edildi, sözleşme oluştur" düğmesini kullanın.' : 'Sıradaki adım: müşteriyle görüşün; sonuç değişmezse "Reddedildi" olarak işaretleyin.') : 'Teklif durumu işlenmiş.'} Teklif durumu kendiliğinden değişmez. Size bir görev eklendi; e-posta bildirimi kuruluysa ayrıca e-posta gelir.</span></div>` : ''}
       </div></section>`;
   };
 
   return {
     baslik: o.offer_no, altBaslik: '', geri: { href: '#/teklifler', ad: 'Teklifler' },
     ozelBaslik: html`<div class="company-head">${avatar(firma?.name ?? aday?.name ?? o.offer_no, 'lg')}<div><h1>${o.offer_no}</h1>
-      <div class="company-meta">${teklifPill(o.status)} ${firma ? html`<a class="link" href="#/firmalar/${firma.id}">${firma.name}</a>` : aday ? html`<a class="link" href="#/crm/${aday.id}">${aday.name}</a>` : ''}
+      <div class="company-meta">${teklifPill(o.status)} ${['gonderildi', 'gorusuluyor'].includes(o.status) && !o.archived_at ? yanitPill(yanitliPay ? yanitliPay.response : 'bekliyor') : ''} ${firma ? html`<a class="link" href="#/firmalar/${firma.id}">${firma.name}</a>` : aday ? html`<a class="link" href="#/crm/${aday.id}">${aday.name}</a>` : ''}
       <span class="muted">${tarih(o.offer_date)}${o.valid_until ? ` · geçerlilik ${tarih(o.valid_until)}` : ''}</span></div></div></div>`,
     eylemler: html`${duzenleyebilir && !kilitli ? html`<button type="button" class="btn btn-secondary" data-action="duzenle">${icon('pencil', 18)} Düzenle</button>` : ''}
       <button type="button" class="btn btn-secondary" data-yazdir>${icon('file', 18)} Yazdır / PDF</button>

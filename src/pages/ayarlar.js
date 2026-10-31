@@ -78,7 +78,7 @@ export async function ayarlarSayfasi(app) {
     ${degistirebilir ? html`<button type="button" class="btn btn-secondary btn-sm" id="ozet-test">${icon('mail', 16)} Test e-postası gönder</button>` : ''}</div>
     ${ozetGunlugu.hata ? html`<div class="notice notice-info" role="note">Günlük özet henüz kurulmamış görünüyor (10_asama10.sql çalıştırılmamış olabilir). Kurulum rehberindeki Aşama 10 adımlarına bakın.</div>`
       : ozetGunlugu.satirlar.length ? html`<div class="table-wrap"><table class="table" id="ozet-gunlugu"><thead><tr><th scope="col">Zaman</th><th scope="col">Tür</th><th scope="col">Durum</th><th scope="col" class="hide-sm">Ayrıntı</th></tr></thead><tbody>
-        ${ozetGunlugu.satirlar.map((x) => { const d = DURUM[x.durum] ?? [x.durum, 'info']; return html`<tr><td>${tarihSaat(x.created_at)}</td><td>${x.tur === 'test' ? 'Test' : 'Günlük'}</td><td>${pill(d[0], d[1])}</td><td class="hide-sm muted">${x.ayrinti ?? ''}</td></tr>`; })}</tbody></table></div>`
+        ${ozetGunlugu.satirlar.map((x) => { const d = DURUM[x.durum] ?? [x.durum, 'info']; return html`<tr><td>${tarihSaat(x.created_at)}</td><td>${x.tur === 'test' ? 'Test' : x.tur === 'yanit' ? 'Teklif yanıtı' : 'Günlük'}</td><td>${pill(d[0], d[1])}</td><td class="hide-sm muted">${x.ayrinti ?? ''}</td></tr>`; })}</tbody></table></div>`
         : html`<p class="fine pad">Henüz gönderim kaydı yok. Kurulumu denemek için "Test e-postası gönder"i kullanın.</p>`}
     <p class="fine pad">Alıcı adresi ve e-posta servisi anahtarı güvenlik için Supabase'de gizli ayar olarak tutulur; bu sayfada gösterilmez ve değiştirilemez.</p></section>`;
 

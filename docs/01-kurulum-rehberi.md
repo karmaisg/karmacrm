@@ -292,3 +292,18 @@ Teklifi müşteriye giriş gerektirmeyen gizli bir bağlantıyla gösterirsiniz;
 - Müşterinin yanıtı ön bilgi niteliğindedir; hizmet sözleşmesini yine kendi süreçlerinizle düzenleyip imzalatın.
 
 **Not:** Teklif sayfasındaki "Yazdır / PDF" artık kârlılık, fiyat senaryoları ve bağlantı kartını yazdırmaz (eskiden iç kârlılık da çıktıya girerdi). Müşteriye PDF göndermek isterseniz bağlantıyı açıp oradan "Yazdır / PDF" kullanın.
+
+## Aşama 12.1 kurulumu (yanıt geldiğinde e-posta + takip)
+
+Müşteri teklifi kabul ya da reddettiğinde **yalnızca size** e-posta gelir (müşteriye hiçbir şey gitmez). Ayrıca Teklifler listesinde ve panelde yanıt durumu görünür.
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/13_asama13.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir.
+2. **Edge Function'ı güncelleyin:** Supabase > Edge Functions > `gunluk-ozet` > kodu, güncel `supabase/functions/gunluk-ozet/index.ts` içeriğiyle değiştirip **Deploy** edin (adı ve "Verify JWT" kapalı ayarı aynı kalır).
+3. **Fonksiyon adresini kaydedin (bir kez):** SQL Editor'de şunu çalıştırın. Zaten kayıtlıysa "duplicate key" hatası verir; sorun değildir.
+   `select vault.create_secret('https://hstvzdumaabqdwdzsbcx.supabase.co/functions/v1/gunluk-ozet', 'ozet_fonksiyon_adresi');`
+   (`ozet_cron_sirri` gizli kaydı Aşama 10'da zaten oluşturulmuştu; pg_net eklentisi de oradan açıktır.)
+4. **Deneme:** bir teklifin bağlantısını kendiniz açıp yanıt verin; birkaç saniye içinde e-posta gelmelidir. Sistem ayarları > özet günlüğünde "Teklif yanıtı" satırı görünür. E-posta gelmezse müşteri yanıtı yine de kaydedilir ve Görevler'e düşer; günlükteki hata satırına bakın.
+
+**Takip nasıl yapılır?** (1) e-posta, (2) Görevler'de yüksek öncelikli görev, (3) Teklifler listesinde "Müşteri KABUL etti / reddetti — işleyin" rozeti ve **Yanıt bekleyen / Yanıt geldi (işlenmedi)** filtreleri, (4) panelde "Yanıt geldi, işlenmedi" sayacı. Teklif durumu bilerek kendiliğinden değişmez; görüştükten sonra siz "Kabul edildi, sözleşme oluştur" veya "Reddedildi" yaparsınız, rozet de o zaman kalkar.
+
+**Bilinen sınırlar:** e-posta Resend'in kısıtına tabidir (kendi alan adınızı doğrulamadıkça yalnızca Resend hesap adresinize gider); Supabase projesi duraklatılmışsa e-posta gitmez; yanıt e-postası gitmezse otomatik yeniden denenmez (günlükte "hata" görünür).

@@ -179,6 +179,7 @@ users.role_id -> roles
 ## Aşama 12 ile eklenenler
 
 - `offer_shares`: teklif başına müşteri bağlantıları (anahtarın **SHA-256 özeti** `token_hash`, son geçerlilik, iptal, görüntüleme sayacı, müşteri yanıtı ve notu). Bir teklif için iptal edilmemiş en çok bir bağlantı vardır. Girişsiz kullanıcı tabloya hiç erişemez; girişli kullanıcı yalnızca okur ve `token_hash` sütununu okuyamaz. Denetim kaydına `token_hash` yazılmaz.
+- `email_digest_log` (Aşama 12.1): `tur` artık `gunluk`, `test` veya `yanit`; `kaynak` sütunu yanıt bildirimini `paylasim:<id>` ile bağlar, aynı yanıt için en çok bir başarılı bildirim vardır. `app.sahibe_yanit_bildir` yanıt kaydedilince pg_net ile Edge Function'ı çağırır; gövdede yalnızca olay ve paylaşım kimliği gider (müşteri metni gitmez), hata müşteri yanıtını engellemez.
 - Sahip fonksiyonları (giriş + "Teklifler" düzenleme izni): `teklif_baglantisi_olustur(teklif, gün, not)` anahtarı **bir kez** döndürür; `teklif_baglantisi_iptal(teklif)`.
 - Müşteri fonksiyonları (girişsiz çağrılabilir, yalnızca izinli alanları döndürür): `teklif_paylasim_goruntule(anahtar)` ve `teklif_paylasim_yanitla(anahtar, karar, ad, not)`. Geçersiz, süresi dolmuş, iptal edilmiş, arşivlenmiş teklif bağlantıları birbirinden ayırt edilemez ("geçersiz"). Yanıt teklif durumunu **değiştirmez**; `offer_share:<id>` kaynaklı yüksek öncelikli bir görev üretir (mükerrer olmaz).
 - Bağlantılar yedek dosyasına **girmez** (gizli anahtar özeti içerir; geri yüklemede zaten yeniden oluşturulur).

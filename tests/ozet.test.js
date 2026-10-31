@@ -10,7 +10,7 @@ const kaynak = new URL('../supabase/functions/gunluk-ozet/index.ts', import.meta
 const gecici = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ozet-')), 'index.mjs');
 fs.copyFileSync(kaynak, gecici);
 const m = await import(pathToFileURL(gecici).href);
-const { isle, ozetKonu, ozetMetni, ozetHtml, ozetBos, ozetBolumleri, esc, para, tarih, maskele } = m;
+const { yanitKonu, yanitMetni, yanitHtml, isle, ozetKonu, ozetMetni, ozetHtml, ozetBos, ozetBolumleri, esc, para, tarih, maskele } = m;
 
 const OZET = {
   tarih: '2026-10-29',
@@ -51,7 +51,7 @@ test('metin ve HTML: içerik, "ve N daha", gecikme/kalan gün yazımı, bağlant
 });
 
 // ---------------------------------------------------------------- sahte altyapı
-function kur({ env = {}, kurumlar = [{ id: 'o1' }], ozet = OZET, rpcHata = null, loglar = [], kullanici = { organization_id: 'o1', role_id: 'r1', is_active: true }, izin = { can_create: true, can_edit: true }, resend = { ok: true, status: 200, govde: '{}' }, resendHata = false } = {}) {
+function kur({ env = {}, kurumlar = [{ id: 'o1' }], ozet = OZET, rpcHata = null, loglar = [], kullanici = { organization_id: 'o1', role_id: 'r1', is_active: true }, izin = { can_create: true, can_edit: true }, resend = { ok: true, status: 200, govde: '{}' }, resendHata = false, tablolar = {} } = {}) {
   const cagrilar = []; const ortam = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'srv', RESEND_API_KEY: 're_gizli', OZET_ALICI: 'sahip@gmail.com', OZET_CRON_SIRRI: 'sirli', ...env };
   const db = {
     auth: { getUser: async (t) => (t === 'gecerli' ? { data: { user: { id: 'u1' } }, error: null } : { data: { user: null }, error: { message: 'bad' } }) },
@@ -64,6 +64,7 @@ function kur({ env = {}, kurumlar = [{ id: 'o1' }], ozet = OZET, rpcHata = null,
           if (tablo === 'organizations') veri = kurumlar;
           else if (tablo === 'users') veri = kullanici ? [kullanici] : [];
           else if (tablo === 'role_permissions') veri = izin ? [izin] : [];
+          else if (tablolar[tablo]) veri = tablolar[tablo].filter((l) => f.every(([k, v]) => l[k] === v));
           else veri = loglar.filter((l) => f.every(([k, v]) => l[k] === v));
           res({ data: tek ? (veri[0] ?? null) : veri, error: null });
         } };
@@ -77,7 +78,7 @@ function kur({ env = {}, kurumlar = [{ id: 'o1' }], ozet = OZET, rpcHata = null,
   };
   return { b, cagrilar, loglar };
 }
-const istek = (basliklar = {}, yontem = 'POST') => new Request('https://x.supabase.co/functions/v1/gunluk-ozet', { method: yontem, headers: basliklar, body: yontem === 'POST' ? '{}' : undefined });
+const istek = (basliklar = {}, yontem = 'POST', govde = {}) => new Request('https://x.supabase.co/functions/v1/gunluk-ozet', { method: yontem, headers: basliklar, body: yontem === 'POST' ? JSON.stringify(govde) : undefined });
 const json = async (r) => ({ durum: r.status, ...(await r.json()) });
 const gonderimler = (c) => c.filter((x) => x[0] === 'fetch');
 
@@ -193,4 +194,64 @@ test('özel gönderen adresi ve uygulama adresi ortamdan alınır', async () => 
   await isle(istek({ 'x-ozet-sirri': 'sirli' }), s.b);
   const g = JSON.parse(gonderimler(s.cagrilar)[0][2].body);
   assert.equal(g.from, 'Karma <ozet@karma.test>'); assert.ok(g.html.includes('https://karma.test/crm/#/tahsilat'));
+});
+
+// ---------------------------------------------------------------- teklif yanıtı bildirimi
+const PID = '11111111-2222-3333-4444-555555555555';
+const YTAB = (ek = {}) => ({
+  offer_shares: [{ id: PID, organization_id: 'o1', offer_id: 't1', response: 'kabul', responder_name: 'Ali <Veli>', responder_note: 'Teşekkürler & "iyi" çalışmalar', responded_at: '2026-10-29T08:00:00Z', ...ek }],
+  offers: [{ id: 't1', offer_no: 'T-2026-001', company_id: 'c1', lead_id: null }],
+  companies: [{ id: 'c1', name: 'Alfa <Ltd>' }], leads: [],
+});
+const yanitIstegi = (govde = { olay: 'teklif_yaniti', paylasim: PID }, basliklar = { 'x-ozet-sirri': 'sirli' }) => istek(basliklar, 'POST', govde);
+
+test('yanıt bildirimi: kabul → sahibe tek e-posta, konu/gövde doğru, müşteri alanları kaçırılır, kayıt tutulur', async () => {
+  const s = kur({ tablolar: YTAB() });
+  const r = await json(await isle(yanitIstegi(), s.b));
+  assert.equal(r.durum, 200); assert.equal(r.ok, true);
+  const g = gonderimler(s.cagrilar); assert.equal(g.length, 1);
+  const e = JSON.parse(g[0][2].body);
+  assert.deepEqual(e.to, ['sahip@gmail.com']);
+  assert.equal(e.subject, 'Teklif KABUL EDİLDİ: T-2026-001 - Alfa <Ltd>');
+  assert.ok(e.html.includes('Ali &lt;Veli&gt;') && e.html.includes('Alfa &lt;Ltd&gt;') && !e.html.includes('<Veli>'));
+  assert.ok(e.text.includes('Not: Teşekkürler') && e.text.includes('otomatik değiştirilmedi'));
+  assert.equal(s.loglar.length, 1);
+  assert.equal(s.loglar[0].tur, 'yanit'); assert.equal(s.loglar[0].durum, 'gonderildi'); assert.equal(s.loglar[0].kaynak, `paylasim:${PID}`);
+  assert.ok(!JSON.stringify(r).includes('re_gizli'));
+});
+
+test('yanıt bildirimi: red metni; aynı yanıt için ikinci çağrı e-posta göndermez', async () => {
+  const s = kur({ tablolar: YTAB({ response: 'red', responder_note: null }) });
+  await isle(yanitIstegi(), s.b);
+  assert.equal(JSON.parse(gonderimler(s.cagrilar)[0][2].body).subject, 'Teklif reddedildi: T-2026-001 - Alfa <Ltd>');
+  const r2 = await json(await isle(yanitIstegi(), s.b));
+  assert.equal(r2.durum, 200); assert.equal(r2.durum === 200 && r2.mesaj.includes('zaten'), true);
+  assert.equal(gonderimler(s.cagrilar).length, 1);
+});
+
+test('yanıt bildirimi: yetkisiz, geçersiz kimlik, yanıtsız paylaşım, eksik yapılandırma, servis hatası', async () => {
+  const s = kur({ tablolar: YTAB() });
+  assert.equal((await json(await isle(yanitIstegi(undefined, { 'x-ozet-sirri': 'yanlis' }), s.b))).durum, 401);
+  { const o = kur({ tablolar: YTAB() }); await isle(yanitIstegi(undefined, { authorization: 'Bearer gecerli' }), o.b); assert.ok(o.loglar.every((l) => l.tur !== 'yanit'), 'oturum açmış kullanıcı yanıt yolunu kullanamaz (yalnızca test özeti)'); }
+  assert.equal((await json(await isle(yanitIstegi({ olay: 'teklif_yaniti', paylasim: "x' or 1=1" }), s.b))).durum, 400);
+  assert.equal((await json(await isle(yanitIstegi(), kur({ tablolar: YTAB({ response: null }) }).b))).durum, 404);
+  assert.equal((await json(await isle(yanitIstegi({ olay: 'teklif_yaniti', paylasim: '99999999-2222-3333-4444-555555555555' }), s.b))).durum, 404);
+  assert.equal(gonderimler(s.cagrilar).length, 0);
+  const e = kur({ tablolar: YTAB(), env: { OZET_ALICI: '' } }); const re = await json(await isle(yanitIstegi(), e.b));
+  assert.equal(re.ok, false); assert.equal(gonderimler(e.cagrilar).length, 0); assert.equal(e.loglar[0].durum, 'hata');
+  const h = kur({ tablolar: YTAB(), resend: { ok: false, status: 500, govde: '' } }); const rh = await json(await isle(yanitIstegi(), h.b));
+  assert.equal(rh.ok, false); assert.equal(h.loglar[0].durum, 'hata');
+  const a = kur({ tablolar: YTAB(), resendHata: true }); assert.equal((await json(await isle(yanitIstegi(), a.b))).ok, false);
+});
+
+test('yanıt bildirimi: zamanlanmış günlük özet yolu etkilenmedi (gövde olaysız)', async () => {
+  const s = kur();
+  const r = await json(await isle(istek({ 'x-ozet-sirri': 'sirli' }, 'POST', {}), s.b));
+  assert.equal(r.ok, true); assert.equal(s.loglar[0].tur, 'gunluk');
+});
+
+test('yanıt biçimleyicileri: boş alanlar çökmez', () => {
+  assert.equal(yanitKonu({ karar: 'kabul' }), 'Teklif KABUL EDİLDİ:');
+  assert.ok(yanitMetni({ karar: 'red' }).includes('REDDETTİ'));
+  assert.ok(yanitHtml({ karar: 'red', ad: '<x>' }).includes('&lt;x&gt;'));
 });

@@ -57,3 +57,23 @@ test('bağlantı durumu: yok, aktif, doldu, iptal', () => {
   assert.equal(baglantiDurumu({ expires_at: '2026-10-30T11:59:59Z', revoked_at: null }, simdi).ad, 'doldu');
   assert.equal(baglantiDurumu({ expires_at: '2026-11-05T00:00:00Z', revoked_at: '2026-10-30T10:00:00Z' }, simdi).ad, 'iptal');
 });
+
+test('yanıt haritası ve yanıt durumu: bekliyor / kabul / red, işlenmiş ve arşivli teklifler null', async () => {
+  const { yanitHaritasi, yanitDurumu } = await import('../src/lib/musteri.js');
+  const h = yanitHaritasi([
+    { offer_id: 'a', response: 'red', responded_at: '2026-10-01T10:00:00Z' },
+    { offer_id: 'a', response: 'kabul', responded_at: '2026-10-02T10:00:00Z' },
+    { offer_id: 'b', response: null, responded_at: null },
+    null,
+  ]);
+  assert.equal(h.get('a').response, 'kabul'); assert.equal(h.has('b'), false);
+  assert.equal(yanitDurumu({ id: 'a', status: 'gonderildi' }, h), 'kabul');
+  assert.equal(yanitDurumu({ id: 'a', status: 'gorusuluyor' }, h), 'kabul');
+  assert.equal(yanitDurumu({ id: 'b', status: 'gonderildi' }, h), 'bekliyor');
+  assert.equal(yanitDurumu({ id: 'a', status: 'kabul_edildi' }, h), null);
+  assert.equal(yanitDurumu({ id: 'a', status: 'reddedildi' }, h), null);
+  assert.equal(yanitDurumu({ id: 'a', status: 'gonderildi', archived_at: '2026-10-03' }, h), null);
+  assert.equal(yanitDurumu({ id: 'c', status: 'taslak' }, h), null);
+  assert.equal(yanitDurumu(null, h), null);
+  assert.equal(yanitHaritasi(null).size, 0);
+});
