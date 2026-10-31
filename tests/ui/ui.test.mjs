@@ -1933,7 +1933,7 @@ await test('müşteri bağlantısı: oluştur, müşteri sayfası, kabul, sahibe
   await git(s, '#/teklifler'); await s.waitForSelector('#teklif-tablo tbody tr'); await s.click('#teklif-tablo tbody tr a'); await s.waitForSelector('#musteri-yaniti');
   const ust = await s.locator('.company-meta').innerText();
   if (!ust.includes('Müşteri KABUL etti — işleyin')) throw new Error(`teklif başlığı: ${ust}`);
-  if (!(await s.locator('#musteri-yaniti').innerText()).includes('Kabul edildi, sözleşme oluştur')) throw new Error('sıradaki adım metni yok');
+  if (!(await s.locator('#musteri-yaniti').innerText()).includes('Sözleşme oluştur')) throw new Error('sıradaki adım metni yok');
 });
 
 await test('müşteri bağlantısı: iptal, geçersiz bağlantılar, XSS ve izinler', async (s, ctx) => {
@@ -1976,7 +1976,7 @@ await test('müşteri bağlantısı: taslakta oluşturulamaz; süresi dolmuş te
   await firmaEkle(s, { ad: 'Taslak Ltd.', vergi: '5555555555', calisan: 10, tehlike: 'tehlikeli' }); await s.waitForSelector('.company-head');
   await teklifOlustur(s, 'Taslak Ltd.', { calisan: 10, tehlike: 'tehlikeli', birim: '100', uzman: '500' });
   esit(await s.locator('[data-action="paylasim-olustur"]').count(), 0, 'taslakta bağlantı düğmesi yok');
-  if (!(await s.locator('#paylasim-karti').innerText()).includes('Müşteriye gönderildi')) throw new Error('taslak ipucu yok');
+  if (!(await s.locator('#paylasim-karti').innerText()).includes('Müşteriye gönder')) throw new Error('taslak ipucu yok');
   // iç sayfa yazdırılınca kârlılık ve bağlantı kartı gizlenir
   await s.emulateMedia({ media: 'print' });
   esit(await s.locator('section:has(h2:has-text("Kârlılık"))').first().isVisible(), false, 'yazdırmada kârlılık gizli');
