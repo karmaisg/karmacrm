@@ -279,7 +279,7 @@ export async function teklifSayfasi(app, id) {
 
   const gecisDugmeleri = () => {
     if (!duzenleyebilir) return '';
-    const etiket = { onay_bekliyor: 'Onaya gönder', gonderildi: o.status === 'taslak' || o.status === 'onay_bekliyor' ? 'Müşteriye gönderildi' : 'Yeniden gönderildi', gorusuluyor: 'Görüşülüyor', reddedildi: 'Reddedildi', suresi_doldu: 'Süresi doldu', taslak: 'Taslağa al' };
+    const etiket = { onay_bekliyor: 'Onaya gönder', gonderildi: o.status === 'taslak' || o.status === 'onay_bekliyor' ? 'Müşteriye gönder' : 'Yeniden gönder', gorusuluyor: 'Görüşülüyor', reddedildi: 'Reddedildi', suresi_doldu: 'Süresi doldu', taslak: 'Taslağa al' };
     return (TEKLIF_GECISLERI[o.status] ?? []).map((d) => html`<button type="button" class="btn btn-secondary" data-gecis="${d}">${etiket[d] ?? TEKLIF_DURUMLARI[d]}</button>`);
   };
 
@@ -297,11 +297,11 @@ export async function teklifSayfasi(app, id) {
       <div class="pad">
         ${aktif ? html`<p>${pill(durum.metin, durum.ad === 'aktif' ? 'success' : 'neutral')} <span class="muted">Son geçerlilik: ${tarihSaat(aktif.expires_at)} · ${aktif.view_count} görüntüleme${aktif.last_viewed_at ? ` · son: ${tarihSaat(aktif.last_viewed_at)}` : ''}</span></p>
           ${aktif.customer_note ? html`<p class="fine">Müşteriye notunuz: <span class="prewrap">${aktif.customer_note}</span></p>` : ''}`
-          : html`<p class="muted">${olusturabilir ? 'Henüz bağlantı oluşturulmadı.' : 'Bağlantı oluşturmak için teklifi önce "Müşteriye gönderildi" olarak işaretleyin.'}</p>`}
+          : html`<p class="muted">${olusturabilir ? 'Henüz bağlantı oluşturulmadı.' : 'Bağlantı oluşturmak için teklifi önce "Müşteriye gönder" olarak işaretleyin.'}</p>`}
         ${durum.ad === 'aktif' ? html`<p class="fine">Güvenlik gereği bağlantının kendisi yalnızca oluşturulduğu anda gösterilir. Kaybettiyseniz yeni bağlantı oluşturun; eskisi kapanır.</p>` : ''}
         ${yanitli ? html`<div class="notice ${yanitli.response === 'kabul' ? 'notice-ok' : 'notice-warn'}" role="status" id="musteri-yaniti"><strong>Müşteri yanıtı: ${yanitli.response === 'kabul' ? 'KABUL' : 'RED'}</strong> — ${yanitli.responder_name}, ${tarihSaat(yanitli.responded_at)}
           ${yanitli.responder_note ? html`<span class="block prewrap">Not: ${yanitli.responder_note}</span>` : ''}
-          <span class="block fine">${['gonderildi', 'gorusuluyor'].includes(o.status) ? (yanitli.response === 'kabul' ? 'Sıradaki adım: müşteriyle görüşüp "Kabul edildi, sözleşme oluştur" düğmesini kullanın.' : 'Sıradaki adım: müşteriyle görüşün; sonuç değişmezse "Reddedildi" olarak işaretleyin.') : 'Teklif durumu işlenmiş.'} Teklif durumu kendiliğinden değişmez. Size bir görev eklendi; e-posta bildirimi kuruluysa ayrıca e-posta gelir.</span></div>` : ''}
+          <span class="block fine">${['gonderildi', 'gorusuluyor'].includes(o.status) ? (yanitli.response === 'kabul' ? 'Sıradaki adım: müşteriyle görüşüp "Sözleşme oluştur" düğmesini kullanın.' : 'Sıradaki adım: müşteriyle görüşün; sonuç değişmezse "Reddedildi" olarak işaretleyin.') : 'Teklif durumu işlenmiş.'} Teklif durumu kendiliğinden değişmez. Size bir görev eklendi; e-posta bildirimi kuruluysa ayrıca e-posta gelir.</span></div>` : ''}
       </div></section>`;
   };
 
@@ -313,7 +313,7 @@ export async function teklifSayfasi(app, id) {
     eylemler: html`${duzenleyebilir && !kilitli ? html`<button type="button" class="btn btn-secondary" data-action="duzenle">${icon('pencil', 18)} Düzenle</button>` : ''}
       <button type="button" class="btn btn-secondary" data-yazdir>${icon('file', 18)} Yazdır / PDF</button>
       ${app.can('offers', 'create') ? html`<button type="button" class="btn btn-secondary" data-action="kopyala">${icon('file', 18)} Kopyala</button>` : ''}
-      ${duzenleyebilir && kabulEdilebilir(o.status) && app.can('contracts', 'create') ? html`<button type="button" class="btn btn-primary" data-action="kabul">${icon('check', 18)} Kabul edildi, sözleşme oluştur</button>` : ''}
+      ${duzenleyebilir && kabulEdilebilir(o.status) && app.can('contracts', 'create') ? html`<button type="button" class="btn btn-primary" data-action="kabul">${icon('check', 18)} Sözleşme oluştur</button>` : ''}
       ${app.can('offers', 'archive') && !o.archived_at ? html`<button type="button" class="btn btn-secondary" data-action="arsiv">${icon('archive', 18)} Arşivle</button>` : ''}`,
     govde: html`${o.archived_at ? html`<div class="notice notice-warn" role="status">Bu teklif arşivde.</div>` : ''}
       ${kilitli ? html`<div class="notice notice-info" role="status">Gönderilmiş teklifin fiyat bilgileri değiştirilemez. Değişiklik için <strong>Kopyala</strong> ile yeni sürüm hazırlayın.</div>` : ''}

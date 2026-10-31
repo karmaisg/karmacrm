@@ -280,9 +280,9 @@ Saatler UTC'dir; Türkiye UTC+3 olduğu için `0 5` = 08:00, `0 6` = 09:00. Kapa
 Teklifi müşteriye giriş gerektirmeyen gizli bir bağlantıyla gösterirsiniz; müşteri teklifi görür, yazdırır ve **Kabul ediyorum / Kabul etmiyorum** yanıtı verebilir. **Sistem müşteriye hiçbir e-posta veya mesaj göndermez**; bağlantıyı siz kopyalayıp WhatsApp, e-posta vb. ile iletirsiniz.
 
 1. **SQL:** Supabase > SQL Editor'de `supabase/12_asama12.sql` dosyasının tamamını çalıştırın ("Success" görmelisiniz). Güvenle yeniden çalıştırılabilir. Başka kurulum adımı yoktur.
-2. **Bağlantı oluşturma:** bir teklifi açın, teklifi **"Müşteriye gönderildi"** yapın (taslakta bağlantı oluşturulamaz). Sayfanın altındaki **Müşteri bağlantısı** kartında "Bağlantı oluştur"a basın, süreyi (7–90 gün) ve istersen müşteriye kısa bir not seçin.
+2. **Bağlantı oluşturma:** bir teklifi açın, teklifi **"Müşteriye gönder"** yapın (taslakta bağlantı oluşturulamaz). Sayfanın altındaki **Müşteri bağlantısı** kartında "Bağlantı oluştur"a basın, süreyi (7–90 gün) ve istersen müşteriye kısa bir not seçin.
 3. **Bağlantıyı kopyalayın:** açılan pencerede bağlantı **yalnızca o an** gösterilir (güvenlik için sistemde yalnızca özeti saklanır). Kopyalamayı unutursanız yeni bağlantı oluşturun; eskisi kapanır.
-4. **Müşteri yanıtı:** müşteri yanıt verince teklif sayfasındaki kartta "Müşteri yanıtı: KABUL/RED" (ad, zaman, not) görünür ve **Görevler**'e yüksek öncelikli bir görev eklenir (günlük özet e-postasında da çıkar). Teklif durumu ve sözleşme **kendiliğinden değişmez**: müşteriyle görüştükten sonra "Kabul edildi, sözleşme oluştur" ya da "Reddedildi" işlemini siz yaparsınız.
+4. **Müşteri yanıtı:** müşteri yanıt verince teklif sayfasındaki kartta "Müşteri yanıtı: KABUL/RED" (ad, zaman, not) görünür ve **Görevler**'e yüksek öncelikli bir görev eklenir (günlük özet e-postasında da çıkar). Teklif durumu ve sözleşme **kendiliğinden değişmez**: müşteriyle görüştükten sonra "Sözleşme oluştur" ya da "Reddedildi" işlemini siz yaparsınız.
 5. **İptal:** kartın "Bağlantıyı iptal et" düğmesi bağlantıyı hemen kapatır. Teklif arşivlenirse, süre dolarsa veya yeni bağlantı oluşturulursa eski bağlantı da kapanır.
 
 **Güvenlik özeti**
@@ -304,6 +304,6 @@ Müşteri teklifi kabul ya da reddettiğinde **yalnızca size** e-posta gelir (m
    (`ozet_cron_sirri` gizli kaydı Aşama 10'da zaten oluşturulmuştu; pg_net eklentisi de oradan açıktır.)
 4. **Deneme:** bir teklifin bağlantısını kendiniz açıp yanıt verin; birkaç saniye içinde e-posta gelmelidir. Sistem ayarları > özet günlüğünde "Teklif yanıtı" satırı görünür. E-posta gelmezse müşteri yanıtı yine de kaydedilir ve Görevler'e düşer; günlükteki hata satırına bakın.
 
-**Takip nasıl yapılır?** (1) e-posta, (2) Görevler'de yüksek öncelikli görev, (3) Teklifler listesinde "Müşteri KABUL etti / reddetti — işleyin" rozeti ve **Yanıt bekleyen / Yanıt geldi (işlenmedi)** filtreleri, (4) panelde "Yanıt geldi, işlenmedi" sayacı. Teklif durumu bilerek kendiliğinden değişmez; görüştükten sonra siz "Kabul edildi, sözleşme oluştur" veya "Reddedildi" yaparsınız, rozet de o zaman kalkar.
+**Takip nasıl yapılır?** (1) e-posta, (2) Görevler'de yüksek öncelikli görev, (3) Teklifler listesinde "Müşteri KABUL etti / reddetti — işleyin" rozeti ve **Yanıt bekleyen / Yanıt geldi (işlenmedi)** filtreleri, (4) panelde "Yanıt geldi, işlenmedi" sayacı. Teklif durumu bilerek kendiliğinden değişmez; görüştükten sonra siz "Sözleşme oluştur" veya "Reddedildi" yaparsınız, rozet de o zaman kalkar.
 
 **Bilinen sınırlar:** e-posta Resend'in kısıtına tabidir (kendi alan adınızı doğrulamadıkça yalnızca Resend hesap adresinize gider); Supabase projesi duraklatılmışsa e-posta gitmez; yanıt e-postası gitmezse otomatik yeniden denenmez (günlükte "hata" görünür).
