@@ -92,7 +92,7 @@ function kurucu(ad) {
         yeni.offer_no = `TKL-${yeni.offer_date.slice(0, 4)}-${String(tablo.offers.length + 1).padStart(4, '0')}`;
         if (!yeni.company_id === !yeni.lead_id) return { data: null, error: hata('Teklif için firma veya potansiyel müşteriden yalnızca biri seçilmelidir.', 'P0001') };
       }
-      if (ad === 'employees') { yeni.is_active ??= true; yeni.monthly_capacity_min ??= 11700; yeni.full_name = String(yeni.full_name ?? '').trim(); if (!yeni.full_name) return { data: null, error: hata('Ad soyad zorunludur.', 'P0001') }; }
+      if (ad === 'employees') { if (!yeni.staff_type && !yeni.role_kind) return { data: null, error: hata('new row for relation "employees" violates check constraint "employees_role_kind_chk"', '23514') }; yeni.monthly_capacity_min ??= 11700; yeni.is_management ??= false; yeni.is_active ??= true; yeni.monthly_capacity_min ??= 11700; yeni.full_name = String(yeni.full_name ?? '').trim(); if (!yeni.full_name) return { data: null, error: hata('Ad soyad zorunludur.', 'P0001') }; }
       if (ad === 'assignments') {
         const e = tablo.employees.find((x) => x.id === yeni.employee_id);
         if (!e) return { data: null, error: hata('Personel bulunamadı.', 'P0001') };
@@ -434,7 +434,7 @@ const rpcler = {
   personel_listesi() {
     const ben = tablo.users.find((u) => u.id === oturum?.user?.id);
     const alan = ben && ben.role_id === rid('uzman_hekim');
-    return tablo.employees.filter((e) => !alan || e.id === ben.employee_id).map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type, is_active: e.is_active, monthly_capacity_min: e.monthly_capacity_min, archived_at: e.archived_at }));
+    return tablo.employees.filter((e) => e.staff_type && (!alan || e.id === ben.employee_id)).map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type, is_active: e.is_active, monthly_capacity_min: e.monthly_capacity_min, archived_at: e.archived_at }));
   },
   personel_kullanici_bagla({ p_employee, p_user }) {
     tablo.users.forEach((u) => { if (u.employee_id === p_employee) u.employee_id = null; });
@@ -512,7 +512,7 @@ const rpcler = {
     return { data: {
       atamalar: tablo.assignments.filter((a) => !a.archived_at && a.valid_from <= bit && (!a.valid_to || a.valid_to >= bas)).map((a) => ({ id: a.id, company_id: a.company_id, employee_id: a.employee_id, staff_type: a.staff_type, share_pct: a.share_pct, valid_from: a.valid_from, valid_to: a.valid_to, archived_at: null })),
       zaman: tablo.time_entries.filter((t) => !t.archived_at && t.work_date >= bas && t.work_date <= bit).map((t) => ({ employee_id: t.employee_id, company_id: t.company_id, work_date: t.work_date, activity_type: t.activity_type, onsite_minutes: t.onsite_minutes, reporting_minutes: t.reporting_minutes, archived_at: null })),
-      personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
+      personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type ?? null, role_kind: e.role_kind ?? null, title: e.title ?? null, is_management: !!e.is_management, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
     } };
   },
   teklif_baglantisi_olustur({ p_offer, p_gun, p_not }) {

@@ -139,3 +139,24 @@ test('dagitimSatirlari: yalnız sıfırdan büyük satırlar', () => {
   const r = hesaplaKarlilik({ ...temel, faturalar: [fat('i1', 'f1', 100)], giderler: [gider('g1', 'k-kira', 90)] });
   assert.deepEqual(dagitimSatirlari(r.ortak[0]), [{ company_id: 'f1', amount: 90 }]);
 });
+
+test('yönetim gideri işaretli personelin maliyeti firmalara değil, ortak gider havuzuna yazılır', async () => {
+  const { hesaplaKarlilik, YONETIM_KATEGORI } = await import('../src/lib/karlilik.js');
+  const g = {
+    ay: '2026-10-01', firmalar: [{ id: 'f1', name: 'Alfa' }],
+    faturalar: [{ company_id: 'f1', amount_excl_vat: 10000, invoice_date: '2026-10-05', service_period: '2026-10-01' }],
+    personeller: [{ id: 'e1', full_name: 'Sekreter', staff_type: null, role_kind: 'sekreter', is_management: true, is_active: true, monthly_capacity_min: 11700 },
+      { id: 'e2', full_name: 'Uzman', staff_type: 'is_guvenligi_uzmani', is_management: false, is_active: true, monthly_capacity_min: 11700 }],
+    maliyetler: [{ employee_id: 'e1', valid_from: '2026-01-01', valid_to: null, gross_salary: 3000, employer_sgk: 600, other_benefits: 0, total_monthly_cost: 3600 },
+      { employee_id: 'e2', valid_from: '2026-01-01', valid_to: null, gross_salary: 5000, employer_sgk: 1000, other_benefits: 0, total_monthly_cost: 6000 }],
+  };
+  const r = hesaplaKarlilik(g);
+  assert.equal(r.isletme.yonetimPersonel, 3600);
+  assert.equal(r.isletme.personel, 6000);            // yalnızca yönetim dışı personel
+  assert.equal(r.isletme.ortakHavuz, 3600);
+  const o = r.ortak.find((x) => x.kategoriId === YONETIM_KATEGORI);
+  assert.ok(o.sanal); assert.equal(o.dagitim.f1, 3600);   // tek firma: tamamı ona
+  assert.equal(r.firmalar.find((f) => f.id === 'f1').ortak, 3600);
+  assert.equal(r.isletme.vergiOncesiKar, 10000 - 6000 - 3600);
+  assert.equal(r.personel.find((p) => p.id === 'e1').yonetim, true);
+});

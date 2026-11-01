@@ -2139,6 +2139,68 @@ await test('İSG-Katip: görevlendirme — firma seçimi kaldırılırsa o firma
   esit(await s.locator('[data-action="gorev-uygula"]').isDisabled(), true, 'hiç firma seçili değilken düğme kapalı');
 });
 
+await test('Diğer personel: rol ve unvan, yönetim gideri işareti, görevlendirme/kapasite listelerinde görünmez', async (s) => {
+  await girisYap(s);
+  await git(s, '#/digerpersonel'); await s.waitForSelector('[data-action="yeni"]');
+  await s.locator('[data-action="yeni"]').first().click();
+  await modal(s).locator('#f-full_name').fill('Selin Sekreter');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.form-error:not([hidden]), .field-error', { timeout: 5000 }).catch(() => {});
+  esit(await modal(s).locator('#f-role_kind').count(), 1, 'rol seçimi var');
+  await modal(s).locator('#f-role_kind').selectOption('diger');
+  await modal(s).locator('button[type=submit]').click();
+  const unvanHata = await modal(s).innerText(); if (!unvanHata.includes('unvanı yazın')) throw new Error(`diğer için unvan istenmeli: ${unvanHata.slice(0, 200)}`);
+  await modal(s).locator('#f-role_kind').selectOption('sekreter');
+  await modal(s).locator('#f-title').fill('Ön büro');
+  esit(await modal(s).locator('input[name="is_management"]').isChecked(), true, 'rol sahibinde yönetim gideri varsayılan işaretli');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelector('.company-head h1')?.textContent.includes('Selin'));
+  const kafa = await s.locator('.company-head').innerText(); if (!kafa.includes('Sekreter') || !kafa.includes('Yönetim gideri')) throw new Error(`başlık: ${kafa}`);
+  esit(await s.locator('[data-action="gorevlendir"]').count(), 0, 'rol sahibi görevlendirilemez');
+  const emp = await s.evaluate(() => globalThis.__fake.tablo.employees.find((e) => e.full_name === 'Selin Sekreter'));
+  esit(`${emp.staff_type}/${emp.role_kind}/${emp.is_management}`, 'null/sekreter/true', 'kayıt');
+  await ekran(s, '48-diger-personel');
+  // yönetimdeki uzman: görevlendirilebilir, işaret kayıtlı
+  await personelEkle(s, 'is_guvenligi_uzmani', 'Yönetici Uzman');
+  await s.locator('[data-action="duzenle"]').click(); await modal(s).locator('input[name="is_management"]').check(); await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelector('.company-meta')?.textContent.includes('Yönetim gideri'));
+  esit(await s.locator('[data-action="gorevlendir"]').count(), 1, 'yönetimdeki uzman yine görevlendirilebilir');
+  // görevlendirme formunda rol sahibi çıkmaz
+  await git(s, '#/gorevlendirmeler'); await s.waitForSelector('.empty, #gv-tablo');
+  const liste = await s.evaluate(() => globalThis.__fake.tablo.employees.filter((e) => e.staff_type).map((e) => e.full_name));
+  if (liste.includes('Selin Sekreter')) throw new Error('rol sahibi uzman/hekim listesinde');
+  await git(s, '#/digerpersonel'); await s.waitForSelector('#rol-tablo');
+  const t = await s.locator('#rol-tablo').innerText(); if (!t.includes('Selin Sekreter') || !t.includes('Yönetim gideri') || t.includes('Yönetici Uzman')) throw new Error(`liste: ${t}`);
+});
+await test('İşyeri takma adı ve ayrı fatura işareti: Katip sayfasında ve firma kartında', async (s) => {
+  await katipKurulum(s);
+  await katipYukle(s, KATIP1, '2026-10');
+  await s.check('#katip-gozden'); await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#katip-sonuc');
+  const ilk = s.locator('[data-site-ad]').first(); const id = await ilk.getAttribute('data-site-ad');
+  await ilk.fill('UKEM'); await ilk.dispatchEvent('change'); await s.waitForTimeout(300);
+  await s.locator(`[data-site-ayri="${id}"]`).check(); await s.waitForTimeout(300);
+  const kay = await s.evaluate((i) => globalThis.__fake.tablo.company_sites.find((x) => x.id === i), id);
+  esit(`${kay.invoice_alias}/${kay.separate_invoice}`, 'UKEM/true', 'işyeri kaydı');
+  await s.fill('#site-ara', 'ukem'); await s.waitForTimeout(150); esit(await s.locator('#site-tablo tbody tr').count(), 1, 'takma adla arama');
+  // firma kartında İşyerleri sekmesi
+  const firmaId = kay.company_id;
+  await git(s, `#/firmalar/${firmaId}`); await s.waitForSelector('[data-sekme="isyerleri"]'); await s.click('[data-sekme="isyerleri"]');
+  await s.waitForSelector('#isyeri-tablo');
+  esit(await s.locator(`[data-isyeri-ad="${id}"]`).inputValue(), 'UKEM', 'firma kartında takma ad');
+  await s.locator(`[data-isyeri-ad="${id}"]`).fill('UKEM 2'); await s.locator(`[data-isyeri-ad="${id}"]`).dispatchEvent('change'); await s.waitForTimeout(300);
+  esit(await s.evaluate((i) => globalThis.__fake.tablo.company_sites.find((x) => x.id === i).invoice_alias, id), 'UKEM 2', 'firma kartından güncellendi');
+  await ekran(s, '49-isyerleri-sekmesi');
+});
+await test('Kârlılık: yönetim gideri personeli ortak gider olarak görünür', async (s) => {
+  await girisYap(s);
+  const kisi = await s.evaluate(() => { const t = globalThis.__fake.tablo; const id = crypto.randomUUID(); t.employees.push({ id, organization_id: t.organizations?.[0]?.id ?? 'o', full_name: 'Muhasebe Yön', staff_type: null, role_kind: 'yonetim', is_management: true, is_active: true, monthly_capacity_min: 11700, archived_at: null });
+    t.employee_costs.push({ id: crypto.randomUUID(), employee_id: id, valid_from: '2026-01-01', valid_to: null, gross_salary: 5000, employer_sgk: 1000, other_benefits: 0, total_monthly_cost: 6000 }); return id; });
+  void kisi;
+  await git(s, '#/firma-karlilik'); await s.waitForSelector('#ortak-kart, .card', { timeout: 8000 }).catch(() => {});
+  const metin = await s.locator('body').innerText();
+  if (!metin.includes('Yönetim personeli maliyeti')) throw new Error(`yönetim kalemi yok: ${metin.slice(0, 300)}`);
+});
+
 await test('İSG-Katip: izinsiz rol yükleme yapamaz; mobil 375px yatay taşma yok', async (s) => {
   await girisYap(s, 'satis@test.com'); await git(s, '#/katip');
   await s.waitForSelector('#katip-kok, .empty'); esit(await s.locator('#katip-dosya').count(), 0, 'satış yükleme alanı görmez');

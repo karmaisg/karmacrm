@@ -1,0 +1,87 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:80: NOTICE:  PASS | Uzman/hekim dışı rol kaydedilir (hizmet türü boş)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:81: NOTICE:  PASS | Hizmet türü ve rol birlikte olamaz [new row for relation "employees" violates check constraint "employees_role_kind_chk"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:82: NOTICE:  PASS | İkisi de boş olamaz [new row for relation "employees" violates check constraint "employees_role_kind_chk"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:83: NOTICE:  PASS | Geçersiz rol reddedilir [new row for relation "employees" violates check constraint "employees_role_kind_chk"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:84: NOTICE:  PASS | Rol sahibi personele görevlendirme yapılamaz [Bu personel uzman veya hekim değil; firmaya görevlendirilemez.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama16.sql:86: NOTICE:  PASS | personel_listesi yalnızca uzman/hekim döndürür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:87: NOTICE:  PASS | Kârlılık girdileri rol ve yönetim işaretini taşır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:91: NOTICE:  PASS | Yönetimdeki uzmana görevlendirme yapılabilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:94: NOTICE:  PASS | İşyeri takma adı ve ayrı fatura işareti yazılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:95: NOTICE:  PASS | Takma ad okunur
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:96: NOTICE:  PASS | Çok uzun takma ad reddedilir [new row for relation "company_sites" violates check constraint "company_sites_invoice_alia]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama16.sql:97: NOTICE:  PASS | Varsayılan: ayrı fatura yok
+ ok 
+----
+ 
+(1 row)
+
