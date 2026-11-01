@@ -155,6 +155,15 @@ export function createApi(db) {
     })),
 
     // ----- İSG-Katip aktarımı (14_asama13_katip.sql)
+    // ----- takvim (17_asama16.sql)
+    getCalendarEvents: (bas, bit) => bir(db.rpc('takvim_olaylari', { p_bas: bas, p_bit: bit })),
+    listCalendarItems: () => hepsiniOku(() => T('calendar_items').select('*').is('archived_at', null).order('start_date')),
+    createCalendarItem: (d) => bir(T('calendar_items').insert(d).select().single()),
+    updateCalendarItem: (id, d) => bir(T('calendar_items').update(d).eq('id', id).select().single()),
+    archiveCalendarItem: (id) => bir(T('calendar_items').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    completeCalendarItem: (itemId, gun) => bir(T('calendar_completions').insert({ item_id: itemId, occurrence_date: gun }).select().single()),
+    uncompleteCalendarItem: (itemId, gun) => bir(T('calendar_completions').delete().eq('item_id', itemId).eq('occurrence_date', gun).select()),
+    createSite: (d) => bir(T('company_sites').insert(d).select().single()),
     listSites: () => hepsiniOku(() => T('company_sites').select('*').order('id')),
     updateSite: (id, degerler) => bir(T('company_sites').update(degerler).eq('id', id).select().single()),
     listKatipImports: () => bir(T('katip_imports').select('id,period,file_name,row_count,site_count,new_company_count,summary,created_at').order('created_at', { ascending: false }).limit(24)),

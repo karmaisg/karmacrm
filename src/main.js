@@ -26,6 +26,7 @@ import { firmaKarlilikSayfasi, personelKarlilikSayfasi } from './pages/karlilik.
 import { raporlarSayfasi } from './pages/raporlar.js';
 import { aktarimSayfasi } from './pages/aktarim.js';
 import { katipSayfasi } from './pages/katip.js';
+import { takvimSayfasi } from './pages/takvim.js';
 import { ayarlarSayfasi } from './pages/ayarlar.js';
 import { denetimSayfasi } from './pages/denetim.js';
 import { yedekSayfasi } from './pages/yedek.js';
@@ -65,6 +66,7 @@ function rotaCoz(parcalar) {
   if (ilk === 'crm' && ikinci) return { menu: 'crm', modul: 'crm', yukle: () => leadSayfasi(app, ikinci) };
   if (ilk === 'crm') return { menu: 'crm', modul: 'crm', yukle: () => crmSayfasi(app) };
   if (ilk === 'firsatlar') return { menu: 'firsatlar', modul: 'opportunities', yukle: () => firsatlarSayfasi(app) };
+  if (ilk === 'takvim') return { menu: 'takvim', modul: 'tasks', yukle: () => takvimSayfasi(app) };
   if (ilk === 'gorevler') return { menu: 'gorevler', modul: 'tasks', yukle: () => gorevlerSayfasi(app) };
   if (ilk === 'teklifler' && ikinci) return { menu: 'teklifler', modul: 'offers', yukle: () => teklifSayfasi(app, ikinci) };
   if (ilk === 'teklifler') return { menu: 'teklifler', modul: 'offers', yukle: () => tekliflerSayfasi(app) };

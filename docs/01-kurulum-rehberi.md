@@ -348,3 +348,16 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
 5. **Kapasite analizi:** son İSG-Katip yüklemesindeki aylık süre "Katip'te bildirilen" sütununda teorik yükün yanında görünür. Uzmanlar, İşyeri hekimleri ve Görevlendirmeler sayfalarındaki firma sayısı ve teorik yük, Aşama 14'te görevlendirmeleri onayladığınızda güncellenir.
 6. **Sınırlar:** diğer personel firmalara görevlendirilmez ve zaman kaydı girmez; işyerleri yalnızca İSG-Katip'ten gelir (elle işyeri eklenmez); zaman takibinde Katip'ten aktarılacak ayrı bir veri yoktur.
 
+## Aşama 16 kurulumu (elle işyeri, Takvim, günlük e-postada "Bugün Yapılacaklar" ve "Yaklaşan Program")
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/17_asama16.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. (10, 14, 15 ve 16 numaralı dosyalar önce çalıştırılmış olmalı.)
+2. **Edge Function'ı yeniden yükleyin:** Supabase > Edge Functions > `gunluk-ozet` > kodu `supabase/functions/gunluk-ozet/index.ts` ile değiştirip **Deploy** edin (Aşama 10 ve 12.1'de yaptığınız gibi). Bunu yapmazsanız e-posta eski biçimde gelir. Gizli ayarlar ve zamanlama aynı kalır.
+3. **Elle işyeri:** İSG-Katip'ten gelmeyen (elle açtığınız) firmanın kartında **İşyerleri** sekmesi > **İşyeri ekle**. İşyeri adı, fatura adı (ör. UKEM), çalışan sayısı, tehlike sınıfı ve "ayrı fatura" işareti girilir. Elle girilen işyeri Katip yüklemesinde pasife alınmaz ve firma kartındaki çalışan sayısına katılmaz (o sayıyı firma kartından siz yönetirsiniz).
+4. **Takvim:** menüde **Operasyon > Takvim**. Ay görünümünde bir güne tıklayınca o günün işleri altta listelenir.
+   - **Yeni kayıt:** başlık, tür (ödeme / hatırlatma), tarih, tekrar (tek seferlik / her ay), isteğe bağlı bitiş, tutar, firma, not. "Her ay" seçilirse ilk tarihin günü her ay tekrarlanır; o gün olmayan aylarda (ör. 31) ayın son gününe düşer.
+   - **Yapıldı işareti:** kutuyu işaretleyin; tekrarlayan kayıtlarda yalnızca o ayı kapatır.
+   - **Görevler otomatik işlenir:** Hatırlatmalar ve görevler sayfasında girdiğiniz son tarih ve hatırlatma zamanı takvimde ayrı ayrı görünür; görev tamamlanınca takvimden düşer.
+5. **Günlük e-posta:** bugüne ait yapılmamış işler **"Bugün Yapılacaklar"**, yarından başlayarak 3 günün işleri **"Yaklaşan Program"** başlığıyla, tarih ve "N gün kaldı" bilgisiyle e-postanın en üstünde gelir. Eski "görev" bölümü artık yalnızca **gecikmiş** görevleri gösterir (bugünküler Bugün Yapılacaklar'dadır). Bildirilecek hiçbir şey yoksa e-posta yine gönderilmez.
+6. **Yetki:** Takvim, "Hatırlatmalar ve görevler" yetkisini kullanır (görmek / eklemek / düzenlemek).
+7. **Sınırlar:** Tekrar yalnızca "her ay"dır (haftalık/yıllık yok). Saat bilgisi tutulmaz, yalnızca gün. Takvimden görev oluşturulmaz; görevler kendi sayfasında girilir.
+

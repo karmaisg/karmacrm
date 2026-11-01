@@ -47,6 +47,7 @@ karmacrm/
 │  ├─ 11_asama11.sql         Aşama 11: denetim kaydı okuma izni, tam yetki, yedek kaydı (bir kez)
 │  ├─ 12_asama12.sql         Aşama 12: müşteri teklif bağlantısı (offer_shares, girişsiz müşteri fonksiyonları) (bir kez)
 │  ├─ 14_asama13_katip.sql   Aşama 13: İSG-Katip aktarımı (company_sites, katip_imports/rows/people, katip_uygula) (bir kez)
+│  ├─ 17_asama16.sql         Aşama 16: elle işyeri, Takvim, günlük özette Bugün/Yaklaşan (bir kez)
 │  ├─ 16_asama15.sql         Aşama 15: personel rolleri, yönetim gideri, işyeri takma adı (bir kez)
 │  ├─ 15_asama14.sql         Aşama 14: Katip görevlendirme aktarımı (employees.certificate_no, katip_gorevlendir) (bir kez)
 │  ├─ 13_asama13.sql         Aşama 12.1: müşteri yanıtında sahibe e-posta bildirimi (pg_net ile Edge Function'a) (bir kez)
@@ -95,6 +96,7 @@ psql -d osgb -f supabase/13_asama13.sql
 psql -d osgb -f supabase/14_asama13_katip.sql
 psql -d osgb -f supabase/15_asama14.sql
 psql -d osgb -f supabase/16_asama15.sql
+psql -d osgb -f supabase/17_asama16.sql
 psql -d osgb -f tests/db_tests_asama7.sql
 psql -d osgb -f tests/db_tests_asama9.sql
 psql -d osgb -f tests/db_tests_asama10.sql

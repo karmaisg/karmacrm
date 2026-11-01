@@ -374,3 +374,35 @@ details > summary { cursor: pointer; }
 #katip-kok details table input[type="text"], #katip-kok td input[type="text"] { width: 100%; min-height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); padding: 0 10px; }
 @media print { #katip-kok { display: none; } }
 .text-ok { color: var(--success); font-weight: 600; }
+
+/* ---------- takvim (Aşama 16) ---------- */
+.takvim-arac { gap: 8px; border: 0; padding: 0 0 14px; }
+.takvim-ay { min-width: 150px; text-align: center; text-transform: capitalize; }
+.takvim-izgara { border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; background: var(--surface); margin-bottom: 18px; }
+.takvim-baslik, .takvim-hafta { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.takvim-baslik > div { padding: 8px 6px; text-align: center; font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); background: var(--surface-2); text-transform: uppercase; }
+.takvim-gun { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 3px; min-height: 92px; padding: 6px; text-align: left; background: var(--surface); border: 0; border-top: 1px solid var(--border); border-left: 1px solid var(--border); color: var(--text); font: inherit; cursor: pointer; overflow: hidden; }
+.takvim-hafta .takvim-gun:first-child { border-left: 0; }
+.takvim-gun:hover { background: var(--surface-2); }
+.takvim-disi { color: var(--text-3); background: var(--surface-2); }
+.takvim-no { font-weight: 700; font-size: 13px; }
+.takvim-bugun .takvim-no { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; }
+.takvim-secili { outline: 2px solid var(--info); outline-offset: -2px; }
+.takvim-chip { display: block; padding: 1px 6px; border-radius: 6px; font-size: 11px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--surface-2); color: var(--text-2); }
+.takvim-odeme { background: #e3f4ea; color: #146c43; }
+.takvim-gorev { background: #fdf0d9; color: #8a5a0b; }
+.takvim-hatirlatma { background: #e6edfb; color: #2a4aa0; }
+:root[data-theme="dark"] .takvim-odeme { background: #173626; color: #7ad6a4; } :root[data-theme="dark"] .takvim-gorev { background: #40300f; color: #f0b567; } :root[data-theme="dark"] .takvim-hatirlatma { background: #1d2a4d; color: #9db7f2; }
+.takvim-yapildi .takvim-chip, .takvim-chip.takvim-yapildi { text-decoration: line-through; opacity: .6; }
+li.takvim-yapildi .takvim-metin { text-decoration: line-through; opacity: .65; }
+.takvim-fazla { font-size: 11px; color: var(--text-2); }
+.takvim-nokta { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+.takvim-liste { list-style: none; margin: 0; padding: 0 20px 12px; }
+.takvim-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.takvim-liste li:last-child { border: 0; }
+.takvim-metin { flex: 1; min-width: 160px; }
+@media (max-width: 640px) {
+  .takvim-gun { min-height: 58px; padding: 4px; }
+  .takvim-chip { display: none; }
+  .takvim-nokta { top: 6px; right: 6px; }
+}

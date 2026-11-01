@@ -176,7 +176,7 @@ export async function katipSayfasi(app) {
   const SAYFA = 20;
   const siteKarti = () => {
     const q = d.siteAra.trim().toLocaleLowerCase('tr');
-    const liste = siteler.filter((s) => !q || `${s.site_name} ${s.sgk_no} ${s.invoice_alias ?? ''} ${firmaAdi.get(s.company_id) ?? ''}`.toLocaleLowerCase('tr').includes(q))
+    const liste = siteler.filter((s) => !s.archived_at && (!q || `${s.site_name} ${s.sgk_no} ${s.invoice_alias ?? ''} ${firmaAdi.get(s.company_id) ?? ''}`.toLocaleLowerCase('tr').includes(q)))
       .sort((a, b) => String(firmaAdi.get(a.company_id)).localeCompare(String(firmaAdi.get(b.company_id)), 'tr') || a.site_name.localeCompare(b.site_name, 'tr'));
     const sayfaSayisi = Math.max(1, Math.ceil(liste.length / SAYFA)); d.sitePage = Math.min(d.sitePage, sayfaSayisi);
     const duzenleyebilir = app.can('companies', 'edit');

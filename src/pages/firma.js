@@ -4,7 +4,7 @@ import {
 } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import {
-  avatar, pill, emptyState, field, openFormModal, confirmDialog, toast,
+  avatar, pill, emptyState, field, checkbox, openFormModal, confirmDialog, toast,
 } from '../ui/components.js';
 import { firmaAylikIhtiyac, kapasiteKullanimi } from '../lib/hesaplama.js';
 import { guncelProfil, kapasiteDakika, bosIseNull } from '../lib/veri.js';
@@ -57,7 +57,7 @@ export async function firmaSayfasi(app, id) {
     app.can('invoices', 'view') ? app.api.listInvoices() : Promise.resolve([]),
     app.can('invoices', 'view') ? app.api.listPayments() : Promise.resolve([]),
   ]);
-  const siteler = firma ? await app.api.listSites().then((l) => l.filter((x) => x.company_id === id).sort((a, b) => a.site_name.localeCompare(b.site_name, 'tr'))).catch(() => null) : null;
+  const siteler = firma ? await app.api.listSites().then((l) => l.filter((x) => x.company_id === id && !x.archived_at).sort((a, b) => a.site_name.localeCompare(b.site_name, 'tr'))).catch(() => null) : null;
   if (!firma) {
     return {
       baslik: 'Firma bulunamadı', altBaslik: '',
@@ -233,13 +233,36 @@ export async function firmaSayfasi(app, id) {
     if (siteler === null) return html`<section class="card"><div class="notice notice-info" role="note">İşyeri bilgisi okunamadı. Supabase'de 14_asama13_katip.sql ve 16_asama15.sql dosyalarının çalıştırıldığından emin olun.</div></section>`;
     const duzenleyebilir = app.can('companies', 'edit');
     return html`<section class="card card-flush"><div class="card-head"><div><h2 class="card-title">İşyerleri</h2>
-      <p class="card-sub">İSG-Katip'ten gelen işyerleri burada listelenir. Faturada geçen kısa adı (ör. UKEM) "Fatura adı" alanına yazın; ayrı fatura kesiliyorsa işaretleyin. Fatura Excel'i yüklenirken bu ad tanınacaktır.</p></div></div>
+      <p class="card-sub">İSG-Katip'ten gelen işyerleri burada listelenir. Faturada geçen kısa adı (ör. UKEM) "Fatura adı" alanına yazın; ayrı fatura kesiliyorsa işaretleyin. Fatura Excel'i yüklenirken bu ad tanınacaktır. İSG-Katip'te olmayan işyerini elle ekleyebilirsiniz.</p></div>
+      ${app.can('companies', 'create') ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="isyeri-ekle">${icon('plus', 16)} İşyeri ekle</button>` : ''}</div>
       ${siteler.length ? html`<div class="table-wrap"><table class="table" id="isyeri-tablo"><thead><tr><th scope="col">İşyeri (Katip unvanı)</th><th scope="col" class="num hide-sm">Çalışan</th><th scope="col">Fatura adı</th><th scope="col">Ayrı fatura</th></tr></thead><tbody>
-        ${siteler.map((x) => html`<tr data-isyeri="${x.id}"><td><strong>${x.site_name}</strong><small class="block muted">Sicil: ${x.sgk_no}${x.is_active ? '' : ' · dosyada yok'}</small></td><td class="num hide-sm">${x.employee_count ?? '—'}</td>
+        ${siteler.map((x) => html`<tr data-isyeri="${x.id}"><td><strong>${x.site_name}</strong><small class="block muted">${x.is_manual ? 'Elle girildi' : `Sicil: ${x.sgk_no}${x.is_active ? '' : ' · dosyada yok'}`}</small>${x.is_manual && duzenleyebilir ? html`<button type="button" class="btn btn-secondary btn-sm" data-isyeri-sil="${x.id}">Sil</button>` : ''}</td><td class="num hide-sm">${x.employee_count ?? '—'}</td>
           <td>${duzenleyebilir ? html`<input type="text" maxlength="120" data-isyeri-ad="${x.id}" value="${x.invoice_alias ?? ''}" placeholder="Örn. UKEM" aria-label="${x.site_name} fatura adı">` : (x.invoice_alias || '—')}</td>
           <td>${duzenleyebilir ? html`<label class="check-inline"><input type="checkbox" data-isyeri-ayri="${x.id}" ${x.separate_invoice ? html`checked` : ''}> <span>Ayrı fatura</span></label>` : (x.separate_invoice ? 'Evet' : 'Hayır')}</td></tr>`)}</tbody></table></div>`
-        : emptyState({ simge: 'building', baslik: 'Bu firmaya bağlı işyeri yok', metin: 'İSG-Katip aktarımı yapıldığında firmanın işyerleri burada görünür.' })}</section>`;
+        : emptyState({ simge: 'building', baslik: 'Bu firmaya bağlı işyeri yok', metin: 'İSG-Katip aktarımı yapıldığında firmanın işyerleri burada görünür; Katip\'te olmayanı "İşyeri ekle" ile elle girin.' })}</section>`;
   };
+
+  function isyeriFormu() {
+    openFormModal({
+      baslik: 'İşyeri ekle', altBaslik: `${firma.name} · İSG-Katip'te bulunmayan işyeri`, gonderEtiketi: 'Ekle', boyut: 'lg',
+      govde: html`${field({ ad: 'site_name', etiket: 'İşyeri adı', zorunlu: true, tam: true, maksUzunluk: 200, yerTutucu: 'Örn. Ukem Sağlık Hizmetleri Şubesi' })}
+        ${field({ ad: 'invoice_alias', etiket: 'Fatura adı (takma ad)', maksUzunluk: 120, yerTutucu: 'Örn. UKEM' })}
+        ${field({ ad: 'employee_count', etiket: 'Çalışan sayısı', tur: 'number', min: 0, adim: 1, inputmode: 'numeric' })}
+        ${field({ ad: 'hazard_class', etiket: 'Tehlike sınıfı', deger: '', secenekler: [{ deger: '', etiket: 'Belirtilmedi' }, { deger: 'az_tehlikeli', etiket: 'Az tehlikeli' }, { deger: 'tehlikeli', etiket: 'Tehlikeli' }, { deger: 'cok_tehlikeli', etiket: 'Çok tehlikeli' }] })}
+        ${checkbox({ ad: 'separate_invoice', etiket: 'Bu işyerine ayrı fatura kesilir', isaretli: false })}`,
+      async onSubmit(fd) {
+        const g = (k) => String(fd.get(k) ?? '').trim(); const h = {};
+        if (!g('site_name')) h.site_name = 'İşyeri adı zorunludur.';
+        if (g('employee_count') !== '' && !/^\d{1,6}$/.test(g('employee_count'))) h.employee_count = 'Çalışan sayısı 0 veya daha büyük bir tam sayı olmalıdır.';
+        if (Object.keys(h).length) return { errors: h };
+        const rastgele = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => (b % 36).toString(36)).join('').toUpperCase();
+        await app.api.createSite({ company_id: id, sgk_no: `EL${rastgele}`, site_name: g('site_name'), invoice_alias: bosIseNull(g('invoice_alias')),
+          employee_count: g('employee_count') === '' ? null : Number(g('employee_count')), hazard_class: bosIseNull(g('hazard_class')), separate_invoice: fd.get('separate_invoice') === '1', is_manual: true, is_active: true });
+        toast('İşyeri eklendi.');
+      },
+      onDone: () => app.yenile(),
+    });
+  }
 
   function sekmeGovdesi() {
     const s = SEKMELER.find((x) => x.id === durum.sekme);
@@ -339,6 +362,13 @@ export async function firmaSayfasi(app, id) {
         }
       });
       kok.addEventListener('click', async (e) => {
+        const sil = e.target.closest('[data-isyeri-sil]');
+        if (sil) {
+          const x = siteler.find((y) => y.id === sil.dataset.isyeriSil); if (!x) return;
+          if (!(await confirmDialog({ baslik: 'İşyerini sil', mesaj: `"${x.site_name}" işyeri kaldırılacak.`, onayEtiketi: 'Sil', tehlikeli: true }))) return;
+          try { await app.api.updateSite(x.id, { archived_at: new Date().toISOString() }); toast('İşyeri silindi.'); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
+          return;
+        }
         const t = e.target.closest('[data-sekme]');
         if (t) { durum.sekme = t.dataset.sekme; hatirla.id = id; hatirla.sekme = durum.sekme; ciz(); kok.querySelector(`[data-sekme="${durum.sekme}"]`)?.focus(); return; }
         const a = e.target.closest('[data-action]');
@@ -346,6 +376,7 @@ export async function firmaSayfasi(app, id) {
           const eylem = a.dataset.action;
           if (eylem === 'duzenle') firmaFormuAc(app, { firma });
           else if (eylem === 'arsiv') await arsivIslemi();
+          else if (eylem === 'isyeri-ekle') isyeriFormu();
           else if (eylem === 'profil-ekle') profilFormu();
           else if (eylem === 'kisi-ekle') kisiFormuAc(app, { firmaId: firma.id });
           else if (eylem === 'gorusme-ekle') gorusmeFormuAc(app, { companyId: firma.id, kisiler });

@@ -76,6 +76,8 @@ export const MENU = [
     aciklama: 'Fiilî çalışma, yol ve bekleme süreleri; zaman çakışması kontrolü.' },
   { id: 'kapasite', grup: 'operasyon', modul: 'capacity', ad: 'Kapasite analizi', simge: 'gauge', yapildi: true,
     aciklama: 'Teorik yük ve fiilî süreye göre uzman ve hekim doluluk oranları.' },
+  { id: 'takvim', grup: 'operasyon', modul: 'tasks', ad: 'Takvim', simge: 'calendar', yapildi: true,
+    aciklama: 'Aylık tekrarlayan ödemeler, hatırlatmalar ve görev tarihleri.' },
   { id: 'gorevler', grup: 'operasyon', modul: 'tasks', ad: 'Hatırlatmalar ve görevler', simge: 'checksq', yapildi: true },
 
   { id: 'tahsilat', grup: 'finans', modul: 'invoices', ad: 'Gelirler ve tahsilatlar', simge: 'wallet', yapildi: true,

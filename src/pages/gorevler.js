@@ -44,7 +44,7 @@ export async function gorevFormuAc(app, { gorev = null, companyId = null, leadId
       ${field({ ad: 'kind', etiket: 'Tür', deger: v('kind', 'diger'), secenekler: Object.entries(GOREV_TURLERI).map(([deger, etiket]) => ({ deger, etiket })) })}
       ${field({ ad: 'priority', etiket: 'Öncelik', deger: v('priority', 'orta'), secenekler: ONCELIK_SIRASI.map((deger) => ({ deger, etiket: ONCELIKLER[deger] })) })}
       ${field({ ad: 'due_at', etiket: 'Son tarih', tur: 'datetime-local', deger: yerelDeger(v('due_at', null)) })}
-      ${field({ ad: 'remind_at', etiket: 'Hatırlatma zamanı', tur: 'datetime-local', deger: yerelDeger(v('remind_at', null)), ipucu: 'Bildirim gönderimi sonraki aşamalarda eklenecek; şimdilik görevde görünür.' })}
+      ${field({ ad: 'remind_at', etiket: 'Hatırlatma zamanı', tur: 'datetime-local', deger: yerelDeger(v('remind_at', null)), ipucu: 'Hatırlatma ve son tarih, Takvim sayfasında ve günlük özet e-postasında otomatik görünür.' })}
       ${field({ ad: 'assignee', etiket: 'Atanan kişi', deger: v('assignee', app.ctx.user.id), secenekler: uyeSec })}
       ${duzenle ? field({ ad: 'status', etiket: 'Durum', deger: gorev.status, secenekler: Object.entries(GOREV_DURUMLARI).map(([deger, etiket]) => ({ deger, etiket })) }) : ''}
       ${field({ ad: 'company_id', etiket: 'İlgili firma', deger: secFirma, secenekler: firmaSec })}
