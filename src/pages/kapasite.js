@@ -6,6 +6,7 @@ import { PERSONEL_TURU, PERSONEL_TURU_KISA, ayBitisi, kapsamPayi, personelAyYuku
 import { firmaAylikIhtiyac } from '../lib/hesaplama.js';
 import { profilleriGrupla } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
+import { trKucukAscii } from '../lib/katip.js';
 import { dolulukPill } from './personel.js';
 
 const yuzde = (x) => (x === null || x === undefined ? '—' : `%${Math.round(x * 100)}`);
@@ -22,6 +23,18 @@ export async function kapasiteSayfasi(app) {
     app.api.listEmployees(), app.api.listAssignments(), app.api.listCompanies(), app.api.listAllProfiles(), app.api.listServiceRules(),
   ]);
   const harita = profilleriGrupla(profiller);
+  // İSG-Katip'te bildirilen aylık süre (son yükleme): sertifika numarası, yoksa ad ile personele eşlenir
+  const katipSure = new Map(); let katipDonem = null;
+  try {
+    const yuk = await app.api.listKatipImports();
+    if (yuk?.length) {
+      katipDonem = yuk[0].period;
+      for (const r of await app.api.listKatipRows(yuk[0].id)) {
+        const e = personel.find((x) => (r.cert_no && x.certificate_no === r.cert_no) || (x.staff_type === r.staff_type && trKucukAscii(x.full_name) === trKucukAscii(r.person_name)));
+        if (e) katipSure.set(e.id, (katipSure.get(e.id) ?? 0) + (Number(r.minutes_per_month) || 0));
+      }
+    }
+  } catch { katipDonem = null; }
   let zaman = await app.api.listTimeEntries(durum.ay, ayBitisi(durum.ay));
   const aySecenekleri = () => {
     const [y, mo] = bugunStr.split('-').map(Number); const l = [];
@@ -30,7 +43,7 @@ export async function kapasiteSayfasi(app) {
   };
 
   function hesapla() {
-    const aktifler = personel.filter((p) => !p.archived_at && p.is_active);
+    const aktifler = personel.filter((p) => !p.archived_at && p.is_active && p.staff_type);
     const satirlar = aktifler.map((p) => {
       const yuk = personelAyYuku({ atamalar, employeeId: p.id, profilHaritasi: harita, kurallar, ay: durum.ay });
       const z = zamanOzeti(zaman.filter((k) => k.employee_id === p.id));
@@ -78,17 +91,18 @@ export async function kapasiteSayfasi(app) {
           <div class="kv"><dt>Fiilî toplam süre</dt><dd>${sureMetni(o.fiili)} <small class="muted">${yuzde(o.kap ? o.fiili / o.kap : null)}</small></dd></div></dl>`
           : html`<p class="muted">Aktif ${PERSONEL_TURU[tur].toLowerCase()} kaydı yok. ${icon(simge, 14)}</p>`}</section>`;
     };
-    const tablo = satirlar.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Personel</th><th scope="col" class="num hide-sm">Kapasite</th><th scope="col" class="num">Teorik yük</th><th scope="col" class="num">Fiilî süre</th><th scope="col" class="hide-md">Fiilî hizmet</th><th scope="col">Durum</th></tr></thead><tbody>
+    const tablo = satirlar.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Personel</th><th scope="col" class="num hide-sm">Kapasite</th><th scope="col" class="num">Teorik yük</th>${katipDonem ? html`<th scope="col" class="num hide-md">Katip'te bildirilen</th>` : ''}<th scope="col" class="num">Fiilî süre</th><th scope="col" class="hide-md">Fiilî hizmet</th><th scope="col">Durum</th></tr></thead><tbody>
       ${satirlar.map((s) => html`<tr><td><a class="cell-main" href="#/personel/${s.p.id}">${avatar(s.p.full_name, 'sm')}<span><strong>${s.p.full_name}</strong><small>${PERSONEL_TURU_KISA[s.p.staff_type]}</small></span></a></td>
         <td class="num hide-sm">${sureMetni(s.p.monthly_capacity_min)}</td>
         <td class="num">${s.yuk.dakika ? sureMetni(s.yuk.dakika) : '—'}<small class="block muted">${s.teorikOran !== null ? yuzde(s.teorikOran) : (s.yuk.eksikVar ? 'eksik veri' : '')}</small></td>
+        ${katipDonem ? html`<td class="num hide-md">${katipSure.get(s.p.id) ? sureMetni(katipSure.get(s.p.id)) : '—'}<small class="block muted">${katipSure.get(s.p.id) && s.yuk.dakika ? `teorik yükün %${Math.round((katipSure.get(s.p.id) / s.yuk.dakika) * 100)}'i` : ''}</small></td>` : ''}
         <td class="num">${s.z.toplam ? sureMetni(s.z.toplam) : '—'}<small class="block muted">${s.z.toplam ? yuzde(s.fiiliOran) : ''}</small></td>
         <td class="hide-md">${s.z.hizmet ? sureMetni(s.z.hizmet) : '—'}<small class="block muted">${s.z.toplam ? `yol ${sureMetni(s.z.yol)} · bekleme ${sureMetni(s.z.bekleme)}` : ''}</small></td>
         <td>${dolulukPill(dolulukSeviyesi(s.teorikOran === null && s.z.toplam === 0 ? null : Math.max(s.teorikOran ?? 0, s.fiiliOran)))}</td></tr>`)}</tbody></table></div>`
       : emptyState({ simge: 'gauge', baslik: 'Aktif personel yok', metin: 'Uzman ve hekim ekleyip görevlendirdikçe analiz burada görünür.' });
     return html`<div class="grid-2">${kart('is_guvenligi_uzmani', 'shield')}${kart('isyeri_hekimi', 'pulse')}</div>
       <section class="card card-flush"><div class="card-head"><div><h2 class="card-title">Personel doluluğu · ${ayAdi(durum.ay)}</h2>
-        <p class="card-sub">Teorik yük: ayın 1'inde yürürlükteki görevlendirme payları x firma ihtiyacı. Fiilî süre: o ay girilen zaman kayıtlarının toplamı.</p></div></div>${tablo}</section>
+        <p class="card-sub">Teorik yük: ayın 1'inde yürürlükteki görevlendirme payları x firma ihtiyacı. Fiilî süre: o ay girilen zaman kayıtlarının toplamı.${katipDonem ? ` Katip'te bildirilen: ${ayAdi(katipDonem)} İSG-Katip yüklemesindeki aylık süre.` : ''}</p></div></div>${tablo}</section>
       <section class="card card-flush"><div class="card-head"><div><h2 class="card-title">Görevlendirme eksiği ${eksikler.length ? html`<span class="chip-n">${eksikler.length}</span>` : ''}</h2>
         <p class="card-sub">Müşteri firmalarda hizmet payı %100'ün altında kalan türler.</p></div></div>
         ${eksikler.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Firma</th><th scope="col">Hizmet</th><th scope="col" class="num">Görevli pay</th><th scope="col" class="num">Boşta kalan süre</th></tr></thead><tbody>

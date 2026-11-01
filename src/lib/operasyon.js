@@ -4,6 +4,9 @@ import { gunEkle } from './format.js';
 
 export const PERSONEL_TURU = { is_guvenligi_uzmani: 'İş güvenliği uzmanı', isyeri_hekimi: 'İşyeri hekimi' };
 export const PERSONEL_TURU_KISA = { is_guvenligi_uzmani: 'Uzman', isyeri_hekimi: 'Hekim' };
+/** Uzman/hekim dışındaki personel rolleri (employees.role_kind). Maliyeti firmaya görevlendirmeyle değil, "yönetim gideri" işaretiyle genel gidere yazılabilir. */
+export const ROL_TURU = { diger_saglik: 'Diğer sağlık personeli', satin_alma: 'Satın alma', satis: 'Satış personeli', sekreter: 'Sekreter', temizlik: 'Temizlik', yonetim: 'Yönetim', diger: 'Diğer' };
+export const personelEtiketi = (p) => (p.staff_type ? PERSONEL_TURU[p.staff_type] : (ROL_TURU[p.role_kind] ?? 'Personel'));
 export const FAALIYET = {
   ziyaret: 'Firma ziyareti', risk_degerlendirme: 'Risk değerlendirmesi', egitim: 'Eğitim', muayene: 'Sağlık muayenesi',
   rapor: 'Raporlama', toplanti: 'Toplantı / kurul', yol: 'Yol', idari: 'İdari iş', diger: 'Diğer',

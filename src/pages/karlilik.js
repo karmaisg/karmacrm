@@ -3,7 +3,7 @@ import { html, bugun, tarih, para, para2, sayi, ondalik, ayAdi, ayBasi } from '.
 import { icon } from '../ui/icons.js';
 import { pill, emptyState, openModal, toast } from '../ui/components.js';
 import { hesaplaKarlilik, dagitimSatirlari, DAGITIM_OLCUTLERI, MALIYET_YONTEMLERI } from '../lib/karlilik.js';
-import { PERSONEL_TURU_KISA, ayBitisi, sureMetni } from '../lib/operasyon.js';
+import { PERSONEL_TURU_KISA, ROL_TURU, ayBitisi, sureMetni } from '../lib/operasyon.js';
 import { ayarDegeri, kapasiteDakika } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
 
@@ -84,8 +84,8 @@ export async function firmaKarlilikSayfasi(app) {
       ${duzenleyebilir && satirlar.length ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="dagitim-kaydet">${icon('check', 16)} Bu ayın dağıtımını kaydet</button>` : ''}</div>
       ${satirlar.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Kategori</th><th scope="col" class="num">Havuz (KDV hariç)</th><th scope="col">Dağıtım ölçütü</th><th scope="col">Durum</th></tr></thead><tbody>
         ${satirlar.map((o) => html`<tr><td><strong>${o.ad}</strong></td><td class="num">${para2(o.havuz)}</td>
-          <td>${duzenleyebilir ? html`<label class="select-inline"><span class="sr-only">${o.ad} ölçütü</span><select data-olcut="${o.kategoriId}">${Object.entries(DAGITIM_OLCUTLERI).map(([k, e]) => html`<option value="${k}" ${k === o.olcut ? html`selected` : ''}>${e}</option>`)}</select></label>` : DAGITIM_OLCUTLERI[o.olcut]}</td>
-          <td>${o.kaydedilmis ? pill('Kaydedilmiş', 'success') : pill('Hesaplanan', 'neutral')}${o.dagitilmayan > 0.005 ? html` ${pill(`${para2(o.dagitilmayan)} dağıtılmadı`, 'warning')}` : ''}</td></tr>`)}</tbody></table></div>
+          <td>${duzenleyebilir && !o.sanal ? html`<label class="select-inline"><span class="sr-only">${o.ad} ölçütü</span><select data-olcut="${o.kategoriId}">${Object.entries(DAGITIM_OLCUTLERI).map(([k, e]) => html`<option value="${k}" ${k === o.olcut ? html`selected` : ''}>${e}</option>`)}</select></label>` : DAGITIM_OLCUTLERI[o.olcut]}</td>
+          <td>${o.sanal ? html`${pill('Yönetim gideri', 'info')} ` : ''}${o.kaydedilmis ? pill('Kaydedilmiş', 'success') : pill('Hesaplanan', 'neutral')}${o.dagitilmayan > 0.005 ? html` ${pill(`${para2(o.dagitilmayan)} dağıtılmadı`, 'warning')}` : ''}</td></tr>`)}</tbody></table></div>
         <p class="fine pad">Ölçüt değişikliği seçili ayın 1'inden itibaren geçerli olur; önceki aylar eski ölçütle kalır. Kaydedilmiş bir aydaki dağıtımı yeni ölçütle güncellemek için "dağıtımı kaydet"e basın.</p>`
         : emptyState({ simge: 'receipt', baslik: `${ayAdi(durum.ay)} için ortak gider yok`, metin: 'Giderler sayfasında "ortak" türünde gider girildiğinde burada dağıtılır.' })}</section>`;
   };
@@ -120,7 +120,7 @@ export async function firmaKarlilikSayfasi(app) {
         if (!e.target.closest('[data-action="dagitim-kaydet"]')) return;
         try {
           const taze = hesapla({ kayitliDagitim: [] });
-          for (const o of taze.ortak) await app.api.saveAllocation({ donem: durum.ay, kategori: o.kategoriId, olcut: o.olcut, satirlar: dagitimSatirlari(o) });
+          for (const o of taze.ortak.filter((x) => !x.sanal)) await app.api.saveAllocation({ donem: durum.ay, kategori: o.kategoriId, olcut: o.olcut, satirlar: dagitimSatirlari(o) });
           veri = await girdiYukle(app, durum.ay); yenidenHesapla(); toast('Dağıtım kaydedildi.');
         } catch (err) { toast(humanError(err), 'hata'); }
       });
@@ -145,7 +145,7 @@ export async function personelKarlilikSayfasi(app) {
     if (!r.personel.length) return emptyState({ simge: 'users', baslik: 'Personel verisi yok', metin: 'Uzman ve hekim kaydı, maliyet dönemi ve görevlendirme girildikçe burada hesaplanır.' });
     return html`<div class="table-wrap"><table class="table" id="kar-personel-tablo"><thead><tr><th scope="col">Personel</th><th scope="col" class="num">Maliyet</th><th scope="col" class="num hide-sm">Doluluk</th><th scope="col" class="num hide-md">Fiilî hizmet</th>
       <th scope="col" class="num">Gelir payı</th><th scope="col" class="num">Katkı</th><th scope="col" class="num hide-sm">Boşta maliyet</th><th scope="col"><span class="sr-only">Detay</span></th></tr></thead><tbody>
-      ${r.personel.map((p) => html`<tr><td><strong>${p.ad}</strong><small class="block muted">${PERSONEL_TURU_KISA[p.tur]}</small></td><td class="num">${para2(p.toplam)}</td>
+      ${r.personel.map((p) => html`<tr><td><strong>${p.ad}</strong><small class="block muted">${p.tur ? PERSONEL_TURU_KISA[p.tur] : (ROL_TURU[p.rol] ?? 'Personel')}${p.yonetim ? ' · yönetim gideri' : ''}</small></td><td class="num">${para2(p.toplam)}</td>
         <td class="num hide-sm">${p.doluluk === null ? '—' : `%${ondalik(p.doluluk * 100)}`}</td><td class="num hide-md">${sureMetni(p.fiiliDk)}</td><td class="num">${para2(p.gelirPayi)}</td>
         <td class="num"><strong>${tutar(p.katki)}</strong></td><td class="num hide-sm">${para2(p.bosta)}</td>
         <td class="actions"><button type="button" class="icon-btn" data-kar-detay="${p.id}" aria-label="${p.ad} firma dağılımı" title="Firma dağılımı">${icon('building', 16)}</button></td></tr>`)}</tbody></table></div>`;

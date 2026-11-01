@@ -25,6 +25,7 @@ export const MALIYET_YONTEMLERI = { teorik: 'Kapasiteye göre (teorik süre)', f
 const ay7 = (d) => String(d).slice(0, 7);
 export const faturaAyi = (f) => ay7(f.service_period ?? f.invoice_date);
 const gecerliVeyaNull = (liste, tarih) => { try { return gecerliKayit(liste, tarih); } catch { return null; } };
+export const YONETIM_KATEGORI = '__yonetim_personel';
 const topla = (m, k, v) => { m.set(k, (m.get(k) ?? 0) + v); };
 
 /**
@@ -74,7 +75,7 @@ export function hesaplaKarlilik(g) {
   if (maasAtlanan) uyarilar.push(`Maaş kategorisindeki ${maasAtlanan} gider kaydı hesaba katılmadı: personel maliyeti personel kartındaki maliyet dönemlerinden alınır (çift sayımı önlemek için).`);
 
   // ---- personel maliyeti dağıtımı
-  const firmaPersonelK = new Map(); const personel = [];
+  const firmaPersonelK = new Map(); const personel = []; let yonetimPersonelK = 0;
   for (const e of personeller) {
     const atamaVar = atamalar.some((a) => a.employee_id === e.id && aktifMi(a, ayAnahtar + '-01'));
     const kayitVar = [...fiiliKisiFirma.keys()].some((k) => k.startsWith(`${e.id}|`));
@@ -84,6 +85,11 @@ export function hesaplaKarlilik(g) {
     if (!maliyetKaydi && (atamaVar || kayitVar)) uyarilar.push(`${e.full_name} için ${ayAnahtar} döneminde geçerli maliyet kaydı yok; maliyeti 0 sayıldı.`);
     const maliyetK = maliyetKaydi ? kurus(maliyetKaydi.total_monthly_cost ?? Number(maliyetKaydi.gross_salary) + Number(maliyetKaydi.employer_sgk) + Number(maliyetKaydi.other_benefits)) : 0;
     const toplamK = maliyetK + dogrudanK;
+    if (e.is_management) {      // yönetim gideri: görevlendirmesi olsa bile firma kârlılığına değil genel gidere yazılır
+      yonetimPersonelK += toplamK;
+      personel.push({ id: e.id, ad: e.full_name, tur: e.staff_type ?? null, rol: e.role_kind ?? null, yonetim: true, maliyetK, dogrudanK, toplamK, kapasite: Number(e.monthly_capacity_min) || kapasiteVarsayilan, teorikDk: 0, fiiliDk: 0, doluluk: null, firmaPay: [], bostaK: 0, eksik: false, gelirPayiK: 0, gelirKalemleri: [] });
+      continue;
+    }
     const kapasite = Number(e.monthly_capacity_min) > 0 ? Number(e.monthly_capacity_min) : kapasiteVarsayilan;
 
     let kalemler = []; let teorikDk = 0; let eksik = false;
@@ -106,8 +112,10 @@ export function hesaplaKarlilik(g) {
     else { const p = enBuyukKalanDagit(toplamK, [...agirliklar, bostaAgirlik]); bostaK = p.pop(); parcalar = p; }
     const firmaPay = kalemler.map((k, i) => ({ companyId: k.companyId, dakika: k.dakika, maliyetK: parcalar[i] }));
     for (const fp of firmaPay) topla(firmaPersonelK, fp.companyId, fp.maliyetK);
-    personel.push({ id: e.id, ad: e.full_name, tur: e.staff_type, maliyetK, dogrudanK, toplamK, kapasite, teorikDk, fiiliDk, doluluk: kapasite > 0 ? teorikDk / kapasite : null, firmaPay, bostaK, eksik, gelirPayiK: 0, gelirKalemleri: [] });
+    personel.push({ id: e.id, ad: e.full_name, tur: e.staff_type ?? null, rol: e.role_kind ?? null, yonetim: false, maliyetK, dogrudanK, toplamK, kapasite, teorikDk, fiiliDk, doluluk: kapasite > 0 ? teorikDk / kapasite : null, firmaPay, bostaK, eksik, gelirPayiK: 0, gelirKalemleri: [] });
   }
+
+  if (yonetimPersonelK > 0) topla(havuz, YONETIM_KATEGORI, yonetimPersonelK);
 
   // ---- personel gelir payı (görevlendirme esaslı; yaklaşık)
   const personelMap = new Map(personel.map((p) => [p.id, p]));
@@ -144,11 +152,12 @@ export function hesaplaKarlilik(g) {
   };
   const ortak = []; const firmaOrtakK = new Map();
   for (const [katId, havuzK] of havuz) {
-    const kat = katMap.get(katId);
-    const kural = gecerliVeyaNull(dagitimKurallari.filter((r) => r.category_id === katId), ayBasi);
+    const sanal = katId === YONETIM_KATEGORI;
+    const kat = sanal ? { name: 'Yönetim personeli maliyeti' } : katMap.get(katId);
+    const kural = sanal ? null : gecerliVeyaNull(dagitimKurallari.filter((r) => r.category_id === katId), ayBasi);
     const olcut = DAGITIM_OLCUTLERI[kural?.basis] ? kural.basis : VARSAYILAN_OLCUT;
     if (kural && !DAGITIM_OLCUTLERI[kural.basis]) uyarilar.push(`${kat?.name ?? 'Kategori'}: "${kural.basis}" ölçütü henüz hesaplanamıyor; gelir oranı kullanıldı.`);
-    const kayitli = kayitliDagitim.filter((r) => !r.archived_at && r.category_id === katId && ay7(r.period) === ayAnahtar && r.company_id);
+    const kayitli = sanal ? [] : kayitliDagitim.filter((r) => !r.archived_at && r.category_id === katId && ay7(r.period) === ayAnahtar && r.company_id);
     const dagitim = new Map(); let dagitilmayanK; let kaydedilmis = false;
     if (kayitli.length) {
       kaydedilmis = true;
@@ -162,7 +171,7 @@ export function hesaplaKarlilik(g) {
       } else { dagitilmayanK = havuzK; uyarilar.push(`${kat?.name ?? 'Kategori'}: dağıtım ölçütüne (${DAGITIM_OLCUTLERI[olcut]}) göre dağıtılacak firma bulunamadı; tutar dağıtılmadı.`); }
     }
     for (const [id, v] of dagitim) topla(firmaOrtakK, id, v);
-    ortak.push({ kategoriId: katId, ad: kat?.name ?? 'Kategori', olcut, kaydedilmis, havuzK, dagitimK: Object.fromEntries(dagitim), dagitilmayanK });
+    ortak.push({ kategoriId: katId, sanal, ad: kat?.name ?? 'Kategori', olcut, kaydedilmis, havuzK, dagitimK: Object.fromEntries(dagitim), dagitilmayanK });
   }
 
   // ---- firma satırları
@@ -175,8 +184,9 @@ export function hesaplaKarlilik(g) {
 
   // ---- işletme toplamı
   const gelirToplamK = [...gelir.values()].reduce((t, x) => t + x, 0);
-  const personelToplamK = personel.reduce((t, p) => t + p.toplamK, 0);
+  const personelToplamK = personel.filter((p) => !p.yonetim).reduce((t, p) => t + p.toplamK, 0);
   const bostaK = personel.reduce((t, p) => t + p.bostaK, 0);
+  const yonetimK = yonetimPersonelK;
   const dogrudanToplamK = [...dogrudanFirma.values()].reduce((t, x) => t + x, 0);
   const ortakHavuzK = [...havuz.values()].reduce((t, x) => t + x, 0);
   const ortakDagitilanK = ortak.reduce((t, o) => t + Object.values(o.dagitimK).reduce((a, b) => a + b, 0), 0);
@@ -192,7 +202,7 @@ export function hesaplaKarlilik(g) {
       gelirKalemleri: p.gelirKalemleri.map((f) => ({ ...f, gelir: tl(f.gelirK), ad: firmaAdi.get(f.companyId) ?? 'Firma' })) }))
       .sort((a, b) => b.katki - a.katki || String(a.ad).localeCompare(String(b.ad), 'tr')),
     ortak: ortak.map((o) => ({ ...o, havuz: tl(o.havuzK), dagitilmayan: tl(o.dagitilmayanK), dagitim: Object.fromEntries(Object.entries(o.dagitimK).map(([k, v]) => [k, tl(v)])) })),
-    isletme: { gelir: tl(gelirToplamK), personel: tl(personelToplamK), personelFirmalara: tl(personelToplamK - bostaK), bosta: tl(bostaK), dogrudan: tl(dogrudanToplamK), ortakHavuz: tl(ortakHavuzK),
+    isletme: { gelir: tl(gelirToplamK), personel: tl(personelToplamK), personelFirmalara: tl(personelToplamK - bostaK), bosta: tl(bostaK), dogrudan: tl(dogrudanToplamK), ortakHavuz: tl(ortakHavuzK), yonetimPersonel: tl(yonetimK),
       ortakDagitilan: tl(ortakDagitilanK), ortakDagitilmayan: tl(ortakHavuzK - ortakDagitilanK), vergiOncesiKar: tl(vergiOncesiK), tahminiVergi: vergi.tahminiVergi, vergiSonrasiKar: vergi.vergiSonrasiKar,
       kayitliVergi: tl(vergiK), marj: gelirToplamK > 0 ? Math.round((vergiOncesiK / gelirToplamK) * 1000) / 10 : null },
     uyarilar: [...new Set(uyarilar)],

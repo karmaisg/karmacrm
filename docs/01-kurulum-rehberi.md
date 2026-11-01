@@ -338,3 +338,13 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
 4. **Uyarılar (⚠):** uzman/hekim değişikliği, Katip sürelerinin teorik ihtiyacı aşması (paylar %100'e oranlanır) veya karşılamaması, hesaplanamayan firmalar (çalışan sayısı/tehlike sınıfı eksik). Karma tehlike sınıflı firmalarda ihtiyaç her işyerinin sınıfına göre hesaplanır.
 5. **Seçim ve onay:** her firmanın yanındaki kutuyla hangi firmaların uygulanacağını seçersiniz; "gözden geçirdim" kutusunu işaretleyip uygularsınız. Hepsi tek işlemde yazılır; hata olursa hiçbir şey değişmez.
 6. **Sınırlar:** "Diğer sağlık personeli" (DSP) satırları görevlendirmeye aktarılmaz. Geçerlilik tarihi yüklemenin dönem başıdır. Katip'te hiç görevlisi olmayan bir tür (ör. hekim yok) için mevcut görevlendirmelere dokunulmaz.
+
+## Aşama 15 kurulumu (personel rolleri, yönetim gideri, işyeri takma adı)
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/16_asama15.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. (Önce 14 ve 15 numaralı dosyalar çalıştırılmış olmalı.)
+2. **Diğer personel:** menüde **Operasyon > Diğer personel**. Diğer sağlık personeli, satın alma, satış, sekreter, temizlik, yönetim ve "Diğer" (unvanı siz yazarsınız) eklenir. Maaş/maliyet bilgisi uzman ve hekimlerdeki gibi personel sayfasından girilir.
+3. **Yönetim gideri işareti:** her personel formunda (uzman ve hekim dahil) bulunur. İşaretliyse kişinin maliyeti firma kârlılığına değil **genel (ortak) gidere** yazılır; görevlendirmesi olsa bile. Firma kârlılığı sayfasında "Yönetim personeli maliyeti" adıyla ortak gider olarak, firmaların gelir oranına göre dağıtılır. Diğer personelde varsayılan olarak işaretlidir; işaretsiz bırakırsanız (ör. DSP) maliyet hiçbir firmaya yazılmaz, "dağıtılmamış" kalır.
+4. **İşyeri takma adı:** firma kartında yeni **İşyerleri** sekmesi (ve İSG-Katip sayfasındaki işyeri tablosu). "Fatura adı" alanına faturada geçen adı (ör. UKEM) yazın; işyerine ayrı fatura kesiliyorsa "Ayrı fatura" kutusunu işaretleyin. Fatura Excel'i aşamasında bu adlar tanınacaktır.
+5. **Kapasite analizi:** son İSG-Katip yüklemesindeki aylık süre "Katip'te bildirilen" sütununda teorik yükün yanında görünür. Uzmanlar, İşyeri hekimleri ve Görevlendirmeler sayfalarındaki firma sayısı ve teorik yük, Aşama 14'te görevlendirmeleri onayladığınızda güncellenir.
+6. **Sınırlar:** diğer personel firmalara görevlendirilmez ve zaman kaydı girmez; işyerleri yalnızca İSG-Katip'ten gelir (elle işyeri eklenmez); zaman takibinde Katip'ten aktarılacak ayrı bir veri yoktur.
+

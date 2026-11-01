@@ -32,6 +32,7 @@ const SEKMELER = [
   { id: 'sozlesmeler', ad: 'Sözleşmeler' },
   { id: 'atamalar', ad: 'Görevlendirme' },
   { id: 'faturalar', ad: 'Faturalar' },
+  { id: 'isyerleri', ad: 'İşyerleri' },
 ];
 
 const bilgi = (etiket, deger) => html`<div class="kv"><dt>${etiket}</dt><dd>${deger || html`<span class="muted">—</span>`}</dd></div>`;
@@ -56,6 +57,7 @@ export async function firmaSayfasi(app, id) {
     app.can('invoices', 'view') ? app.api.listInvoices() : Promise.resolve([]),
     app.can('invoices', 'view') ? app.api.listPayments() : Promise.resolve([]),
   ]);
+  const siteler = firma ? await app.api.listSites().then((l) => l.filter((x) => x.company_id === id).sort((a, b) => a.site_name.localeCompare(b.site_name, 'tr'))).catch(() => null) : null;
   if (!firma) {
     return {
       baslik: 'Firma bulunamadı', altBaslik: '',
@@ -227,6 +229,18 @@ export async function firmaSayfasi(app, id) {
       <div id="teorik-icerik">${teorikIcerik()}</div></section>`;
   }
 
+  const isyeriSekmesi = () => {
+    if (siteler === null) return html`<section class="card"><div class="notice notice-info" role="note">İşyeri bilgisi okunamadı. Supabase'de 14_asama13_katip.sql ve 16_asama15.sql dosyalarının çalıştırıldığından emin olun.</div></section>`;
+    const duzenleyebilir = app.can('companies', 'edit');
+    return html`<section class="card card-flush"><div class="card-head"><div><h2 class="card-title">İşyerleri</h2>
+      <p class="card-sub">İSG-Katip'ten gelen işyerleri burada listelenir. Faturada geçen kısa adı (ör. UKEM) "Fatura adı" alanına yazın; ayrı fatura kesiliyorsa işaretleyin. Fatura Excel'i yüklenirken bu ad tanınacaktır.</p></div></div>
+      ${siteler.length ? html`<div class="table-wrap"><table class="table" id="isyeri-tablo"><thead><tr><th scope="col">İşyeri (Katip unvanı)</th><th scope="col" class="num hide-sm">Çalışan</th><th scope="col">Fatura adı</th><th scope="col">Ayrı fatura</th></tr></thead><tbody>
+        ${siteler.map((x) => html`<tr data-isyeri="${x.id}"><td><strong>${x.site_name}</strong><small class="block muted">Sicil: ${x.sgk_no}${x.is_active ? '' : ' · dosyada yok'}</small></td><td class="num hide-sm">${x.employee_count ?? '—'}</td>
+          <td>${duzenleyebilir ? html`<input type="text" maxlength="120" data-isyeri-ad="${x.id}" value="${x.invoice_alias ?? ''}" placeholder="Örn. UKEM" aria-label="${x.site_name} fatura adı">` : (x.invoice_alias || '—')}</td>
+          <td>${duzenleyebilir ? html`<label class="check-inline"><input type="checkbox" data-isyeri-ayri="${x.id}" ${x.separate_invoice ? html`checked` : ''}> <span>Ayrı fatura</span></label>` : (x.separate_invoice ? 'Evet' : 'Hayır')}</td></tr>`)}</tbody></table></div>`
+        : emptyState({ simge: 'building', baslik: 'Bu firmaya bağlı işyeri yok', metin: 'İSG-Katip aktarımı yapıldığında firmanın işyerleri burada görünür.' })}</section>`;
+  };
+
   function sekmeGovdesi() {
     const s = SEKMELER.find((x) => x.id === durum.sekme);
     if (s.asama) return beklemede(s);
@@ -236,6 +250,7 @@ export async function firmaSayfasi(app, id) {
     if (s.id === 'teklifler') return app.can('offers', 'view') ? teklifSekmesi() : emptyState({ simge: 'lock', baslik: 'Teklifleri görme izniniz yok' });
     if (s.id === 'sozlesmeler') return app.can('contracts', 'view') ? sozlesmeSekmesi() : emptyState({ simge: 'lock', baslik: 'Sözleşmeleri görme izniniz yok' });
     if (s.id === 'faturalar') return app.can('invoices', 'view') ? faturaSekmesi() : emptyState({ simge: 'lock', baslik: 'Faturaları görme izniniz yok' });
+    if (s.id === 'isyerleri') return isyeriSekmesi();
     if (s.id === 'calisan') return calisanSekmesi();
     if (s.id === 'atamalar') return gorevSekmesi();
     return genel();
@@ -309,7 +324,15 @@ export async function firmaSayfasi(app, id) {
         kok.querySelector('#sekme-cubugu').innerHTML = sekmeCubugu().s;
         govdeEl.innerHTML = sekmeGovdesi().s;
       };
-      kok.addEventListener('change', (e) => {
+      kok.addEventListener('change', async (e) => {
+        const hedef = e.target.dataset.isyeriAd ?? e.target.dataset.isyeriAyri;
+        if (hedef) {
+          const x = siteler.find((y) => y.id === hedef); if (!x) return;
+          const degisim = e.target.dataset.isyeriAd !== undefined ? { invoice_alias: e.target.value.trim() || null } : { separate_invoice: e.target.checked };
+          try { Object.assign(x, await app.api.updateSite(x.id, degisim)); toast('İşyeri bilgisi kaydedildi.'); }
+          catch (err) { toast(humanError(err), 'hata'); }
+          return;
+        }
         if (e.target.id === 'teorik-ay') {
           durum.ay = e.target.value;
           kok.querySelector('#teorik-icerik').innerHTML = teorikIcerik().s;

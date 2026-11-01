@@ -72,6 +72,7 @@ function rotaCoz(parcalar) {
   if (ilk === 'sozlesmeler') return { menu: 'sozlesmeler', modul: 'contracts', yukle: () => sozlesmelerSayfasi(app) };
   if (ilk === 'uzmanlar') return { menu: 'uzmanlar', modul: 'staff', yukle: () => personelListeSayfasi(app, 'is_guvenligi_uzmani') };
   if (ilk === 'hekimler') return { menu: 'hekimler', modul: 'staff', yukle: () => personelListeSayfasi(app, 'isyeri_hekimi') };
+  if (ilk === 'digerpersonel') return { menu: 'digerpersonel', modul: 'staff', yukle: () => personelListeSayfasi(app, 'diger') };
   if (ilk === 'personel' && ikinci) return { menu: 'uzmanlar', modul: 'staff', yukle: () => personelSayfasi(app, ikinci) };
   if (ilk === 'gorevlendirmeler') return { menu: 'gorevlendirmeler', modul: 'assignments', yukle: () => gorevlendirmelerSayfasi(app) };
   if (ilk === 'zaman') return { menu: 'zaman', modul: 'time', yukle: () => zamanSayfasi(app) };

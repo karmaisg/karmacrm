@@ -176,16 +176,17 @@ export async function katipSayfasi(app) {
   const SAYFA = 20;
   const siteKarti = () => {
     const q = d.siteAra.trim().toLocaleLowerCase('tr');
-    const liste = siteler.filter((s) => !q || `${s.site_name} ${s.sgk_no} ${firmaAdi.get(s.company_id) ?? ''}`.toLocaleLowerCase('tr').includes(q))
+    const liste = siteler.filter((s) => !q || `${s.site_name} ${s.sgk_no} ${s.invoice_alias ?? ''} ${firmaAdi.get(s.company_id) ?? ''}`.toLocaleLowerCase('tr').includes(q))
       .sort((a, b) => String(firmaAdi.get(a.company_id)).localeCompare(String(firmaAdi.get(b.company_id)), 'tr') || a.site_name.localeCompare(b.site_name, 'tr'));
     const sayfaSayisi = Math.max(1, Math.ceil(liste.length / SAYFA)); d.sitePage = Math.min(d.sitePage, sayfaSayisi);
     const duzenleyebilir = app.can('companies', 'edit');
     const secenekler = (secili) => firmalar.filter((f) => !f.archived_at || f.id === secili).sort((a, b) => a.name.localeCompare(b.name, 'tr')).map((f) => html`<option value="${f.id}" ${f.id === secili ? html`selected` : ''}>${f.name}</option>`);
     return html`<div class="toolbar"><div class="search-field">${icon('search', 18)}<input type="search" id="site-ara" placeholder="Unvan, sicil no veya firma ara" aria-label="İşyeri ara" value="${d.siteAra}" autocomplete="off"></div></div>
-      ${siteler.length ? html`<div class="table-wrap"><table class="table" id="site-tablo"><thead><tr><th scope="col">İşyeri (Katip unvanı)</th><th scope="col">Fatura edilen firma</th><th scope="col" class="num">Çalışan</th><th scope="col" class="hide-sm">Tehlike</th><th scope="col">Durum</th></tr></thead><tbody>
+      ${siteler.length ? html`<div class="table-wrap"><table class="table" id="site-tablo"><thead><tr><th scope="col">İşyeri (Katip unvanı)</th><th scope="col">Fatura edilen firma</th><th scope="col" class="num">Çalışan</th><th scope="col" class="hide-sm">Tehlike</th><th scope="col">Fatura adı</th><th scope="col">Durum</th></tr></thead><tbody>
         ${liste.slice((d.sitePage - 1) * SAYFA, d.sitePage * SAYFA).map((s) => html`<tr data-site="${s.id}"><td><strong>${s.site_name}</strong><small class="block muted">Sicil: ${s.sgk_no}${s.city ? ` · ${s.city}` : ''}</small></td>
           <td>${duzenleyebilir ? html`<label class="select-inline"><span class="sr-only">${s.site_name} için fatura firması</span><select data-site-firma="${s.id}">${secenekler(s.company_id)}</select></label>` : firmaAdi.get(s.company_id)}</td>
-          <td class="num">${s.employee_count ?? '—'}</td><td class="hide-sm">${s.hazard_class ? TEHLIKE_ADI[s.hazard_class] : '—'}</td><td>${s.is_active ? pill('Aktif', 'success') : pill('Dosyada yok', 'neutral')}</td></tr>`)}</tbody></table></div>
+          <td class="num">${s.employee_count ?? '—'}</td><td class="hide-sm">${s.hazard_class ? TEHLIKE_ADI[s.hazard_class] : '—'}</td>
+          <td>${duzenleyebilir ? html`<input type="text" maxlength="120" data-site-ad="${s.id}" value="${s.invoice_alias ?? ''}" placeholder="Örn. UKEM" aria-label="${s.site_name} fatura adı"><label class="check-inline"><input type="checkbox" data-site-ayri="${s.id}" ${s.separate_invoice ? html`checked` : ''}> <span>Ayrı fatura</span></label>` : (s.invoice_alias ?? '—')}</td><td>${s.is_active ? pill('Aktif', 'success') : pill('Dosyada yok', 'neutral')}</td></tr>`)}</tbody></table></div>
         <div class="pager" id="site-sayfa"><button type="button" class="btn btn-secondary btn-sm" data-site-sayfa="-1" ${d.sitePage <= 1 ? html`disabled` : ''}>Önceki</button><span>${d.sitePage} / ${sayfaSayisi} · ${liste.length} işyeri</span><button type="button" class="btn btn-secondary btn-sm" data-site-sayfa="1" ${d.sitePage >= sayfaSayisi ? html`disabled` : ''}>Sonraki</button></div>`
         : emptyState({ simge: 'building', baslik: 'Henüz işyeri yok', metin: 'İlk Excel yüklemesinden sonra işyerleri (sicil numaraları) burada listelenir; hangi firmaya faturalandığını buradan değiştirebilirsiniz.' })}`;
   };
@@ -276,6 +277,12 @@ export async function katipSayfasi(app) {
           b.cevaplandi = true; d.gozden = false; analizYenile(); return;
         }
         if (t.dataset.yeniAd !== undefined) { const b = d.birimler.find((x) => x.anahtar === t.dataset.yeniAd); b.karar = { tip: 'yeni', ad: t.value.trim() || b.unvan }; return; }
+        if (t.dataset.siteAd !== undefined || t.dataset.siteAyri !== undefined) {
+          const s = siteler.find((x) => x.id === (t.dataset.siteAd ?? t.dataset.siteAyri)); if (!s) return;
+          try { Object.assign(s, await app.api.updateSite(s.id, t.dataset.siteAd !== undefined ? { invoice_alias: t.value.trim() || null } : { separate_invoice: t.checked })); toast('İşyeri bilgisi kaydedildi.'); }
+          catch (err) { toast(humanError(err), 'hata'); }
+          return;
+        }
         if (t.dataset.siteFirma) {
           const s = siteler.find((x) => x.id === t.dataset.siteFirma); const eski = s.company_id;
           try { const g = await app.api.updateSite(s.id, { company_id: t.value }); Object.assign(s, g); toast('İşyerinin fatura firması güncellendi.'); }

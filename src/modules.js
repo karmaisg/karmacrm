@@ -68,6 +68,8 @@ export const MENU = [
     aciklama: 'İş güvenliği uzmanı kayıtları, kapasite ve maliyet bilgisi.' },
   { id: 'hekimler', grup: 'operasyon', modul: 'staff', ad: 'İşyeri hekimleri', simge: 'pulse', yapildi: true,
     aciklama: 'İşyeri hekimi kayıtları, kapasite ve maliyet bilgisi.' },
+  { id: 'digerpersonel', grup: 'operasyon', modul: 'staff', ad: 'Diğer personel', simge: 'users', yapildi: true,
+    aciklama: 'Diğer sağlık personeli, satın alma, satış, sekreter, temizlik ve yönetim; yönetim gideri işareti.' },
   { id: 'gorevlendirmeler', grup: 'operasyon', modul: 'assignments', ad: 'Görevlendirmeler', simge: 'briefcase', yapildi: true,
     aciklama: 'Uzman ve hekimlerin firmalara görevlendirmesi, hizmet payları ve yürürlük tarihleri.' },
   { id: 'zaman', grup: 'operasyon', modul: 'time', ad: 'Zaman ve ziyaret takibi', simge: 'clock', yapildi: true,
