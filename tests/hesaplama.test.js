@@ -234,3 +234,15 @@ test('Test 12 (motor kısmı): Aynı dosya tekrar aktarılınca mükerrerler yak
   const ikinci = mukerrerleriBul(dosya, ilkAktarimSonrasi);
   assert.ok(ikinci.every((x) => x.durum !== 'yeni'), 'ikinci aktarımda hiçbir satır "yeni" olmamalı');
 });
+
+test('Karma tehlike sınıflı çok işyerli firma: her sınıf kendi dakikasıyla hesaplanır (dökümlü profil)', () => {
+  const p = { employee_count: 48, hazard_class: 'cok_tehlikeli', valid_from: '2026-01-01', valid_to: null, site_breakdown: [{ tehlike: 'az_tehlikeli', calisan: 40 }, { tehlike: 'cok_tehlikeli', calisan: 8 }] };
+  const s = firmaAylikIhtiyac({ profiller: [p], kurallar: KURALLAR, ay: '2026-10-01' });
+  assert.equal(s.uzmanDakika, 40 * 10 + 8 * 40); assert.equal(s.hekimDakika, 40 * 5 + 8 * 15); assert.equal(s.eksik, null);
+  // döküm yoksa eski davranış: toplam sayı en yüksek sınıfla (karma firma yanlış büyük çıkardı)
+  assert.equal(firmaAylikIhtiyac({ profiller: [{ ...p, site_breakdown: null }], kurallar: KURALLAR, ay: '2026-10-01' }).uzmanDakika, 48 * 40);
+  // tek öğeli döküm yok sayılır; eksik kural bildirilir
+  assert.equal(firmaAylikIhtiyac({ profiller: [{ ...p, site_breakdown: [{ tehlike: 'tehlikeli', calisan: 48 }] }], kurallar: KURALLAR, ay: '2026-10-01' }).uzmanDakika, 48 * 40);
+  const eksik = firmaAylikIhtiyac({ profiller: [p], kurallar: KURALLAR.filter((k) => k.hazard_class !== 'az_tehlikeli'), ay: '2026-10-01' });
+  assert.equal(eksik.uzmanDakika, null); assert.ok(eksik.eksik.includes('az_tehlikeli'));
+});

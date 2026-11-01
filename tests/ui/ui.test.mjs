@@ -2003,6 +2003,154 @@ await test('mobil 375px: müşteri teklif sayfasında yatay taşma yok', async (
   await ekran(m, '40-mobil-musteri'); await m.close();
 });
 
+// ---------------------------------------------------------------- İSG-Katip aktarımı (Aşama 13)
+const KATIP1 = path.join(KOK, 'tests/fixtures/katip_ornek.xlsx'); const KATIP2 = path.join(KOK, 'tests/fixtures/katip_ornek_ikinci.xlsx');
+const katipKurulum = async (s) => {
+  await girisYap(s);
+  for (const f of [{ ad: 'Seterm Teknik Ticaret A.Ş.', calisan: 30, tehlike: 'tehlikeli' }, { ad: 'Alfa Gıda', calisan: 40, tehlike: 'az_tehlikeli' }, { ad: 'Eski Müşteri Ltd', calisan: 5, tehlike: 'tehlikeli' }]) {
+    await firmaEkle(s, f); await s.waitForSelector('.modal-overlay', { state: 'detached' }); await s.waitForTimeout(200);
+  }
+};
+const katipYukle = async (s, dosya, donem) => {
+  await git(s, '#/katip'); await s.waitForSelector('#katip-kok');
+  if (await s.locator('[data-action="katip-yeni"]').count()) await s.click('[data-action="katip-yeni"]');
+  await s.waitForSelector('#katip-dosya');
+  if (donem) await s.fill('#katip-donem', donem);
+  await s.setInputFiles('#katip-dosya', dosya); await s.waitForSelector('#katip-ozet');
+};
+
+await test('İSG-Katip: ilk yükleme — eşleştirme soruları, karma tehlike, Excel dışı firma, uygulama', async (s) => {
+  await katipKurulum(s);
+  await katipYukle(s, KATIP1, '2026-10');
+  const ozet = await s.locator('#katip-ozet').innerText();
+  if (!ozet.includes('8') || !ozet.includes('5')) throw new Error(`özet: ${ozet}`);
+  esit(await s.locator('#katip-ilk').count(), 1, 'ilk yükleme notu');
+  // Seterm Servis için soru, Seterm Teknik ile birleştirme önerilir
+  const sorular = await s.locator('#katip-sorular').innerText();
+  if (!sorular.includes('SETERM SERVİS') || !sorular.includes('Seterm Teknik Ticaret A.Ş.')) throw new Error(`sorular: ${sorular}`);
+  esit(await s.locator('#katip-sorular [data-karar]').first().inputValue().then((v) => v.startsWith('esle:')), true, 'varsayılan: mevcut firmaya bağla');
+  // firma bazında sonuç: Alfa iki işyeri, karma tehlike, 48 çalışan; Seterm 30 (iki unvan birleşti)
+  const firmalar = await s.locator('#katip-firmalar').innerText();
+  for (const b of ['Alfa Gıda', '48', 'Karma', 'Az tehlikeli 40 + Çok tehlikeli 8', 'Seterm Teknik Ticaret A.Ş.', '2 unvan birleşti', 'YENİ FİRMA LTD. ŞTİ.', 'Yeni']) if (!firmalar.includes(b)) throw new Error(`firma tablosu "${b}" yok: ${firmalar}`);
+  // Excel'de olmayan firma
+  const disi = await s.locator('#katip-disi').innerText(); if (!disi.includes('Eski Müşteri Ltd')) throw new Error(`excel dışı: ${disi}`);
+  await ekran(s, '41-katip-analiz');
+  // onay kutusu işaretlenmeden uygulanamaz
+  esit(await s.locator('[data-action="katip-uygula"]').isDisabled(), true, 'onay öncesi düğme kapalı');
+  await s.check('[data-pasif]'); await s.check('#katip-gozden');
+  esit(await s.locator('[data-action="katip-uygula"]').isDisabled(), false, 'onaydan sonra düğme açık');
+  await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click();
+  await s.waitForSelector('#katip-sonuc');
+  const sonuc = await s.locator('#katip-sonuc').innerText();
+  if (!sonuc.includes('1 yeni firma') || !sonuc.includes('5 yeni işyeri') || !sonuc.includes('1 firma eski müşteri yapıldı')) throw new Error(`sonuç: ${sonuc}`);
+  const d = await s.evaluate(() => { const t = globalThis.__fake.tablo; const ad = (n) => t.companies.find((c) => c.name === n);
+    const alfa = ad('Alfa Gıda'); const p = t.company_profiles.find((x) => x.company_id === alfa.id && !x.valid_to);
+    return { siteler: t.company_sites.length, yeni: !!ad('YENİ FİRMA LTD. ŞTİ.'), eski: ad('Eski Müşteri Ltd').customer_status, alfaSayi: p.employee_count, alfaTehlike: p.hazard_class, dokum: p.site_breakdown, setermSite: t.company_sites.filter((x) => x.company_id === ad('Seterm Teknik Ticaret A.Ş.').id).length,
+      satir: t.katip_rows.length, kisiler: t.contacts.filter((c) => c.title === 'İSG-Katip onaylayan').length, tc: t.katip_people.filter((x) => x.national_id).length }; });
+  esit(d.siteler, 5, 'işyeri sayısı'); esit(d.yeni, true, 'yeni firma'); esit(d.eski, 'eski_musteri', 'pasife alındı'); esit(d.alfaSayi, 48, 'Alfa toplam'); esit(d.alfaTehlike, 'cok_tehlikeli', 'Alfa en yüksek tehlike');
+  esit(JSON.stringify(d.dokum), JSON.stringify([{ tehlike: 'az_tehlikeli', calisan: 40 }, { tehlike: 'cok_tehlikeli', calisan: 8 }]), 'karma döküm'); esit(d.setermSite, 2, 'Seterm iki sicil');
+  esit(d.satir, 8, 'satır'); esit(d.kisiler, 4, 'onaylayan kişiler'); esit(d.tc, 3, 'TC kayıtları');
+  // işyerleri tablosu ve geçmiş
+  await s.waitForSelector('#site-tablo'); esit(await s.locator('#site-tablo tbody tr').count(), 5, 'işyeri satırları');
+  const gecmis = await s.locator('#katip-gecmis').innerText(); if (!gecmis.includes('katip_ornek.xlsx')) throw new Error(`geçmiş: ${gecmis}`);
+  await ekran(s, '42-katip-sonuc');
+});
+
+await test('İSG-Katip: ikinci yükleme — kayıtlı eşleşme sorulmaz, değişiklik uyarıları, ayrılan işyeri', async (s) => {
+  await katipKurulum(s);
+  await katipYukle(s, KATIP1, '2026-10');
+  await s.check('#katip-gozden'); await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#katip-sonuc');
+  await katipYukle(s, KATIP2, '2026-11');
+  esit((await s.locator('#katip-n-soru').innerText()).trim(), '0', 'kayıtlı eşleşmeler için soru yok');
+  const baslik = await s.locator('#katip-degisiklik-baslik').innerText(); if (!baslik.includes('önemli')) throw new Error(`başlık: ${baslik}`);
+  const t = await s.locator('#katip-degisiklik').innerText();
+  for (const b of ['Çalışan sayısı 20 → 25', 'Tehlike sınıfı Az tehlikeli → Tehlikeli', 'İşyeri hekimi değişti', 'YENİ HEKİM', 'NURAY YETKİLİ → YENİ YETKİLİ', 'bu dosyada yok']) if (!t.includes(b)) throw new Error(`değişiklik "${b}" yok: ${t}`);
+  // Excel'de olmayan firma yok; ayrılan işyerinin firması "Excel'de yok" listesine girer
+  const disi = await s.locator('#katip-disi').innerText(); if (!disi.includes('YENİ FİRMA')) throw new Error(`excel dışı: ${disi}`);
+  await ekran(s, '43-katip-degisiklik');
+  await s.check('#katip-gozden'); await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#katip-sonuc');
+  const d = await s.evaluate(() => { const t = globalThis.__fake.tablo; const ad = (n) => t.companies.find((c) => c.name === n); const sicil = (n) => t.company_sites.find((x) => x.sgk_no === n);
+    const alfa = ad('Alfa Gıda'); const p = t.company_profiles.filter((x) => x.company_id === alfa.id);
+    return { ayrildi: sicil('44444444444444444444444444').is_active, imp: t.katip_imports.length, alfaProfil: p.length, alfaGuncel: p.find((x) => !x.valid_to), sayi: t.katip_imports[1].summary.degisiklik_sayisi, seterm: t.company_profiles.find((x) => x.company_id === ad('Seterm Teknik Ticaret A.Ş.').id && !x.valid_to) }; });
+  esit(d.ayrildi, false, 'ayrılan işyeri pasif'); esit(d.imp, 2, 'iki yükleme'); esit(d.alfaGuncel.employee_count, 48, 'Alfa toplam'); esit(d.alfaGuncel.hazard_class, 'cok_tehlikeli', 'Alfa hâlâ karma (bir sicil çok tehlikeli)'); esit(JSON.stringify(d.alfaGuncel.site_breakdown), JSON.stringify([{ tehlike: 'cok_tehlikeli', calisan: 8 }, { tehlike: 'tehlikeli', calisan: 40 }]), 'döküm: 40 tehlikeli + 8 çok tehlikeli'); esit(d.alfaProfil, 3, 'Alfa: elle girilen + 1. yükleme + 2. yükleme dönemleri korundu');
+  esit(d.seterm.employee_count, 35, 'Seterm 25+10'); if (!(d.sayi >= 5)) throw new Error(`özet değişiklik sayısı: ${d.sayi}`);
+  const gecmis = await s.locator('#katip-gecmis').innerText(); if (!gecmis.includes('katip_ornek_ikinci.xlsx')) throw new Error(`geçmiş: ${gecmis}`);
+});
+
+await test('İSG-Katip: karar değiştirme (yeni firma / başka firma / aktarma), fatura firması düzeltme, hatalı dosya, yetki', async (s) => {
+  await katipKurulum(s);
+  await git(s, '#/katip'); await s.waitForSelector('#katip-dosya');
+  await s.setInputFiles('#katip-dosya', { name: 'bozuk.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('bu bir excel dosyası değil'.repeat(5)) });
+  await s.waitForSelector('#katip-hata:not([hidden])'); if (!(await s.locator('#katip-hata').innerText()).includes('Excel')) throw new Error('bozuk dosya hatası');
+  await s.setInputFiles('#katip-dosya', { name: 'a.csv', mimeType: 'text/csv', buffer: Buffer.from('a,b\n1,2') });
+  await s.waitForFunction(() => document.querySelector('#katip-hata')?.textContent.includes('.xlsx'));
+  await katipYukle(s, KATIP1, '2026-10');
+  // Seterm Servis: yeni firma olarak ayır; Yeni Firma: aktarma
+  await s.locator('#katip-sorular [data-karar^="SETERM SERVİS"]').selectOption('yeni'); await s.waitForSelector('#katip-sorular [data-yeni-ad^="SETERM SERVİS"]');
+  await s.locator('#katip-sorular [data-yeni-ad^="SETERM SERVİS"]').fill('Seterm Servis Hizmetleri'); await s.locator('#katip-sorular [data-yeni-ad^="SETERM SERVİS"]').dispatchEvent('change');
+  await s.locator('summary', { hasText: "sistemde yok" }).click(); await s.locator('[data-karar^="YENİ FİRMA"]').selectOption('yoksay');
+  const f = await s.locator('#katip-firmalar').innerText();
+  if (!f.includes('Seterm Servis Hizmetleri') || f.includes('YENİ FİRMA LTD')) throw new Error(`firma tablosu: ${f}`);
+  await s.check('#katip-gozden'); await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#katip-sonuc');
+  const d = await s.evaluate(() => { const t = globalThis.__fake.tablo; return { sitesi: t.company_sites.length, servis: t.companies.some((c) => c.name === 'Seterm Servis Hizmetleri'), yeniFirma: t.companies.some((c) => c.name.startsWith('YENİ FİRMA')) }; });
+  esit(d.sitesi, 4, 'yoksayılan işyeri aktarılmadı'); esit(d.servis, true, 'yeni ad ile firma'); esit(d.yeniFirma, false, 'yoksayılan firma oluşmadı');
+  // fatura firmasını değiştir
+  await s.waitForSelector('#site-tablo');
+  const satir = s.locator('#site-tablo tr', { hasText: 'SETERM SERVİS' });
+  await satir.locator('[data-site-firma]').selectOption({ label: 'Alfa Gıda' }); await s.waitForSelector('.toast');
+  esit(await s.evaluate(() => { const t = globalThis.__fake.tablo; return t.company_sites.find((x) => x.site_name.startsWith('SETERM SERVİS')).company_id === t.companies.find((c) => c.name === 'Alfa Gıda').id; }), true, 'işyeri Alfa\'ya bağlandı');
+  // arama
+  await s.fill('#site-ara', 'alfa'); await s.waitForTimeout(100); esit(await s.locator('#site-tablo tbody tr').count() >= 1, true, 'arama');
+});
+
+await test('İSG-Katip: görevlendirme önizlemesi — personel eşleşir/oluşur, onaydan sonra yazılır, ikinci yüklemede değişiklik uyarısı', async (s) => {
+  await katipKurulum(s);
+  await katipYukle(s, KATIP1, '2026-10');
+  await s.check('#katip-gozden'); await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#katip-sonuc');
+  await s.waitForSelector('#gorev-kart');
+  const once = await s.evaluate(() => { const t = globalThis.__fake.tablo; return { a: t.assignments.length, e: t.employees.length }; });
+  esit(`${once.a}/${once.e}`, '0/0', 'önizleme hiçbir şey yazmaz');
+  const ozet = await s.locator('#gorev-ozet').innerText(); if (!/yeni görevlendirme/.test(ozet) || !/yeni personel/.test(ozet)) throw new Error(`özet: ${ozet}`);
+  esit(await s.locator('[data-action="gorev-uygula"]').isDisabled(), true, 'gözden geçirme öncesi düğme kapalı');
+  await ekran(s, '45-gorev-onizleme');
+  await s.check('#gorev-gozden'); await s.click('[data-action="gorev-uygula"]'); await modal(s).locator('[data-ok]').click();
+  await s.waitForSelector('#gorev-sonuc');
+  const son = await s.evaluate(() => { const t = globalThis.__fake.tablo; const topla = {}; for (const a of t.assignments.filter((x) => !x.valid_to)) { const k = `${a.company_id}|${a.staff_type}`; topla[k] = (topla[k] ?? 0) + Number(a.share_pct); }
+    return { a: t.assignments.length, e: t.employees.length, sert: t.employees.every((x) => x.certificate_no), enBuyuk: Math.max(0, ...Object.values(topla)) }; });
+  if (son.a < 1 || son.e < 1 || !son.sert || son.enBuyuk > 100) throw new Error(`sonuç: ${JSON.stringify(son)}`);
+  await ekran(s, '46-gorev-sonuc');
+  // ikinci yükleme: personel zaten kayıtlı, yeni önizleme "değişmiyor" ağırlıklı (aynı dosya) → yeni personel açılmaz
+  await katipYukle(s, KATIP1, '2026-10');
+  await s.check('#katip-gozden'); await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#katip-sonuc'); await s.waitForSelector('#gorev-kart');
+  const ozet2 = await s.locator('#gorev-ozet').innerText(); if (/yeni personel kaydı/.test(ozet2)) throw new Error(`tekrar yeni personel: ${ozet2}`);
+  esit(await s.evaluate(() => globalThis.__fake.tablo.employees.length), son.e, 'çift personel yok');
+  // değişmiş dosya: uyarı çıkar
+  await katipYukle(s, KATIP2, '2026-11');
+  await s.check('#katip-gozden'); await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#katip-sonuc'); await s.waitForSelector('#gorev-kart');
+  const liste = await s.locator('#gorev-liste').innerText(); if (!/⚠/.test(liste)) throw new Error(`uyarı yok: ${liste}`);
+  await ekran(s, '47-gorev-degisiklik');
+});
+await test('İSG-Katip: görevlendirme — firma seçimi kaldırılırsa o firmaya dokunulmaz; izinsiz rol uygulayamaz', async (s) => {
+  await katipKurulum(s);
+  await katipYukle(s, KATIP1, '2026-10');
+  await s.check('#katip-gozden'); await s.click('[data-action="katip-uygula"]'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#katip-sonuc'); await s.waitForSelector('#gorev-kart');
+  for (const k of await s.locator('[data-gfirma]').all()) await k.uncheck();
+  await s.check('#gorev-gozden');
+  esit(await s.locator('[data-action="gorev-uygula"]').isDisabled(), true, 'hiç firma seçili değilken düğme kapalı');
+});
+
+await test('İSG-Katip: izinsiz rol yükleme yapamaz; mobil 375px yatay taşma yok', async (s) => {
+  await girisYap(s, 'satis@test.com'); await git(s, '#/katip');
+  await s.waitForSelector('#katip-kok, .empty'); esit(await s.locator('#katip-dosya').count(), 0, 'satış yükleme alanı görmez');
+});
+await test('mobil 375px: İSG-Katip analiz ekranında yatay taşma yok', async (s) => {
+  await katipKurulum(s); await katipYukle(s, KATIP1, '2026-10');
+  await s.setViewportSize({ width: 375, height: 800 }); await s.waitForTimeout(200);
+  const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (t > 1) { const w = await s.evaluate(() => [...document.querySelectorAll('#sayfa *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map((e) => `${e.tagName}.${e.className}#${e.id}:${Math.round(e.getBoundingClientRect().right)}`).join(' | ')); throw new Error(`yatay taşma ${t}px: ${w}`); }
+  await ekran(s, '44-mobil-katip');
+});
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }

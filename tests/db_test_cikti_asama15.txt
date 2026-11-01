@@ -1,0 +1,178 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama15.sql:95: NOTICE:  PASS | Satış rolü görevlendirme aktaramaz [Bu işlem için görevlendirme ve personel ekleme/düzenleme yetkisi gerekir.]
+ fails 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:98: NOTICE:  PASS | Anon çağıramaz [permission denied for function katip_gorevlendir]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:100: NOTICE:  PASS | Yetkisiz denemeler hiçbir şey yazmadı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama15.sql:103: NOTICE:  PASS | Tarihsiz paket reddedilir [Geçerlilik tarihi zorunludur.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:104: NOTICE:  PASS | Pay %100'ü aşarsa her şey geri alınır [Bu firmada aynı dönemde isyeri_hekimi hizmet payı toplamı %100'ü aşıyor (mevcut: 80.00).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:105: NOTICE:  PASS | Yabancı kurum firması reddedilir [Firma bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:106: NOTICE:  PASS | Geçersiz işlem reddedilir [Bilinmeyen işlem: sil]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:108: NOTICE:  PASS | Hatalı paketler geri alındı (geçici personel yok, atamalar aynı)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama15.sql:111: NOTICE:  PASS | Paket uygulanır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:113: NOTICE:  PASS | Sonuç sayıları
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:114: NOTICE:  PASS | Mevcut personele sertifika no bağlandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:115: NOTICE:  PASS | Yeni personel açıldı (hekim, sertifika no, Katip notu)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:116: NOTICE:  PASS | Bitirilen görevlendirme önceki günde kapandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:117: NOTICE:  PASS | Bitirilen: dönem sonu tarihin bir gün öncesi (30.09.2026)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:119: NOTICE:  PASS | Pay değişikliği: eski dönem kapandı, yeni dönem %70 açıldı (geçmiş korundu)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:120: NOTICE:  PASS | Yeni görevlendirme: hekim %100, resmî referans ve başlangıç
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:121: NOTICE:  PASS | Uzman payları toplamı %100 (70 + 30)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:122: NOTICE:  PASS | Aynı personel için yeniden eklenen (bitmiş) görevlendirme yeni kayıt
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama15.sql:128: NOTICE:  PASS | Başlamamış görevlendirme bitirilince arşivlenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:130: NOTICE:  PASS | Arşivlendi
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama15.sql:133: NOTICE:  PASS | Aynı gün başlayan kayıt değiştirilebilir (yeni dönem ertesi gün)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:135: NOTICE:  PASS | Eski kayıt aynı gün başladığı için tek günlük dönem + yeni dönem ertesi gün
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama15.sql:136: NOTICE:  PASS | Başka kurum etkilenmedi
+ ok 
+----
+ 
+(1 row)
+

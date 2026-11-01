@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs']) tablo[ad] ??= [];
+for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -257,6 +257,81 @@ const rpcler = {
     const yeni = { id: uid(), organization_id: ORG, company_id: p_firma, employee_count: p_calisan_sayisi, hazard_class: p_tehlike, valid_from: p_baslangic, valid_to: null, note: p_not };
     tablo.company_profiles.push(yeni);
     return { data: kopya(yeni) };
+  },
+  // Aşama 14: gerçek katip_gorevlendir'in (15_asama14.sql) basitleştirilmiş taklidi
+  katip_gorevlendir({ p_paket: p }) {
+    if (!izinVar('assignments', 'can_create') || !izinVar('assignments', 'can_edit') || !izinVar('staff', 'can_create')) return { error: hata('Bu işlem için görevlendirme ve personel ekleme/düzenleme yetkisi gerekir.', 'P0001') };
+    const tarih = p.tarih; const ref = {}; const simdi = new Date().toISOString(); let kisi = 0; let bag = 0; let ekle = 0; let degis = 0; let bitir = 0;
+    const gun = (iso, n) => { const x = new Date(`${iso}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+    for (const b of p.baglar ?? []) { const e = tablo.employees.find((x) => x.id === b.employee_id); if (e && !e.certificate_no) { e.certificate_no = b.sertifika_no; bag += 1; } }
+    for (const k of p.kisiler ?? []) { const e = { id: uid(), organization_id: ORG, full_name: k.ad, staff_type: k.tur, title: k.sertifika_tipi, certificate_no: k.sertifika_no, is_active: true, monthly_capacity_min: 11700, created_at: simdi, updated_at: simdi, archived_at: null }; tablo.employees.push(e); ref[k.ref] = e.id; kisi += 1; }
+    const toplamPay = (firma, tur, hariç) => tablo.assignments.filter((x) => !x.archived_at && x.company_id === firma && x.staff_type === tur && x.id !== hariç && x.valid_from <= (tarih) && (!x.valid_to || x.valid_to >= tarih)).reduce((t, x) => t + Number(x.share_pct), 0);
+    for (const i of p.islemler ?? []) {
+      if (i.islem === 'bitir') { const a = tablo.assignments.find((x) => x.id === i.assignment_id && !x.archived_at); if (!a) return { error: hata('Bitirilecek görevlendirme bulunamadı.', 'P0001') }; if (a.valid_from > gun(tarih, -1)) a.archived_at = simdi; else a.valid_to = gun(tarih, -1); bitir += 1; }
+      else if (i.islem === 'degistir') {
+        const a = tablo.assignments.find((x) => x.id === i.assignment_id && !x.archived_at); if (!a) return { error: hata('Değiştirilecek görevlendirme bulunamadı.', 'P0001') };
+        const bas = a.valid_from >= tarih ? gun(a.valid_from, 1) : tarih; const eskiBitis = a.valid_to; a.valid_to = gun(bas, -1);
+        tablo.assignments.push({ ...a, id: uid(), share_pct: i.pay, valid_from: bas, valid_to: eskiBitis, official_ref: i.resmi_ref ?? a.official_ref, official_start: i.resmi_baslangic ?? a.official_start }); degis += 1;
+      } else if (i.islem === 'ekle') {
+        const emp = i.employee_id ?? ref[i.employee_ref]; const e = tablo.employees.find((x) => x.id === emp); if (!e) return { error: hata('Personel bulunamadı.', 'P0001') };
+        if (toplamPay(i.company_id, e.staff_type) + Number(i.pay) > 100.0001) return { error: hata(`Bu firmada aynı dönemde ${e.staff_type} hizmet payı toplamı %100'ü aşıyor.`, 'P0001') };
+        tablo.assignments.push({ id: uid(), organization_id: ORG, company_id: i.company_id, employee_id: emp, staff_type: e.staff_type, share_pct: i.pay, valid_from: tarih, valid_to: null, official_ref: i.resmi_ref ?? null, official_start: i.resmi_baslangic ?? null, created_at: simdi, updated_at: simdi, archived_at: null }); ekle += 1;
+      }
+    }
+    return { data: { yeni_personel: kisi, sertifika_baglanan: bag, eklenen: ekle, degisen: degis, biten: bitir } };
+  },
+  // Aşama 13: gerçek katip_uygula'nın (14_asama13_katip.sql) basitleştirilmiş taklidi
+  katip_uygula({ p_paket: p }) {
+    if (!izinVar('import_export', 'can_create') || !izinVar('companies', 'can_create') || !izinVar('companies', 'can_edit')) return { error: hata('Bu aktarım için içe aktarma ve firma ekleme/düzenleme yetkisi gerekir.', 'P0001') };
+    if (!p?.isyerleri?.length) return { error: hata('Aktarılacak işyeri bulunamadı.', 'P0001') };
+    for (const i of p.isyerleri) {
+      if (!i.firma_id && !(p.yeni_firmalar ?? []).some((y) => y.ref === i.firma_ref)) return { error: hata(`İşyeri ${i.sicil} için firma belirtilmemiş.`, 'P0001') };
+      if (i.firma_id && !tablo.companies.some((c) => c.id === i.firma_id)) return { error: hata(`İşyeri ${i.sicil} için firma bulunamadı.`, 'P0001') };
+    }
+    const donem = `${String(p.donem).slice(0, 7)}-01`; const simdi = new Date().toISOString(); const ref = {}; let yeniFirma = 0; let yeniIsyeri = 0; let guncel = 0; let yeniKisi = 0; let pasife = 0; let profil = 0;
+    for (const y of p.yeni_firmalar ?? []) { const c = { id: uid(), organization_id: ORG, name: y.ad, city: y.il ?? null, customer_status: 'musteri', created_at: simdi, updated_at: simdi, archived_at: null }; tablo.companies.push(c); ref[y.ref] = c.id; yeniFirma += 1; }
+    const imp = { id: uid(), organization_id: ORG, period: donem, file_name: p.dosya, row_count: 0, site_count: p.isyerleri.length, new_company_count: yeniFirma, summary: p.ozet ?? {}, created_at: simdi };
+    tablo.katip_imports.push(imp);
+    const siteId = {};
+    for (const i of p.isyerleri) {
+      const firma = i.firma_id ?? ref[i.firma_ref]; let s = tablo.company_sites.find((x) => x.sgk_no === i.sicil);
+      const v = { company_id: firma, site_name: i.unvan, city: i.il ?? null, employee_count: i.calisan, hazard_class: i.tehlike, is_active: true, valid_from: donem, last_import_id: imp.id, archived_at: null };
+      if (s) { Object.assign(s, v); guncel += 1; } else { s = { id: uid(), organization_id: ORG, sgk_no: i.sicil, created_at: simdi, updated_at: simdi, ...v }; tablo.company_sites.push(s); yeniIsyeri += 1; }
+      siteId[i.sicil] = s.id;
+    }
+    const kapanan = tablo.company_sites.filter((x) => x.is_active && !(x.sgk_no in siteId));
+    kapanan.forEach((x) => { x.is_active = false; });
+    for (const r of p.satirlar ?? []) {
+      const s = tablo.company_sites.find((x) => x.id === siteId[r.sicil]); if (!s) continue;
+      tablo.katip_rows.push({ id: uid(), organization_id: ORG, import_id: imp.id, site_id: s.id, sgk_no: s.sgk_no, site_name: s.site_name, city: s.city, employee_count: s.employee_count, hazard_class: s.hazard_class, contract_id: r.sozlesme_id ?? null,
+        staff_type: r.tur, cert_type: r.sertifika_tipi, cert_no: r.sertifika_no ?? null, person_name: r.ad, minutes_per_month: r.dakika, start_date: r.baslangic ?? null, approver_name: r.onaylayan ?? null, compliant: r.uygun ?? null });
+      imp.row_count += 1;
+      const anahtar = r.sertifika_no || String(r.ad).toLowerCase(); let k = tablo.katip_people.find((x) => x.person_key === anahtar);
+      if (!k) { k = { id: uid(), organization_id: ORG, person_key: anahtar }; tablo.katip_people.push(k); }
+      Object.assign(k, { person_name: r.ad, cert_no: r.sertifika_no ?? null, national_id: r.tc ?? k.national_id ?? null, staff_type: r.tur });
+    }
+    for (const k of p.kisiler ?? []) {
+      const firma = k.firma_id ?? ref[k.firma_ref]; if (!firma) continue;
+      if (!tablo.contacts.some((c) => c.company_id === firma && !c.archived_at && c.full_name.toLowerCase().trim() === k.ad.toLowerCase().trim())) {
+        tablo.contacts.push({ id: uid(), organization_id: ORG, company_id: firma, full_name: k.ad, title: 'İSG-Katip onaylayan', is_decision_maker: false, created_at: simdi, updated_at: simdi, archived_at: null }); yeniKisi += 1;
+      }
+    }
+    for (const id of p.pasif ?? []) { const c = tablo.companies.find((x) => x.id === id && x.customer_status === 'musteri'); if (c) { c.customer_status = 'eski_musteri'; pasife += 1; } }
+    const dokunulan = [...new Set(tablo.company_sites.filter((x) => x.last_import_id === imp.id).map((x) => x.company_id))];
+    for (const cid of dokunulan) {
+      const aktif = tablo.company_sites.filter((x) => x.company_id === cid && x.is_active && !x.archived_at);
+      const toplam = aktif.reduce((t, x) => t + x.employee_count, 0); const sira = ['az_tehlikeli', 'tehlikeli', 'cok_tehlikeli'];
+      const tehlike = aktif.reduce((m, x) => (sira.indexOf(x.hazard_class) > sira.indexOf(m) ? x.hazard_class : m), 'az_tehlikeli');
+      const dagilim = {}; aktif.forEach((x) => { dagilim[x.hazard_class] = (dagilim[x.hazard_class] ?? 0) + x.employee_count; });
+      const dokum = Object.keys(dagilim).length > 1 ? Object.keys(dagilim).sort().map((t) => ({ tehlike: t, calisan: dagilim[t] })) : null;
+      const acik = tablo.company_profiles.find((x) => x.company_id === cid && !x.valid_to);
+      if (acik && acik.employee_count === toplam && acik.hazard_class === tehlike && JSON.stringify(acik.site_breakdown ?? null) === JSON.stringify(dokum)) continue;
+      let bas = donem; if (acik && bas <= acik.valid_from) { const d = new Date(`${acik.valid_from}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); bas = d.toISOString().slice(0, 10); }
+      if (acik) { const d = new Date(`${bas}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 1); acik.valid_to = d.toISOString().slice(0, 10); }
+      tablo.company_profiles.push({ id: uid(), organization_id: ORG, company_id: cid, employee_count: toplam, hazard_class: tehlike, valid_from: bas, valid_to: null, note: `İSG-Katip aktarımı`, site_breakdown: dokum });
+      profil += 1;
+    }
+    return { data: { yukleme_id: imp.id, yeni_firma: yeniFirma, yeni_isyeri: yeniIsyeri, guncellenen_isyeri: guncel, kapanan_isyeri: kapanan.length, satir: imp.row_count, yeni_kisi: yeniKisi, pasife_alinan: pasife, firma_karti_guncellenen: profil } };
   },
   potansiyel_olustur({ p_veri }) {
     if (p_veri.tax_no && tablo.leads.some((l) => !l.archived_at && l.tax_no === p_veri.tax_no)) return { error: hata('duplicate key value violates unique constraint "leads_tax_no_uq"', '23505') };

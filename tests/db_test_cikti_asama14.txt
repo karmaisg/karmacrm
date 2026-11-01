@@ -1,0 +1,325 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama14.sql:105: NOTICE:  PASS | Satış rolü içe aktaramaz [Bu aktarım için içe aktarma ve firma ekleme/düzenleme yetkisi gerekir.]
+ fails 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:108: NOTICE:  PASS | Anon çağıramaz [permission denied for function katip_uygula]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:110: NOTICE:  PASS | Yetkisiz denemeler hiçbir şey yazmadı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama14.sql:114: NOTICE:  PASS | Boş paket reddedilir [Aktarılacak işyeri bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:115: NOTICE:  PASS | Firmasız işyeri reddedilir ve hiçbir şey kalmaz [İşyeri 99999999999 için firma belirtilmemiş.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:116: NOTICE:  PASS | Yabancı kurumun firması kullanılamaz [İşyeri 99999999999 için firma bulunamadı.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:117: NOTICE:  PASS | Geçersiz tehlike sınıfı reddedilir [invalid input value for enum hazard_class: "yok"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:119: NOTICE:  PASS | Hatalı paketler geri alındı (geçici firma, yükleme yok)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama14.sql:123: NOTICE:  PASS | 1. yükleme uygulanır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:125: NOTICE:  PASS | Sonuç sayıları
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:126: NOTICE:  PASS | Yeni firma oluştu
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:127: NOTICE:  PASS | İşyerleri doğru firmaya bağlı (iki sicil aynı firmada)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:128: NOTICE:  PASS | Yeni firma işyeri bağlandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:129: NOTICE:  PASS | Firma kartı: iki işyerinin toplamı (20+15=35) ve en yüksek tehlike (çok tehlikeli)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:130: NOTICE:  PASS | Karma tehlike: işyeri dökümü profilde saklandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:131: NOTICE:  PASS | Tek tehlike sınıflı firmanın dökümü boş
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:133: NOTICE:  PASS | Eski profil kapatıldı, geçmiş korundu
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:134: NOTICE:  PASS | Yeni firmanın profili oluştu (7, az tehlikeli)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:135: NOTICE:  PASS | Excel'de olmayan firma eski müşteri yapıldı, silinmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:137: NOTICE:  PASS | Firma kişileri eklendi (onaylayan)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:139: NOTICE:  PASS | Sözleşme satırları görüntü olarak saklandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:141: NOTICE:  PASS | Görevli kişiler: sertifika no ile tek kayıt (aynı kişi iki işyerinde), TC saklı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:142: NOTICE:  PASS | Sertifikasız kişi ad ile anahtarlandı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama14.sql:146: NOTICE:  PASS | 2. yükleme uygulanır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:148: NOTICE:  PASS | 2. yükleme: güncellenen 2, kapanan 1, yeni işyeri yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:149: NOTICE:  PASS | Dosyada olmayan işyeri pasife alındı, kaydı durur
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:150: NOTICE:  PASS | Firma kartı: 25+15=40, çok tehlikeli
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:151: NOTICE:  PASS | 2. yükleme: döküm güncellendi (25 tehlikeli + 15 çok tehlikeli)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:152: NOTICE:  PASS | Dosyada olmayan işyerinin firması kartı değişmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:153: NOTICE:  PASS | Aynı kişi (büyük/küçük harf farkı) tekrar eklenmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:154: NOTICE:  PASS | İki yükleme saklandı, ilk yükleme satırları bozulmadı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:155: NOTICE:  PASS | Aynı dönemde profil çakışması olmadı (ikinci yükleme ayın başından değil, mevcut dönemden sonra)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama14.sql:159: NOTICE:  PASS | Satış: işyerlerini görür (firma modülü)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:160: NOTICE:  PASS | Satış: yükleme satırlarını göremez (personel izni yok)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:161: NOTICE:  PASS | Satış: TC kimlik numaralarını göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:162: NOTICE:  PASS | Satış: doğrudan satır ekleyemez [permission denied for table katip_rows]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama14.sql:165: NOTICE:  PASS | Finans (maaş/payroll yetkisi olduğu için) TC kimlik numaralarını görür
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama14.sql:168: NOTICE:  PASS | Sahip: TC kimlik numaralarını görür
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:169: NOTICE:  PASS | Sahip: işyerinin fatura firmasını değiştirebilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:170: NOTICE:  PASS | Başka kurumun firmasına bağlanamaz [Firma bulunamadı veya başka bir kuruma ait.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:171: NOTICE:  PASS | Sicil biçimi doğrulanır [new row for relation "company_sites" violates check constraint "company_sites_sgk_no_check]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:172: NOTICE:  PASS | Aynı sicil iki kez eklenemez [duplicate key value violates unique constraint "company_sites_organization_id_sgk_no_key"]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama14.sql:175: NOTICE:  PASS | Başka kurum hiçbir işyeri/yükleme göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:177: NOTICE:  PASS | Denetim kaydı işyeri değişikliğini tutar
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama14.sql:178: NOTICE:  PASS | Fatura firması değişince firma kartı otomatik değişmez (bir sonraki yüklemede güncellenir)
+ ok 
+----
+ 
+(1 row)
+
