@@ -362,3 +362,15 @@ td .cell-main { min-width: 0; }
 .neg { color: var(--danger); }
 .table tfoot th, .table tfoot td { border-top: 2px solid var(--border); font-weight: 700; background: var(--surface-2); }
 .pad-t { margin-top: 18px; }
+
+/* İSG-Katip aktarımı */
+.check-inline { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+.text-warn { color: #8a540f; font-weight: 600; }
+:root[data-theme="dark"] .text-warn { color: #f0b567; }
+ul.plain { margin: 6px 0 0; padding-left: 18px; }
+.mt-1 { margin-top: 6px; }
+.pad-t-card { margin-top: 18px; }
+details > summary { cursor: pointer; }
+#katip-kok details table input[type="text"], #katip-kok td input[type="text"] { width: 100%; min-height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); padding: 0 10px; }
+@media print { #katip-kok { display: none; } }
+.text-ok { color: var(--success); font-weight: 600; }

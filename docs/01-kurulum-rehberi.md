@@ -307,3 +307,34 @@ Müşteri teklifi kabul ya da reddettiğinde **yalnızca size** e-posta gelir (m
 **Takip nasıl yapılır?** (1) e-posta, (2) Görevler'de yüksek öncelikli görev, (3) Teklifler listesinde "Müşteri KABUL etti / reddetti — işleyin" rozeti ve **Yanıt bekleyen / Yanıt geldi (işlenmedi)** filtreleri, (4) panelde "Yanıt geldi, işlenmedi" sayacı. Teklif durumu bilerek kendiliğinden değişmez; görüştükten sonra siz "Sözleşme oluştur" veya "Reddedildi" yaparsınız, rozet de o zaman kalkar.
 
 **Bilinen sınırlar:** e-posta Resend'in kısıtına tabidir (kendi alan adınızı doğrulamadıkça yalnızca Resend hesap adresinize gider); Supabase projesi duraklatılmışsa e-posta gitmez; yanıt e-postası gitmezse otomatik yeniden denenmez (günlükte "hata" görünür).
+
+## Aşama 13 kurulumu (İSG-Katip Excel aktarımı: işyeri/sicil, çalışan sayısı, görevli bilgisi)
+
+İSG-Katip'ten aldığınız **"İSG Hizmet Sözleşme Süreçleri"** Excel'ini (.xlsx) ara ara yüklersiniz. Sistem o aya ait firma çalışan sayılarını, tehlike sınıflarını, görevli uzman/hekimi ve onaylayan kişiyi okur; firma adlarını sistemdeki firmalarla eşleştirir ve **bir önceki yüklemeye göre değişiklikleri size uyarı olarak gösterir.**
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/14_asama13_katip.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. (Önce 13_asama13.sql çalıştırılmış olmalı.) Başka kurulum adımı yoktur; Excel tarayıcıda okunur, CSV'ye çevirmeniz gerekmez.
+2. **Yükleme:** menüde **Yönetim > İSG-Katip aktarımı**. Dönem (ay) seçin, Excel dosyasını seçin. Hiçbir şey siz "Aktarımı uygula" demeden yazılmaz.
+3. **Ekrandaki bölümler**
+   - *Önceki yüklemeye göre değişiklikler:* çalışan sayısı, tehlike sınıfı (hizmet sürelerini etkiler), görevli uzman/hekim, çalışma süresi, firma kişisi (onaylayan), yeni işyeri ve dosyada artık olmayan işyeri. Önemli olanlar (görevli, tehlike sınıfı, ayrılan işyeri) işaretlenir.
+   - *Eşleştirme soruları:* Excel'deki unvan sistemdekiyle birebir aynı değilse (ör. "Seterm Teknik" varken Excel'de "Seterm Servis" de varsa) her biri için sorulur: sistemdeki bir firmaya bağla / aynı dosyadaki benzer unvanla **birleştir** (çalışan sayıları toplanır) / yeni firma oluştur / aktarma. Sistem; "A.Ş.", "Ltd. Şti." gibi ekleri, kısaltmaları (TEM. = TEMİZLEME) ve küçük yazım farklarını yok sayarak benzerlik puanı verir.
+   - *Excel'de var, sistemde yok:* yeni firma olarak eklenecekler listelenir (adını düzeltebilir ya da "aktarma" diyebilirsiniz).
+   - *Sistemde var, Excel'de yok:* aktif müşteri firmalar listelenir; sözleşmesi bitmişse **"Eski müşteri yap"** ile pasife alırsınız (hiçbir şey silinmez).
+   - *Firma bazında sonuç:* her firmanın toplam çalışan sayısı ve tehlike sınıfları.
+4. **Bir firmanın birden çok işyeri (sicil):** her SGK/DETSİS sicil numarası ayrı bir işyeridir; hepsi aynı firmaya bağlanırsa çalışan sayıları toplanır ve toplu fatura bu firmaya kesilir. **Fatura edilen firma Excel'deki unvandan farklıysa** (A firmasına fatura kesiyorsunuz ama Katip'te B adına atama var) sicili A firmasına bağlayın. Bu eşleşme kaydedilir; bir sonraki yüklemede aynı sicil için tekrar sorulmaz. Sayfanın altındaki **İşyerleri ve sicil numaraları** tablosundan istediğiniz zaman değiştirebilirsiniz.
+5. **Farklı tehlike sınıflı işyerleri:** aynı firmanın işyerleri farklı tehlike sınıfındaysa (ör. 40 çalışan az tehlikeli + 8 çalışan çok tehlikeli) firma kartı toplam çalışan sayısını ve en yüksek sınıfı gösterir, ancak **uzman/hekim hizmet süresi her işyerinin kendi sınıfına göre ayrı hesaplanıp toplanır** (kapasite, yük ve firma sayfalarındaki "aylık ihtiyaç" dahil).
+6. **Firma kartı:** uygulanınca her firmanın çalışan sayısı/tehlike sınıfı seçtiğiniz ayın başından itibaren güncellenir; eski değerler geçmişte kalır (geçmiş ay hesapları bozulmaz). Dosyada olmayan işyerleri silinmez, "Dosyada yok" olarak pasife alınır.
+7. **Onaylayan kişi:** Excel'deki "Onaylayan Kişi Ad Soyad" firmanın **Kişiler** listesine "İSG-Katip onaylayan" unvanıyla eklenir (aynı ad varsa tekrar eklenmez). Değişirse yükleme ekranında uyarı çıkar.
+8. **TC kimlik numaraları** görevli kişi kaydında saklanır ve yalnızca maaş (payroll) yetkisi olan kullanıcılar (işletme sahibi, sistem yöneticisi, finans) görür. Yükleme satırlarını (kim hangi firmada kaç dakika) personel izni olanlar görür.
+
+**Bilinen sınırlar (Aşama 13):** görevli kişiler ve süreler bu aşamada yalnızca "o günkü görüntü" olarak saklanır ve karşılaştırılır; uzman/hekim kayıtlarının ve **Görevlendirmeler** sayfasının bu verilerle otomatik güncellenmesi Aşama 14'tür. Excel'deki sütun başlıkları değişirse (zorunlu: görevli adı, sertifika tipi, çalışma süresi, hizmet alan unvan/sicil/çalışan sayısı/tehlike sınıfı) sistem eksik sütunları açıkça söyler. Fatura ve gider Excel formları sonraki aşamalardadır.
+
+## Aşama 14 kurulumu (Katip görevlendirmelerini Uzmanlar/Hekimler ve Görevlendirmeler'e yansıtma)
+
+Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"Görevlendirmeleri güncelle"** kartı çıkar. Sistem Katip'teki görevli uzman/hekimleri personelinize bağlar, her firma için hizmet payını (kişinin Katip süresi ÷ firmanın o ayki teorik ihtiyacı) önerir. **Siz onaylamadan hiçbir kayıt yazılmaz.**
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/15_asama14.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. (Önce 14_asama13_katip.sql çalıştırılmış olmalı.)
+2. **Personel eşleşmesi:** önce sertifika numarasına, yoksa ada bakılır. Adla eşleşen personelin sertifika numarası kaydedilir (sonraki yüklemelerde numarayla bulunur). Hiç eşleşmeyen kişi için **yeni personel** önerilir (tür, sertifika tipi ve numarasıyla).
+3. **Öneri türleri:** *Yeni görevlendirme*, *Pay değişiyor* (eski dönem bir gün öncesinde kapanır, yeni pay yeni dönem olarak açılır; geçmiş aylar bozulmaz), *Görevlendirme biter* (Katip'te artık görünmeyen kişi), *Değişmiyor*.
+4. **Uyarılar (⚠):** uzman/hekim değişikliği, Katip sürelerinin teorik ihtiyacı aşması (paylar %100'e oranlanır) veya karşılamaması, hesaplanamayan firmalar (çalışan sayısı/tehlike sınıfı eksik). Karma tehlike sınıflı firmalarda ihtiyaç her işyerinin sınıfına göre hesaplanır.
+5. **Seçim ve onay:** her firmanın yanındaki kutuyla hangi firmaların uygulanacağını seçersiniz; "gözden geçirdim" kutusunu işaretleyip uygularsınız. Hepsi tek işlemde yazılır; hata olursa hiçbir şey değişmez.
+6. **Sınırlar:** "Diğer sağlık personeli" (DSP) satırları görevlendirmeye aktarılmaz. Geçerlilik tarihi yüklemenin dönem başıdır. Katip'te hiç görevlisi olmayan bir tür (ör. hekim yok) için mevcut görevlendirmelere dokunulmaz.

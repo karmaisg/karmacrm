@@ -60,9 +60,19 @@ export function firmaAylikIhtiyac({ profiller, kurallar, ay }) {
   const ayBasi = gunDizgesi(ay).slice(0, 7) + '-01';
   const profil = gecerliKayit(profiller, ayBasi);
   if (!profil) return { uzmanDakika: null, hekimDakika: null, profil: null, eksik: `${ayBasi} için firma profili yok.` };
-  const girdi = { calisanSayisi: profil.employee_count, tehlikeSinifi: profil.hazard_class, kurallar, tarih: ayBasi };
-  const uzman = teorikDakika({ ...girdi, personelTuru: 'is_guvenligi_uzmani' });
-  const hekim = teorikDakika({ ...girdi, personelTuru: 'isyeri_hekimi' });
+  // Karma tehlike sınıflı çok işyerli firma (İSG-Katip aktarımı): her tehlike sınıfı kendi dakikasıyla hesaplanır ve toplanır.
+  const dokum = Array.isArray(profil.site_breakdown) && profil.site_breakdown.length > 1 ? profil.site_breakdown : null;
+  const topla = (personelTuru) => {
+    if (!dokum) return teorikDakika({ calisanSayisi: profil.employee_count, tehlikeSinifi: profil.hazard_class, kurallar, tarih: ayBasi, personelTuru });
+    let toplam = 0; const eksikler = [];
+    for (const d of dokum) {
+      const r = teorikDakika({ calisanSayisi: Number(d.calisan), tehlikeSinifi: d.tehlike, kurallar, tarih: ayBasi, personelTuru });
+      if (r.dakika === null) eksikler.push(r.eksik); else toplam += r.dakika;
+    }
+    return eksikler.length ? { dakika: null, eksik: eksikler.join(' ') } : { dakika: toplam, eksik: null };
+  };
+  const uzman = topla('is_guvenligi_uzmani');
+  const hekim = topla('isyeri_hekimi');
   return {
     uzmanDakika: uzman.dakika,
     hekimDakika: hekim.dakika,

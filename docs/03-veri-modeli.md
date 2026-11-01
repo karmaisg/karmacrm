@@ -183,3 +183,11 @@ users.role_id -> roles
 - Sahip fonksiyonları (giriş + "Teklifler" düzenleme izni): `teklif_baglantisi_olustur(teklif, gün, not)` anahtarı **bir kez** döndürür; `teklif_baglantisi_iptal(teklif)`.
 - Müşteri fonksiyonları (girişsiz çağrılabilir, yalnızca izinli alanları döndürür): `teklif_paylasim_goruntule(anahtar)` ve `teklif_paylasim_yanitla(anahtar, karar, ad, not)`. Geçersiz, süresi dolmuş, iptal edilmiş, arşivlenmiş teklif bağlantıları birbirinden ayırt edilemez ("geçersiz"). Yanıt teklif durumunu **değiştirmez**; `offer_share:<id>` kaynaklı yüksek öncelikli bir görev üretir (mükerrer olmaz).
 - Bağlantılar yedek dosyasına **girmez** (gizli anahtar özeti içerir; geri yüklemede zaten yeniden oluşturulur).
+
+## Aşama 13: İSG-Katip aktarımı
+- `company_sites`: İSG-Katip işyeri (SGK sicil no, benzersiz) ve **fatura edilen firma** (`company_id`). Çalışan sayısı, tehlike sınıfı, `is_active` (son dosyada var mı), `valid_from`. Sicil→firma eşleşmesi kalıcıdır.
+- `katip_imports` (yükleme: dönem, dosya, özet/uyarılar), `katip_rows` (o yüklemedeki sözleşme satırı: işyeri sayısı/sınıfı, görevli, dakika, onaylayan) — geçmiş değişmez, bir sonraki yükleme bununla karşılaştırılır. Okuma: personel izni.
+- `katip_people`: görevli kişi (sertifika no ya da ad anahtarı) ve **TC kimlik no**; yalnızca `payroll` görüntüleme izni olan okur.
+- `company_profiles.site_breakdown` (jsonb): karma tehlike sınıflı firmada [{tehlike, calisan}] dökümü; `firmaAylikIhtiyac` doluysa her sınıfı kendi dakikasıyla hesaplayıp toplar. Elle girilen profilde boştur.
+- `katip_uygula(paket)`: tek işlemde yeni firmalar, işyerleri, satırlar, kişiler, pasife alma ve firma kartı güncellemesi; hata her şeyi geri alır. Doğrudan tablo yazımı yoktur.
+- Aşama 14: `employees.certificate_no` (İSG-Katip sertifika numarası; kurum içinde tekil), `katip_imports.assigned_at/assign_summary`. `katip_gorevlendir(paket)`: tek işlemde yeni personel, sertifika bağlama ve görevlendirme ekleme/pay değiştirme/bitirme (`assignments` + `staff` yetkisi gerekir; hata her şeyi geri alır; geçmiş kayıtlar silinmez).

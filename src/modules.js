@@ -89,6 +89,8 @@ export const MENU = [
     aciklama: 'Aylık yönetici raporu ve Excel/CSV dışa aktarımları.' },
   { id: 'aktarim', grup: 'yonetim', modul: 'import_export', ad: 'Veri içe/dışa aktarma', simge: 'upload', yapildi: true,
     aciklama: 'Excel ve CSV içe aktarma: sütun eşleştirme, önizleme ve mükerrer kayıt kontrolü.' },
+  { id: 'katip', grup: 'yonetim', modul: 'import_export', ad: 'İSG-Katip aktarımı', simge: 'upload', yapildi: true,
+    aciklama: 'İSG-Katip sözleşme listesi Excel\'i: işyeri/sicil eşleştirme, çalışan sayısı, görevli uzman/hekim ve değişiklik uyarıları.' },
   { id: 'kullanicilar', grup: 'yonetim', modul: 'users', ad: 'Kullanıcılar ve yetkiler', simge: 'lock', yapildi: true },
   { id: 'denetim', grup: 'yonetim', modul: 'users', ad: 'Denetim kaydı', simge: 'history', yapildi: true,
     aciklama: 'Kim, neyi, ne zaman değiştirdi: süzülebilir değişiklik geçmişi.' },

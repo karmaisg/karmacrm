@@ -25,6 +25,7 @@ import { giderlerSayfasi } from './pages/giderler.js';
 import { firmaKarlilikSayfasi, personelKarlilikSayfasi } from './pages/karlilik.js';
 import { raporlarSayfasi } from './pages/raporlar.js';
 import { aktarimSayfasi } from './pages/aktarim.js';
+import { katipSayfasi } from './pages/katip.js';
 import { ayarlarSayfasi } from './pages/ayarlar.js';
 import { denetimSayfasi } from './pages/denetim.js';
 import { yedekSayfasi } from './pages/yedek.js';
@@ -82,6 +83,7 @@ function rotaCoz(parcalar) {
   if (ilk === 'yedek') return { menu: 'yedek', modul: 'settings', yukle: () => yedekSayfasi(app) };
   if (ilk === 'ayarlar') return { menu: 'ayarlar', modul: 'settings', yukle: () => ayarlarSayfasi(app) };
   if (ilk === 'raporlar') return { menu: 'raporlar', modul: 'reports', yukle: () => raporlarSayfasi(app) };
+  if (ilk === 'katip') return { menu: 'katip', modul: 'import_export', yukle: () => katipSayfasi(app) };
   if (ilk === 'aktarim') return { menu: 'aktarim', modul: 'import_export', yukle: () => aktarimSayfasi(app) };
   if (ilk === 'personel-karlilik') return { menu: 'personel-karlilik', modul: 'staff_profit', yukle: () => personelKarlilikSayfasi(app) };
   if (ilk === 'kullanicilar') return { menu: 'kullanicilar', modul: 'users', yukle: () => kullanicilarSayfasi(app) };

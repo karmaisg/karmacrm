@@ -154,6 +154,14 @@ export function createApi(db) {
       p_firma: companyId, p_calisan_sayisi: calisanSayisi, p_tehlike: tehlike, p_baslangic: baslangic, p_not: not ?? null,
     })),
 
+    // ----- İSG-Katip aktarımı (14_asama13_katip.sql)
+    listSites: () => hepsiniOku(() => T('company_sites').select('*').order('id')),
+    updateSite: (id, degerler) => bir(T('company_sites').update(degerler).eq('id', id).select().single()),
+    listKatipImports: () => bir(T('katip_imports').select('id,period,file_name,row_count,site_count,new_company_count,summary,created_at').order('created_at', { ascending: false }).limit(24)),
+    listKatipRows: (importId) => hepsiniOku(() => T('katip_rows').select('*').eq('import_id', importId).order('id')),
+    applyKatip: (paket) => bir(db.rpc('katip_uygula', { p_paket: paket })),
+    applyGorevlendirme: (paket) => bir(db.rpc('katip_gorevlendir', { p_paket: paket })),
+
     // ----- parametreler (kurumdaki herkes okuyabilir)
     listServiceRules: () => bir(T('service_time_rules').select('*')),
     listSettings: () => bir(T('settings').select('*')),
