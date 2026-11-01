@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people']) tablo[ad] ??= [];
+for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -86,6 +86,8 @@ function kurucu(ad) {
       const simdi = new Date().toISOString();
       const yeni = { id: uid(), organization_id: ORG, created_at: simdi, updated_at: simdi, archived_at: null, ...durum.yukle };
       if (ad === 'sales_opportunities') { yeni.stage ??= 'yeni_aday'; tablo.opportunity_stage_history.push({ id: uid(), opportunity_id: yeni.id, from_stage: null, to_stage: yeni.stage, changed_at: simdi, changed_by: oturum?.user?.id }); }
+      if (ad === 'calendar_items' && !izinVar('tasks', 'can_create')) return { data: null, error: hata('new row violates row-level security policy for table "calendar_items"', '42501') };
+      if (ad === 'calendar_completions' && tablo.calendar_completions.some((x) => x.item_id === yeni.item_id && x.occurrence_date === yeni.occurrence_date)) return { data: null, error: hata('duplicate key value violates unique constraint', '23505') };
       if (ad === 'tasks') { yeni.status ??= 'acik'; yeni.priority ??= 'orta'; yeni.kind ??= 'diger'; }
       if (ad === 'offers') {
         yeni.status = 'taslak'; yeni.offer_date = bugun(); yeni.created_by = oturum?.user?.id;
@@ -172,6 +174,11 @@ function kurucu(ad) {
       if (ad === 'payments') eslesen.forEach((r) => odemeSonrasi(r.invoice_id));
       return durum.tek ? { data: eslesen[0] ? kopya(eslesen[0]) : null, error: eslesen[0] ? null : hata('yok', 'PGRST116') } : { data: kopya(eslesen), error: null };
     }
+    if (durum.islem === 'delete') {
+      if (ad === 'calendar_completions' && !izinVar('tasks', 'can_edit')) return { data: null, error: hata('new row violates row-level security policy', '42501') };
+      for (const r of eslesen) satirlar.splice(satirlar.indexOf(r), 1);
+      return { data: kopya(eslesen), error: null };
+    }
     let sonuc = kopya(eslesen);
     if (durum.sira) sonuc.sort((a, b) => (a[durum.sira.k] > b[durum.sira.k] ? 1 : -1) * (durum.sira.artan ? 1 : -1));
     if (durum.aralik) sonuc = sonuc.slice(durum.aralik[0], durum.aralik[1] + 1);
@@ -183,6 +190,7 @@ function kurucu(ad) {
     select() { return q; },
     insert(v) { durum.islem = 'insert'; durum.yukle = v; return q; },
     update(v) { durum.islem = 'update'; durum.yukle = v; return q; },
+    delete() { durum.islem = 'delete'; return q; },
     eq(k, v) { durum.filtre.push([k, v]); return q; },
     gte(k, v) { durum.filtre.push([k, v, 'gte']); return q; },
     lte(k, v) { durum.filtre.push([k, v, 'lte']); return q; },
@@ -257,6 +265,26 @@ const rpcler = {
     const yeni = { id: uid(), organization_id: ORG, company_id: p_firma, employee_count: p_calisan_sayisi, hazard_class: p_tehlike, valid_from: p_baslangic, valid_to: null, note: p_not };
     tablo.company_profiles.push(yeni);
     return { data: kopya(yeni) };
+  },
+  // Aşama 16: takvim_olaylari'nın taklidi (gerçeği 17_asama16.sql, aynı mantık src/lib/takvim.js'te)
+  takvim_olaylari({ p_bas, p_bit }) {
+    if (!izinVar('tasks', 'can_view')) return { error: hata('Takvimi görme yetkiniz yok.', 'P0001') };
+    const gunEkle = (iso, n) => { const x = new Date(`${iso}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+    const ayEkle = (iso, n) => { const x = new Date(`${iso.slice(0, 7)}-01T00:00:00Z`); x.setUTCMonth(x.getUTCMonth() + n); return x.toISOString().slice(0, 10); };
+    const sonGun = (iso) => gunEkle(ayEkle(iso, 1), -1);
+    const firma = (id) => tablo.companies.find((c) => c.id === id)?.name ?? null;
+    const l = [];
+    for (const o of tablo.calendar_items.filter((x) => !x.archived_at)) {
+      const gunler = [];
+      if (o.recurrence !== 'aylik') { if (o.start_date >= p_bas && o.start_date <= p_bit) gunler.push(o.start_date); }
+      else { const dn = Number(o.start_date.slice(8, 10)); for (let ay = `${p_bas.slice(0, 7)}-01`; ay <= p_bit; ay = ayEkle(ay, 1)) { const g = `${ay.slice(0, 8)}${String(Math.min(dn, Number(sonGun(ay).slice(8)))).padStart(2, '0')}`; if (g >= p_bas && g <= p_bit && g >= o.start_date && (!o.end_date || g <= o.end_date)) gunler.push(g); } }
+      for (const g of gunler) l.push({ tarih: g, kaynak: 'takvim', ref: o.id, baslik: o.title, firma: firma(o.company_id), tutar: o.amount ?? null, tamam: tablo.calendar_completions.some((k) => k.item_id === o.id && k.occurrence_date === g), tekrar: o.recurrence === 'aylik', tur: o.kind, oncelik: null });
+    }
+    const gun = (ts) => new Date(ts).toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
+    for (const t of tablo.tasks.filter((x) => !x.archived_at && ['acik', 'devam_ediyor'].includes(x.status))) {
+      for (const [alan, kaynak] of [['due_at', 'gorev_son'], ['remind_at', 'gorev_hatirlatma']]) { if (!t[alan]) continue; const g = gun(t[alan]); if (g >= p_bas && g <= p_bit) l.push({ tarih: g, kaynak, ref: t.id, baslik: t.title, firma: firma(t.company_id), tutar: null, tamam: false, tekrar: false, tur: 'gorev', oncelik: t.priority }); }
+    }
+    return { data: l.sort((a, b) => a.tarih.localeCompare(b.tarih) || a.baslik.localeCompare(b.baslik, 'tr')) };
   },
   // Aşama 14: gerçek katip_gorevlendir'in (15_asama14.sql) basitleştirilmiş taklidi
   katip_gorevlendir({ p_paket: p }) {

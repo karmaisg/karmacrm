@@ -1,0 +1,2 @@
+psql: error: connection to server on socket "/var/tmp/.s.PGSQL.5544" failed: Connection refused
+	Is the server running locally and accepting connections on that socket?

@@ -261,7 +261,7 @@ await test('yetki: finans ve uzman/hekim rolleri', async (s, ctx) => {
   await s.waitForSelector('#f-email');
   await s.fill('#f-email', 'uzman@test.com'); await s.fill('#f-password', 'GucluSifre123'); await s.click('button[type=submit]');
   await s.waitForSelector('#kabuk');
-  esit(await s.locator('.nav-item').count(), 4, 'uzman/hekim: firmalar, görevlendirmeler, zaman, görevler');
+  esit(await s.locator('.nav-item').count(), 5, 'uzman/hekim: firmalar, görevlendirmeler, zaman, takvim, görevler');
   var_(s.locator('.nav-item:has-text("Zaman ve ziyaret takibi")'), 'zaman menüsü');
   esit(await s.locator('.nav-item:has-text("Kapasite analizi")').count(), 0, 'uzman kapasite görmez');
   await var_(s.locator('h3:has-text("Bu sayfayı görme izniniz yok")'), 'panel engeli');
@@ -2199,6 +2199,80 @@ await test('Kârlılık: yönetim gideri personeli ortak gider olarak görünür
   await git(s, '#/firma-karlilik'); await s.waitForSelector('#ortak-kart, .card', { timeout: 8000 }).catch(() => {});
   const metin = await s.locator('body').innerText();
   if (!metin.includes('Yönetim personeli maliyeti')) throw new Error(`yönetim kalemi yok: ${metin.slice(0, 300)}`);
+});
+
+await test('Takvim: aylık tekrarlayan ödeme, tek seferlik hatırlatma, görev tarihi otomatik, yapıldı işareti, ay geçişi, silme', async (s) => {
+  await girisYap(s);
+  const bugunS = await s.evaluate(() => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' }));
+  await git(s, '#/takvim'); await s.waitForSelector('.takvim-izgara');
+  esit(await s.locator('.takvim-bugun').count(), 1, 'bugün vurgulu');
+  // aylık ödeme (bugünün gününde başlar → bu ay + gelecek aylar)
+  await s.locator('.takvim-arac ~ * [data-action="takvim-yeni"], [data-action="takvim-yeni"]').first().click();
+  await modal(s).locator('#f-title').fill('SGK prim ödemesi');
+  await modal(s).locator('#f-kind').selectOption('odeme');
+  await modal(s).locator('#f-start_date').fill(bugunS);
+  await modal(s).locator('#f-recurrence').selectOption('aylik');
+  await modal(s).locator('#f-amount').fill('15000');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.takvim-bugun .takvim-chip');
+  const chip = await s.locator('.takvim-bugun').innerText(); if (!chip.includes('SGK prim')) throw new Error(`bugün hücresi: ${chip}`);
+  // görev son tarihi otomatik
+  await s.evaluate((g) => { const t = globalThis.__fake.tablo; t.tasks.push({ id: crypto.randomUUID(), organization_id: t.organizations?.[0]?.id ?? 'o', title: 'Teklif takibi', status: 'acik', priority: 'orta', kind: 'diger', due_at: `${g}T09:00:00+03:00`, remind_at: null, archived_at: null }); }, bugunS);
+  await git(s, '#/gorevler'); await git(s, '#/takvim'); await s.waitForSelector('.takvim-izgara');
+  await s.click('.takvim-bugun');
+  const panel = await s.locator('#takvim-gun-paneli').innerText();
+  if (!panel.includes('SGK prim ödemesi') || !panel.includes('15.000') || !panel.includes('her ay') || !panel.includes('Teklif takibi') || !panel.includes('Görev son tarihi')) throw new Error(`gün paneli: ${panel.replace(/\s+/g, ' ')} :: ${(await s.locator('#takvim-gun-paneli').innerHTML()).slice(0, 900)}`);
+  await ekran(s, '50-takvim');
+  // yapıldı işareti
+  await s.locator('#takvim-gun-paneli [data-tamam]').first().check(); await s.waitForTimeout(200);
+  esit(await s.evaluate(() => globalThis.__fake.tablo.calendar_completions.length), 1, 'tamamlama kaydı');
+  await s.locator('#takvim-gun-paneli [data-tamam]').first().uncheck(); await s.waitForTimeout(200);
+  esit(await s.evaluate(() => globalThis.__fake.tablo.calendar_completions.length), 0, 'geri alındı');
+  // sonraki ay: aylık ödeme tekrar eder
+  await s.click('[data-ay="1"]'); await s.waitForTimeout(250);
+  const sonraki = await s.locator('.takvim-izgara').innerText(); if (!sonraki.includes('SGK prim')) throw new Error('aylık tekrar sonraki ayda görünmeli');
+  esit(await s.locator('.takvim-bugun').count(), 0, 'sonraki ayda bugün yok');
+  await s.click('[data-ay="bugun"]'); await s.waitForTimeout(250);
+  // tek seferlik hatırlatma + silme
+  await s.click('.takvim-bugun'); await s.locator('#takvim-gun-paneli [data-action="takvim-yeni"]').click();
+  await modal(s).locator('#f-title').fill('Kira hatırlat'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelector('#takvim-gun-paneli')?.textContent.includes('Kira hatırlat'));
+  await s.locator('#takvim-gun-paneli li:has-text("Kira hatırlat") [data-arsiv]').click(); await s.click('[data-ok]');
+  await s.waitForFunction(() => !document.querySelector('#takvim-gun-paneli')?.textContent.includes('Kira hatırlat'));
+  esit(await s.evaluate(() => globalThis.__fake.tablo.calendar_items.filter((x) => !x.archived_at).length), 1, 'yalnızca aylık kayıt kaldı');
+  // doğrulama
+  await s.locator('[data-action="takvim-yeni"]').first().click(); await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('Başlık zorunludur')) throw new Error('başlık doğrulaması');
+});
+await test('Takvim: yetkisiz rol kayıt ekleyemez; mobil 375px yatay taşma yok', async (s) => {
+  await girisYap(s, 'satis@test.com'); await git(s, '#/takvim');
+  await s.waitForSelector('.takvim-izgara, .notice, .empty');
+  await s.setViewportSize({ width: 375, height: 800 }); await s.waitForTimeout(200);
+  const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (t > 1) throw new Error(`yatay taşma ${t}px`);
+});
+await test('Elle işyeri: Katip dışı firmaya işyeri eklenir, takma ad ve ayrı fatura kaydedilir, silinir', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Nihal Yılmaz Sağlık', calisan: 20, tehlike: 'tehlikeli' }); await s.waitForSelector('.modal-overlay', { state: 'detached' }); await s.waitForTimeout(200);
+  const id = await s.evaluate(() => globalThis.__fake.tablo.companies.find((c) => c.name === 'Nihal Yılmaz Sağlık').id);
+  await git(s, `#/firmalar/${id}`); await s.waitForSelector('[data-sekme="isyerleri"]'); await s.click('[data-sekme="isyerleri"]');
+  await s.waitForSelector('[data-action="isyeri-ekle"]');
+  if (!(await s.locator('#sekme-govde').innerText()).includes('İşyeri ekle')) throw new Error('boş durumda ekleme düğmesi yok');
+  await s.click('[data-action="isyeri-ekle"]');
+  await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('İşyeri adı zorunludur')) throw new Error('ad doğrulaması');
+  await modal(s).locator('#f-site_name').fill('Ukem Sağlık Hizmetleri Şubesi'); await modal(s).locator('#f-invoice_alias').fill('UKEM');
+  await modal(s).locator('#f-employee_count').fill('12'); await modal(s).locator('input[name="separate_invoice"]').check();
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#isyeri-tablo');
+  const satir = await s.locator('#isyeri-tablo').innerText(); if (!satir.includes('Ukem') || !satir.includes('Elle girildi') || !satir.includes('12')) throw new Error(`tablo: ${satir}`);
+  esit(await s.locator('[data-isyeri-ad]').first().inputValue(), 'UKEM', 'takma ad'); esit(await s.locator('[data-isyeri-ayri]').first().isChecked(), true, 'ayrı fatura işareti');
+  const kay = await s.evaluate(() => globalThis.__fake.tablo.company_sites.find((x) => x.is_manual));
+  esit(`${kay.is_manual}/${kay.separate_invoice}/${/^EL[0-9A-Z]{6}$/.test(kay.sgk_no)}`, 'true/true/true', 'kayıt');
+  await ekran(s, '51-elle-isyeri');
+  await s.click('[data-isyeri-sil]'); await s.click('[data-ok]');
+  await s.waitForFunction(() => !document.querySelector('#isyeri-tablo'));
+  esit(await s.evaluate(() => globalThis.__fake.tablo.company_sites.filter((x) => !x.archived_at).length), 0, 'silindi (arşiv)');
 });
 
 await test('İSG-Katip: izinsiz rol yükleme yapamaz; mobil 375px yatay taşma yok', async (s) => {

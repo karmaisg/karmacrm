@@ -29,10 +29,10 @@ test('biçim yardımcıları', () => {
 });
 
 test('konu: yalnızca dolu bölümler, test öneki, boş özet', () => {
-  assert.equal(ozetKonu(OZET), 'OSGB 360 özet — 12 gecikmiş fatura, 1 yaklaşan vade, 2 sözleşme, 1 görev');
+  assert.equal(ozetKonu(OZET), 'OSGB 360 özet — 12 gecikmiş fatura, 1 yaklaşan vade, 2 sözleşme, 1 gecikmiş görev');
   assert.equal(ozetKonu(OZET, true).startsWith('[TEST] '), true);
   assert.equal(ozetKonu(BOS), 'OSGB 360 özet: bildirilecek kayıt yok');
-  assert.equal(ozetKonu({ ...BOS, gorev: OZET.gorev }), 'OSGB 360 özet — 1 görev');
+  assert.equal(ozetKonu({ ...BOS, gorev: OZET.gorev }), 'OSGB 360 özet — 1 gecikmiş görev');
   assert.equal(ozetBos(BOS), true); assert.equal(ozetBos(OZET), false); assert.equal(ozetBos({}), true); assert.equal(ozetBos(null), true);
 });
 
@@ -254,4 +254,17 @@ test('yanıt biçimleyicileri: boş alanlar çökmez', () => {
   assert.equal(yanitKonu({ karar: 'kabul' }), 'Teklif KABUL EDİLDİ:');
   assert.ok(yanitMetni({ karar: 'red' }).includes('REDDETTİ'));
   assert.ok(yanitHtml({ karar: 'red', ad: '<x>' }).includes('&lt;x&gt;'));
+});
+
+test('Bugün Yapılacaklar ve Yaklaşan Program: başlıklar, tarih ve kalan gün, en üstte', () => {
+  const o = { ...BOS, tarih: '2026-11-02',
+    bugun: { adet: 2, liste: [{ baslik: 'SGK primi', firma: null, tutar: 15000, tur: 'odeme', kaynak: 'takvim' }, { baslik: 'Teklif takibi', firma: 'Alfa', tutar: null, tur: 'gorev', kaynak: 'gorev_son' }] },
+    program: { adet: 2, liste: [{ tarih: '2026-11-03', kalan_gun: 1, baslik: 'Kira', firma: null, tutar: null, tur: 'hatirlatma', kaynak: 'takvim' }, { tarih: '2026-11-05', kalan_gun: 3, baslik: 'Ara görüşme', firma: 'Beta', tutar: null, tur: 'gorev', kaynak: 'gorev_hatirlatma' }] } };
+  const b = ozetBolumleri(o);
+  assert.equal(b[0].baslik, 'Bugün Yapılacaklar: 2 adet'); assert.equal(b[1].baslik, 'Yaklaşan Program (önümüzdeki 3 gün): 2 adet');
+  assert.ok(b[0].satirlar[0].includes('15.000,00 TL') && b[0].satirlar[0].includes('ödeme')); assert.ok(b[0].satirlar[1].includes('görev son tarihi'));
+  assert.ok(b[1].satirlar[0].startsWith('03.11.2026') && b[1].satirlar[0].includes('1 gün kaldı')); assert.ok(b[1].satirlar[1].includes('05.11.2026') && b[1].satirlar[1].includes('3 gün kaldı') && b[1].satirlar[1].includes('görev hatırlatması'));
+  const t = ozetMetni(o); assert.ok(t.indexOf('Bugün Yapılacaklar') < t.indexOf('Yaklaşan Program')); assert.ok(t.includes('/#/takvim'));
+  assert.ok(ozetHtml(o).includes('Yaklaşan Program')); assert.equal(ozetBos(o), false); assert.equal(ozetBos({ ...BOS, tarih: '2026-11-02' }), true);
+  assert.ok(ozetKonu(o).includes('bugün 2 iş') && ozetKonu(o).includes('yaklaşan 2 iş'));
 });

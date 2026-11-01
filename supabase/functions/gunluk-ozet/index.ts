@@ -30,11 +30,24 @@ const ISARET = { itirazli: 'itirazlı', takip_gerekiyor: 'takip gerekiyor' };
 export const maskele = (e) => { const [a, d] = String(e).split('@'); return `${a.slice(0, 1)}***@${d}`; };
 
 const bol = (o, k) => o?.[k] ?? { adet: 0, liste: [] };
-export const ozetBos = (o) => ['gecikmis_fatura', 'yaklasan_vade', 'sozlesme', 'gorev'].every((k) => !(bol(o, k).adet > 0));
+export const ozetBos = (o) => ['bugun', 'program', 'gecikmis_fatura', 'yaklasan_vade', 'sozlesme', 'gorev'].every((k) => !(bol(o, k).adet > 0));
 
 /** Bölümler: [{baslik, satirlar:[metin], fazla:n}] — hem düz metin hem HTML bunlardan üretilir. */
+const TAKVIM_TURU = { odeme: 'ödeme', hatirlatma: 'hatırlatma', gorev: 'görev' };
+const takvimEtiketi = (x) => (x.kaynak === 'gorev_son' ? 'görev son tarihi' : x.kaynak === 'gorev_hatirlatma' ? 'görev hatırlatması' : (TAKVIM_TURU[x.tur] ?? 'kayıt'));
+const takvimSatiri = (x) => `${x.baslik}${x.firma ? ` · ${x.firma}` : ''}${x.tutar !== null && x.tutar !== undefined ? ` · ${para(x.tutar)}` : ''} · ${takvimEtiketi(x)}`;
+
 export function ozetBolumleri(o) {
   const b = [];
+  const bg = bol(o, 'bugun');
+  if (bg.adet > 0) {
+    b.push({ baslik: `Bugün Yapılacaklar: ${bg.adet} adet`, baglanti: '#/takvim', fazla: bg.adet - bg.liste.length, satirlar: bg.liste.map(takvimSatiri) });
+  }
+  const pr = bol(o, 'program');
+  if (pr.adet > 0) {
+    b.push({ baslik: `Yaklaşan Program (önümüzdeki 3 gün): ${pr.adet} adet`, baglanti: '#/takvim', fazla: pr.adet - pr.liste.length,
+      satirlar: pr.liste.map((x) => `${tarih(x.tarih)} · ${x.baslik}${x.firma ? ` · ${x.firma}` : ''}${x.tutar !== null && x.tutar !== undefined ? ` · ${para(x.tutar)}` : ''} · ${takvimEtiketi(x)} · ${x.kalan_gun} gün kaldı`) });
+  }
   const g = bol(o, 'gecikmis_fatura');
   if (g.adet > 0) {
     b.push({ baslik: `Vadesi geçmiş faturalar: ${g.adet} adet, toplam ${para(g.toplam)}`, baglanti: '#/tahsilat', fazla: g.adet - g.liste.length,
@@ -52,7 +65,7 @@ export function ozetBolumleri(o) {
   }
   const t = bol(o, 'gorev');
   if (t.adet > 0) {
-    b.push({ baslik: `Bugün ve gecikmiş görevler: ${t.adet} adet`, baglanti: '#/gorevler', fazla: t.adet - t.liste.length,
+    b.push({ baslik: `Gecikmiş görevler: ${t.adet} adet`, baglanti: '#/gorevler', fazla: t.adet - t.liste.length,
       satirlar: t.liste.map((x) => `${x.baslik}${x.firma ? ` · ${x.firma}` : ''} · son tarih ${tarih(x.son)}${x.gecikmis ? ' (gecikmiş)' : ' (bugün)'} · öncelik ${ONCELIK[x.oncelik] ?? x.oncelik}`) });
   }
   return b;
@@ -60,10 +73,12 @@ export function ozetBolumleri(o) {
 
 export function ozetKonu(o, test = false) {
   const p = [];
+  const bg = bol(o, 'bugun').adet; if (bg > 0) p.push(`bugün ${bg} iş`);
+  const pr = bol(o, 'program').adet; if (pr > 0) p.push(`yaklaşan ${pr} iş`);
   const g = bol(o, 'gecikmis_fatura').adet; if (g > 0) p.push(`${g} gecikmiş fatura`);
   const y = bol(o, 'yaklasan_vade').adet; if (y > 0) p.push(`${y} yaklaşan vade`);
   const s = bol(o, 'sozlesme').adet; if (s > 0) p.push(`${s} sözleşme`);
-  const t = bol(o, 'gorev').adet; if (t > 0) p.push(`${t} görev`);
+  const t = bol(o, 'gorev').adet; if (t > 0) p.push(`${t} gecikmiş görev`);
   return `${test ? '[TEST] ' : ''}OSGB 360 özet${p.length ? ` — ${p.join(', ')}` : ': bildirilecek kayıt yok'}`;
 }
 

@@ -134,8 +134,8 @@ select tst.ok('Yaklaşanlar vade sırasıyla, gün sayısı doğru', (select j#>
 select tst.ok('Sözleşmeler: 90 gün içindeki aktifler (süresi geçen + 30 gün + tam 90 gün) = 3', (select (j#>>'{sozlesme,adet}')::int = 3 from oz));
 select tst.ok('Sözleşme sırası: süresi geçen önce, kalan gün negatif', (select j#>>'{sozlesme,liste,0,firma}' = 'Gama Tekstil' and (j#>>'{sozlesme,liste,0,kalan_gun}')::int = -1 and (j#>>'{sozlesme,liste,2,kalan_gun}')::int = 90 from oz));
 select tst.ok('Sona ermiş ve 200 gün sonra biten sözleşme yok', (select not (j#>>'{sozlesme}' like '%Delta Metal%') and not (j#>>'{sozlesme}' like '%Beta İnşaat%') from oz));
-select tst.ok('Görevler: dünkü + bugünkü = 2 (yarın, biten, arşivli, tarihsiz hariç)', (select (j#>>'{gorev,adet}')::int = 2 from oz));
-select tst.ok('Görev: dünkü gecikmiş, bugünkü değil; öncelik ve firma', (select (j#>>'{gorev,liste,0,gecikmis}')::boolean and not (j#>>'{gorev,liste,1,gecikmis}')::boolean and j#>>'{gorev,liste,0,baslik}' = 'Dünkü görev' and j#>>'{gorev,liste,0,oncelik}' = 'yuksek' and j#>>'{gorev,liste,0,firma}' = 'Alfa Gıda' from oz));
+select tst.ok('Görevler (Aşama 16): yalnızca gecikmiş = 1; bugünkü Bugün Yapılacaklar''da (yarın, biten, arşivli, tarihsiz hariç)', (select (j#>>'{gorev,adet}')::int = 1 and (j#>>'{bugun,adet}')::int = 1 from oz));
+select tst.ok('Görev: dünkü gecikmiş, bugünkü değil; öncelik ve firma', (select (j#>>'{gorev,liste,0,gecikmis}')::boolean and j#>>'{gorev,liste,0,baslik}' = 'Dünkü görev' and j#>>'{gorev,liste,0,oncelik}' = 'yuksek' and j#>>'{gorev,liste,0,firma}' = 'Alfa Gıda' from oz));
 select tst.ok('Başka kurumun verisi sızmaz', (select not (j::text like '%Y-1%') and not (j::text like '%Yabancı%') from oz));
 select tst.ok('Boş kurum testi için ikinci kurum: 1 vadesi geçmiş (Y-1)', (select (public.gunluk_ozet('bbbbbbbb-0000-0000-0000-000000000002')#>>'{gecikmis_fatura,toplam}')::numeric = 9999));
 select tst.ok('Olmayan kurum: sıfırlar', (select (j#>>'{gecikmis_fatura,adet}')::int = 0 and (j#>>'{sozlesme,adet}')::int = 0 and j#>>'{gorev,liste}' = '[]' from (select public.gunluk_ozet('cccccccc-0000-0000-0000-000000000003') as j) q));
