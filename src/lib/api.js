@@ -365,6 +365,12 @@ export function createApi(db) {
     addPayment: (degerler) => bir(T('payments').insert(degerler).select().single()),
     archivePayment: (id) => bir(T('payments').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
     createOverdueTasks: () => bir(db.rpc('tahsilat_gecikme_gorevleri')),
+    listInvoiceAliases: () => hepsiniOku(() => T('invoice_aliases').select('*').order('id')),
+    applyIncome: (paket) => bir(db.rpc('gelir_aktar', { p_paket: paket })),
+    addIncomeItem: (k) => bir(db.rpc('gelir_kalemi_ekle', {
+      p_firma: k.firma, p_tur: k.tur, p_tarih: k.tarih, p_aciklama: k.aciklama, p_tutar: k.tutar,
+      p_kdv_modu: k.kdvModu ?? 'kdv_haric', p_kdv_orani: k.kdvOrani ?? 20, p_tahsil: !!k.tahsil, p_no: k.no ?? null,
+    })),
 
     // ----- giderler
     listExpenseCategories: () => bir(T('expense_categories').select('*').order('sort_order').order('name')),

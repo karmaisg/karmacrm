@@ -361,3 +361,19 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
 6. **Yetki:** Takvim, "Hatırlatmalar ve görevler" yetkisini kullanır (görmek / eklemek / düzenlemek).
 7. **Sınırlar:** Tekrar yalnızca "her ay"dır (haftalık/yıllık yok). Saat bilgisi tutulmaz, yalnızca gün. Takvimden görev oluşturulmaz; görevler kendi sayfasında girilir.
 
+## Aşama 17 kurulumu (aylık gelir Excel'i, spot / elden gelir)
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/18_asama17.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. (Önceki dosyalar, özellikle 07 ve 14, çalışmış olmalı.) Edge Function'a dokunulmaz.
+2. **Şablon:** menüde **Yönetim > Veri içe/dışa aktarma** sayfasının altındaki **Aylık gelir (fatura) Excel'i** kartı. **Boş şablonu indir (.xlsx)** başlık satırını ve kısa bir yönergeyi verir. Sizin dosyanızdaki sütunlar aynıdır: Fatura No, Fatura Tarihi, Açıklama, Ücret (KDV hariç), %20 KDV, %10 KDV, Toplam. KDV sütunlarına **oran değil KDV tutarı** yazılır.
+3. **Yükleme:** dosyayı seçin. Hiçbir şey siz onaylamadan yazılmaz. Ekranda şunlar çıkar:
+   - Toplam matrah, KDV (%20 ve %10 ayrı) ve **ortalama KDV** (KDV ÷ matrah). Her faturanın kendi ortalaması da satırında görünür. İki oranlı faturada iki kalem oluşur (%20 matrahı = %20 KDV ÷ 0,20; %10 matrahı = %10 KDV ÷ 0,10).
+   - **Firma eşleştirme:** Açıklamadaki ad (parantezdeki ay çıkarılır) önce daha önce onayladığınız eşleşmelerle, sonra firma/işyeri takma adlarıyla (ör. UKEM), sonra firma adıyla karşılaştırılır. "Güçlü benzerlik" olanlar kendiliğinden seçilir ama listede görünür; "olası" ve "bulunamadı" olanlar için **firma seçmeniz**, **yeni firma oluşturmanız** ("+ Yeni firma oluştur") ya da satırı **aktarmamanız** gerekir; bu seçimler yapılmadan **aktarılamaz**. Elle seçtiğiniz eşleşme hatırlanır; sonraki ay aynı ad sorulmaz.
+   - **Hizmet dönemi** parantezdeki aydan alınır ("(Eylül)"); ay yoksa fatura ayı, "(Temmuz-Aralık)" gibi aralıksa boş bırakılır (satırda uyarı yazar).
+   - **Vade:** Excel'de olmadığı için fatura tarihine eklenen gün sayısı (varsayılan 30) girilir.
+   - **Uyarılar:** KDV sütunu ile tutar uyuşmazsa (ör. %10 sütununa %20'lik tutar yazılmışsa) tutara göre düzeltilir ve satırda yazılır; Ücret + KDV ile Toplam farklıysa, tarih okunamıyorsa veya tutar yoksa uyarılır / satır aktarılmaz; aynı numara sistemde varsa "zaten kayıtlı — atlanır".
+   - **Faturası unutulmuş olabilecek firmalar:** dosyanın ana hizmet döneminde (satırların en az %20'sini oluşturan ay) aktif sözleşmesi olan, ama ne sistemde ne bu dosyada faturası bulunan firmalar listelenir. Aynı uyarı aktarımdan sonra da gösterilir.
+4. **Spot iş ve elden ödeme:** **Gelirler ve tahsilatlar > Gelir ekle**. Gelir türü *Spot iş* ise ne olduğunu yazar, KDV oranını ve tutarın KDV hariç/dahil olduğunu seçersiniz. *Elden ödeme* seçilirse KDV hesaplanmaz (KDV yok) ve "tahsil edildi" kutusu işaretli gelir; kayıt, ödeme yöntemi "Elden" olan bir tahsilatla kapanır. Fatura numarası boşsa otomatik verilir.
+5. **Fatura detayı:** gelir türünü, ortalama KDV'yi ve iki oranlı faturalarda oran kırılımını gösterir.
+6. **Yetki:** Excel yüklemek için Gelirler ve tahsilatlar'da *ekleme* ve Veri içe/dışa aktarma'da *ekleme* yetkisi gerekir; yeni firma oluşturmak için ayrıca Firmalar'da *ekleme* yetkisi.
+7. **Sınırlar:** Yalnızca %20 / %10 / KDV'siz sütunları tanınır (başka oran ayrı sütunla desteklenmez, tuhaf oran uyarı ile işlenir). Tek seferde en çok 1.000 satır. Elden/spot gelirler Excel'le değil elle girilir. Tahsilat, bu aktarımda kendiliğinden oluşmaz (Excel'de ödeme bilgisi yok). "Unutulan fatura" kontrolü yalnızca aktif sözleşmesi olan firmaları kapsar. Gerçek bir Supabase üzerinde RLS davranışı bu ortamda denenemedi (yerel PostgreSQL'de denendi).
+

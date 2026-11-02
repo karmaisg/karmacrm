@@ -87,6 +87,53 @@ export async function faturaFormuAc(app, { kayit = null, companyId = null, onDon
   guncelle();
 }
 
+// ---------------------------------------------------------------- spot iş / elden ödeme (Aşama 17)
+export const GELIR_TURLERI = { spot: 'Spot iş (faturalı, KDV oranı girilir)', elden: 'Elden ödeme (KDV yok)' };
+export async function gelirKalemiFormuAc(app, { onDone = null } = {}) {
+  let firmalar = [];
+  try { firmalar = await app.api.listCompanies(); } catch (e) { toast(humanError(e), 'hata'); return; }
+  const firmaListesi = firmalar.filter((f) => !f.archived_at).sort((a, b) => trSirala(a.name, b.name));
+  const m = openFormModal({
+    baslik: 'Gelir ekle', altBaslik: 'Aylık Excel dışındaki gelirler: spot işler ve elden alınan ödemeler.', boyut: 'lg', gonderEtiketi: 'Geliri kaydet',
+    govde: html`${field({ ad: 'company_id', etiket: 'Firma', zorunlu: true, secenekler: [{ deger: '', etiket: 'Seçiniz' }].concat(firmaListesi.map((f) => ({ deger: f.id, etiket: f.name }))) })}
+      ${field({ ad: 'tur', etiket: 'Gelir türü', deger: 'spot', secenekler: Object.entries(GELIR_TURLERI).map(([deger, etiket]) => ({ deger, etiket })) })}
+      ${field({ ad: 'aciklama', etiket: 'Gelir kalemi nedir?', zorunlu: true, tam: true, maksUzunluk: 200, yerTutucu: 'Örn. Ek eğitim, acil durum planı, sağlık taraması' })}
+      ${field({ ad: 'tarih', etiket: 'Tarih', tur: 'date', zorunlu: true, deger: bugun() })}
+      ${field({ ad: 'tutar', etiket: 'Tutar (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', zorunlu: true })}
+      ${field({ ad: 'vat_mode', etiket: 'Tutar KDV', deger: 'kdv_haric', secenekler: Object.entries(KDV_MODU).map(([deger, etiket]) => ({ deger, etiket })) })}
+      ${field({ ad: 'vat_rate', etiket: 'KDV oranı (%)', tur: 'number', min: 0, max: 100, adim: '0.01', deger: 20 })}
+      ${field({ ad: 'invoice_no', etiket: 'Fatura numarası', maksUzunluk: 40, ipucu: 'Boş bırakırsanız otomatik verilir.' })}
+      ${checkbox({ ad: 'tahsil', etiket: 'Tahsil edildi (tahsilat kaydı oluştur)', ipucu: 'Elden ödemelerde işaretleyin; spot işte ödeme sonra girilecekse boş bırakın.' })}
+      <div class="field field-full" id="gelir-bilgi" aria-live="polite"></div>`,
+    async onSubmit(fd, form) {
+      const g = (k) => String(fd.get(k) ?? '').trim(); const elden = g('tur') === 'elden'; const h = {};
+      if (!g('company_id')) h.company_id = 'Firmayı seçin.';
+      if (!g('aciklama')) h.aciklama = 'Gelir kaleminin ne olduğunu yazın.';
+      if (!g('tarih')) h.tarih = 'Tarihi seçin.';
+      else if (g('tahsil') && g('tarih') > bugun()) h.tarih = 'Tahsil edilen gelirin tarihi gelecekte olamaz.';
+      if (!(Number(g('tutar')) > 0)) h.tutar = 'Tutar sıfırdan büyük olmalıdır.';
+      const kdv = Number(form.elements.vat_rate.value);
+      if (!elden && (form.elements.vat_rate.value === '' || !(kdv >= 0 && kdv <= 100))) h.vat_rate = 'KDV oranı 0 ile 100 arasında olmalıdır.';
+      if (Object.keys(h).length) return { errors: h };
+      await app.api.addIncomeItem({ firma: g('company_id'), tur: g('tur'), tarih: g('tarih'), aciklama: g('aciklama'), tutar: Number(g('tutar')), kdvModu: elden ? 'kdv_haric' : (g('vat_mode') || 'kdv_haric'), kdvOrani: elden ? 0 : kdv, tahsil: !!g('tahsil'), no: bosIseNull(g('invoice_no')) });
+      toast(elden ? 'Elden gelir kaydedildi (KDV yok).' : 'Spot gelir kaydedildi.');
+    },
+    onDone: () => (onDone ? onDone() : app.yenile()),
+  });
+  const form = m.el.querySelector('form'); const bilgi = form.querySelector('#gelir-bilgi');
+  const guncelle = () => {
+    const elden = form.elements.tur.value === 'elden';
+    for (const ad of ['vat_mode', 'vat_rate']) form.elements[ad].disabled = elden;
+    const t = Number(form.elements.tutar.value); const o = elden ? 0 : Number(form.elements.vat_rate.value);
+    if (!(t > 0) || !(o >= 0 && o <= 100)) { bilgi.innerHTML = elden ? html`<div class="notice notice-info" role="status">Elden ödemede KDV hesaplanmaz.</div>`.s : ''; return; }
+    const k = kdvAyir(t, elden ? 'kdv_haric' : form.elements.vat_mode.value, o);
+    bilgi.innerHTML = html`<div class="notice notice-info" role="status">${elden ? 'KDV yok. ' : ''}KDV hariç ${para2(k.haric)} + KDV ${para2(k.kdv)} = <strong>KDV dahil ${para2(k.dahil)}</strong></div>`.s;
+  };
+  form.addEventListener('input', guncelle);
+  form.addEventListener('change', (e) => { if (e.target.name === 'tur') form.elements.tahsil.checked = e.target.value === 'elden'; guncelle(); });
+  guncelle();
+}
+
 // ---------------------------------------------------------------- tahsilat formu
 export function tahsilatFormuAc(app, { fatura, durum, firmaAdi = '', onDone = null }) {
   const bugunStr = bugun();
@@ -143,7 +190,9 @@ export async function faturaDetayAc(app, fatura, { firmaAdi = '', onDone = null 
       <dl class="kv-list">
         <div class="kv"><dt>Fatura tarihi</dt><dd>${tarih(fatura.invoice_date)}</dd></div>
         <div class="kv"><dt>Hizmet dönemi</dt><dd>${fatura.service_period ? ayAdi(fatura.service_period) : html`<span class="muted">—</span>`}</dd></div>
-        <div class="kv"><dt>Kalem</dt><dd>${kalemler.length ? kalemler.map((k) => k.description).join(', ') : html`<span class="muted">—</span>`}</dd></div>
+        <div class="kv"><dt>Gelir türü</dt><dd id="fatura-tur">${fatura.income_kind === 'elden' ? 'Elden ödeme (KDV yok)' : fatura.income_kind === 'spot' ? 'Spot iş' : 'Fatura'}</dd></div>
+        <div class="kv"><dt>Ortalama KDV</dt><dd id="fatura-ort-kdv">${Number(fatura.amount_excl_vat) > 0 ? `%${(Math.round((Number(fatura.vat_amount) / Number(fatura.amount_excl_vat)) * 10000) / 100).toString().replace('.', ',')}` : '—'}${kalemler.length > 1 ? html`<small class="block muted">${kalemler.map((k) => `%${String(k.vat_rate).replace('.', ',')}: ${para2(k.unit_price_excl)}`).join(' · ')} (KDV hariç)</small>` : ''}</dd></div>
+        <div class="kv"><dt>Kalem</dt><dd>${kalemler.length ? [...new Set(kalemler.map((k) => k.description))].join(', ') : html`<span class="muted">—</span>`}</dd></div>
         ${fatura.notes ? html`<div class="kv"><dt>Not</dt><dd class="prewrap">${fatura.notes}</dd></div>` : ''}
       </dl>
       <h3 class="card-title">Tahsilatlar</h3>
@@ -290,6 +339,7 @@ export async function tahsilatSayfasi(app) {
   return {
     baslik: 'Gelirler ve tahsilatlar', altBaslik: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi (tutarlar KDV dahil)',
     eylemler: olusturabilir ? html`<button type="button" class="btn btn-secondary" data-action="toplu-fatura">${icon('calendar', 18)} Aylık faturaları oluştur</button>
+      <button type="button" class="btn btn-secondary" data-action="yeni-gelir">${icon('plus', 18)} Gelir ekle</button>
       <button type="button" class="btn btn-primary" data-action="yeni-fatura">${icon('plus', 18)} Fatura ekle</button>` : '',
     govde: html`${kpiler()}<div class="grid-2 pad-t">${yasKarti()}${borcluKarti()}</div>
       <section class="card card-flush"><div class="toolbar">
@@ -305,6 +355,7 @@ export async function tahsilatSayfasi(app) {
       kok.addEventListener('click', (e) => {
         const a = e.target.closest('[data-action]');
         if (a?.dataset.action === 'yeni-fatura') { faturaFormuAc(app); return; }
+        if (a?.dataset.action === 'yeni-gelir') { gelirKalemiFormuAc(app); return; }
         if (a?.dataset.action === 'toplu-fatura') { topluFaturaFormuAc(app); return; }
         const sf = e.target.closest('[data-sayfa]'); if (sf && !sf.disabled) { durum.sayfa = Number(sf.dataset.sayfa); ciz(); return; }
         const tb = e.target.closest('[data-fatura-tahsilat]');

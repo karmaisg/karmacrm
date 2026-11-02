@@ -47,6 +47,7 @@ karmacrm/
 │  ├─ 11_asama11.sql         Aşama 11: denetim kaydı okuma izni, tam yetki, yedek kaydı (bir kez)
 │  ├─ 12_asama12.sql         Aşama 12: müşteri teklif bağlantısı (offer_shares, girişsiz müşteri fonksiyonları) (bir kez)
 │  ├─ 14_asama13_katip.sql   Aşama 13: İSG-Katip aktarımı (company_sites, katip_imports/rows/people, katip_uygula) (bir kez)
+│  ├─ 18_asama17.sql         Aşama 17: gelir Excel aktarımı, spot/elden gelir, fatura takma adları (bir kez)
 │  ├─ 17_asama16.sql         Aşama 16: elle işyeri, Takvim, günlük özette Bugün/Yaklaşan (bir kez)
 │  ├─ 16_asama15.sql         Aşama 15: personel rolleri, yönetim gideri, işyeri takma adı (bir kez)
 │  ├─ 15_asama14.sql         Aşama 14: Katip görevlendirme aktarımı (employees.certificate_no, katip_gorevlendir) (bir kez)
@@ -56,7 +57,7 @@ karmacrm/
 │  ├─ main.js                Açılış, oturum, yönlendirme
 │  ├─ config.js              Supabase adresi ve anon anahtarı (gizli değildir)
 │  ├─ modules.js             Menü ve modül tanımları
-│  ├─ lib/                   api.js (Supabase), hesaplama.js, ticari.js, operasyon.js, finans.js, karlilik.js, csv.js, aktarim.js, ayarlar.js, denetim.js, yedek.js, musteri.js, format.js, veri.js, router.js
+│  ├─ lib/                   api.js (Supabase), hesaplama.js, ticari.js, operasyon.js, finans.js, karlilik.js, csv.js, aktarim.js, gelir.js, xlsx.js, xlsxyaz.js, ayarlar.js, denetim.js, yedek.js, musteri.js, format.js, veri.js, router.js
 │  ├─ pages/                 auth, panel, firmalar, firma, kisiler, kullanicilar, crm, firsatlar, gorevler, gorusmeler, teklifler, sozlesmeler, personel, gorevlendirmeler, zaman, kapasite, faturalar, giderler, karlilik, raporlar, aktarim, ayarlar, denetim, yedek, musteri-teklif, placeholder
 │  ├─ ui/                    components.js, shell.js (kenar menü/üst çubuk/arama), icons.js, indir.js (CSV indirme)
 │  └─ styles/                tokens.css, app.css
@@ -97,6 +98,7 @@ psql -d osgb -f supabase/14_asama13_katip.sql
 psql -d osgb -f supabase/15_asama14.sql
 psql -d osgb -f supabase/16_asama15.sql
 psql -d osgb -f supabase/17_asama16.sql
+psql -d osgb -f supabase/18_asama17.sql
 psql -d osgb -f tests/db_tests_asama7.sql
 psql -d osgb -f tests/db_tests_asama9.sql
 psql -d osgb -f tests/db_tests_asama10.sql
