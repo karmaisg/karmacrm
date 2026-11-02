@@ -2,7 +2,7 @@
 import { html, bugun, tarih, para, sayi, icerir, trSirala, ayBasi, ayAdi } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { avatar, pill, emptyState, field, checkbox, openFormModal, confirmDialog, toast } from '../ui/components.js';
-import { PERSONEL_TURU, ROL_TURU, personelEtiketi, aktifMi, ayBitisi, personelAyYuku, zamanOzeti, sureMetni, dolulukSeviyesi } from '../lib/operasyon.js';
+import { PERSONEL_TURU, ROL_TURU, personelEtiketi, aktifMi, ayBitisi, aktifFirmaAtamalari, personelAyYuku, zamanOzeti, sureMetni, dolulukSeviyesi } from '../lib/operasyon.js';
 import { bosIseNull, kapasiteDakika, profilleriGrupla, epostaGecerli, telefonGecerli } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
 import { gorevlendirmeFormuAc, gorevlendirmeDurumu } from './gorevlendirmeler.js';
@@ -88,7 +88,7 @@ export async function personelListeSayfasi(app, tur) {
   const satir = (p) => {
     if (rolluListe) return rolSatiri(p);
     const benim = atamalar.filter((a) => a.employee_id === p.id && aktifMi(a, bugunStr));
-    const yuk = gorevlendirmeGorur ? personelAyYuku({ atamalar, employeeId: p.id, profilHaritasi: harita, kurallar, ay }) : null;
+    const yuk = gorevlendirmeGorur ? personelAyYuku({ atamalar: aktifFirmaAtamalari(atamalar, firmalar), employeeId: p.id, profilHaritasi: harita, kurallar, ay }) : null;
     const oran = yuk && !yuk.eksikVar ? yuk.dakika / p.monthly_capacity_min : null;
     return html`<tr class="${p.archived_at ? 'row-muted' : ''}">
       <td><a class="cell-main" href="#/personel/${p.id}">${avatar(p.full_name)}<span><strong>${p.full_name}</strong><small>${p.title || PERSONEL_TURU[p.staff_type]}</small></span></a></td>
@@ -153,7 +153,7 @@ export async function personelSayfasi(app, id) {
   const kullanicilar = app.can('users', 'view') ? await app.api.listUsers().catch(() => []) : [];
   const bagli = kullanicilar.find((u) => u.employee_id === id) ?? null;
   const benim = atamalar.filter((a) => a.employee_id === id);
-  const yuk = gorevGorur ? personelAyYuku({ atamalar, employeeId: id, profilHaritasi: profilleriGrupla(profiller), kurallar, ay }) : null;
+  const yuk = gorevGorur ? personelAyYuku({ atamalar: aktifFirmaAtamalari(atamalar, firmalar), employeeId: id, profilHaritasi: profilleriGrupla(profiller), kurallar, ay }) : null;
   const oran = yuk && !yuk.eksikVar ? yuk.dakika / p.monthly_capacity_min : null;
   const zamanOz = zamanOzeti(zaman.filter((k) => k.employee_id === id));
   const duzenleyebilir = app.can('staff', 'edit') && !p.archived_at;

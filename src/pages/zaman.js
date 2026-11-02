@@ -2,7 +2,7 @@
 import { html, bugun, tarih, ayBasi, ayAdi, sayi, trSirala, gunEkle } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { emptyState, field, openFormModal, confirmDialog, toast, sayfalama } from '../ui/components.js';
-import { FAALIYET, PERSONEL_TURU_KISA, ayBitisi, aktifMi, zamanOzeti, sureMetni, zamanCakisiyor } from '../lib/operasyon.js';
+import { FAALIYET, PERSONEL_TURU_KISA, ayBitisi, aktifMi, firmaPasifMi, zamanOzeti, sureMetni, zamanCakisiyor } from '../lib/operasyon.js';
 import { bosIseNull } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
 
@@ -25,7 +25,7 @@ export async function zamanFormuAc(app, { kayit = null, bas = null, bit = null, 
   personel = personel.filter((p) => !p.archived_at && (p.is_active || p.id === kayit?.employee_id));
   if (!personel.length) { toast('Zaman girilecek aktif personel bulunamadı. Hesabınız bir personel kaydına bağlı olmayabilir.', 'hata'); return; }
   const tekKisi = personel.length === 1;
-  const firmaSec = [{ deger: '', etiket: 'Firma yok (yol / idari)' }].concat(firmalar.filter((f) => !f.archived_at || f.id === kayit?.company_id).sort((a, b) => trSirala(a.name, b.name)).map((f) => ({ deger: f.id, etiket: f.name })));
+  const firmaSec = [{ deger: '', etiket: 'Firma yok (yol / idari)' }].concat(firmalar.filter((f) => !firmaPasifMi(f) || f.id === kayit?.company_id).sort((a, b) => trSirala(a.name, b.name)).map((f) => ({ deger: f.id, etiket: f.name })));
   const v = (k, y = '') => kayit?.[k] ?? y;
   const gunDeger = kayit ? yerelGun(kayit.start_at) : bugun();
   const m = openFormModal({

@@ -2,7 +2,7 @@
 import { html, bugun, tarih, sayi, icerir, trSirala } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { avatar, pill, emptyState, field, openFormModal, confirmDialog, toast, sayfalama } from '../ui/components.js';
-import { PERSONEL_TURU, PERSONEL_TURU_KISA, aktifMi, kapsamPayi } from '../lib/operasyon.js';
+import { PERSONEL_TURU, PERSONEL_TURU_KISA, aktifMi, kapsamPayi, firmaPasifMi } from '../lib/operasyon.js';
 import { bosIseNull } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
 
@@ -24,7 +24,7 @@ export async function gorevlendirmeFormuAc(app, { companyId = null, employeeId =
   personel = personel.filter((p) => p.is_active && !p.archived_at);
   const onKisi = personel.find((p) => p.id === employeeId);
   const ilkTur = onKisi?.staff_type ?? 'is_guvenligi_uzmani';
-  const firmaSec = [{ deger: '', etiket: 'Seçiniz' }].concat(firmalar.filter((f) => !f.archived_at).sort((a, b) => trSirala(a.name, b.name)).map((f) => ({ deger: f.id, etiket: f.name })));
+  const firmaSec = [{ deger: '', etiket: 'Seçiniz' }].concat(firmalar.filter((f) => !firmaPasifMi(f)).sort((a, b) => trSirala(a.name, b.name)).map((f) => ({ deger: f.id, etiket: f.name })));
   const kisiSecenekleri = (tur) => [{ deger: '', etiket: 'Seçiniz' }].concat(personel.filter((p) => p.staff_type === tur).sort((a, b) => trSirala(a.full_name, b.full_name)).map((p) => ({ deger: p.id, etiket: p.full_name })));
   const m = openFormModal({
     baslik: 'Yeni görevlendirme', altBaslik: 'Firmanın toplam hizmet ihtiyacından bu kişiye düşen pay', boyut: 'lg', gonderEtiketi: 'Görevlendir',

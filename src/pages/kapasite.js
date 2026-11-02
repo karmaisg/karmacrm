@@ -2,7 +2,7 @@
 import { html, bugun, ayBasi, ayAdi, sayi, trSirala } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { avatar, emptyState, toast } from '../ui/components.js';
-import { PERSONEL_TURU, PERSONEL_TURU_KISA, ayBitisi, kapsamPayi, personelAyYuku, zamanOzeti, dolulukSeviyesi, sureMetni } from '../lib/operasyon.js';
+import { PERSONEL_TURU, PERSONEL_TURU_KISA, ayBitisi, kapsamPayi, aktifFirmaAtamalari, personelAyYuku, zamanOzeti, dolulukSeviyesi, sureMetni } from '../lib/operasyon.js';
 import { firmaAylikIhtiyac } from '../lib/hesaplama.js';
 import { profilleriGrupla } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
@@ -42,10 +42,11 @@ export async function kapasiteSayfasi(app) {
     return l;
   };
 
+  const aktifAtamalar = aktifFirmaAtamalari(atamalar, firmalar);
   function hesapla() {
     const aktifler = personel.filter((p) => !p.archived_at && p.is_active && p.staff_type);
     const satirlar = aktifler.map((p) => {
-      const yuk = personelAyYuku({ atamalar, employeeId: p.id, profilHaritasi: harita, kurallar, ay: durum.ay });
+      const yuk = personelAyYuku({ atamalar: aktifAtamalar, employeeId: p.id, profilHaritasi: harita, kurallar, ay: durum.ay });
       const z = zamanOzeti(zaman.filter((k) => k.employee_id === p.id));
       const teorikOran = yuk.eksikVar ? null : yuk.dakika / p.monthly_capacity_min;
       return { p, yuk, z, teorikOran, fiiliOran: z.toplam / p.monthly_capacity_min };

@@ -377,3 +377,13 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
 6. **Yetki:** Excel yüklemek için Gelirler ve tahsilatlar'da *ekleme* ve Veri içe/dışa aktarma'da *ekleme* yetkisi gerekir; yeni firma oluşturmak için ayrıca Firmalar'da *ekleme* yetkisi.
 7. **Sınırlar:** Yalnızca %20 / %10 / KDV'siz sütunları tanınır (başka oran ayrı sütunla desteklenmez, tuhaf oran uyarı ile işlenir). Tek seferde en çok 1.000 satır. Elden/spot gelirler Excel'le değil elle girilir. Tahsilat, bu aktarımda kendiliğinden oluşmaz (Excel'de ödeme bilgisi yok). "Unutulan fatura" kontrolü yalnızca aktif sözleşmesi olan firmaları kapsar. Gerçek bir Supabase üzerinde RLS davranışı bu ortamda denenemedi (yerel PostgreSQL'de denendi).
 
+## Aşama 18 kurulumu (firmayı kalıcı silme, pasif firma kuralı)
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/19_asama18.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. Edge Function'a dokunulmaz.
+2. **Pasife al / Aktif et:** firma kartında **Pasife al** (firmayı "eski müşteri" yapar). Pasif firmada tüm kayıtlar durur; ama
+   - aylık toplu faturada (Gelirler ve tahsilatlar > Aylık faturaları oluştur) yer almaz, yani sonraki aya otomatik gelir eklenmez;
+   - görevlendirmeleri uzman/hekim teorik yükünde ve Kapasite analizinde sayılmaz (uzmanın saati harcanmış görünmez);
+   - yeni görevlendirme ve yeni zaman kaydı için firma listesinde çıkmaz.
+   **Aktif et** ile her şey eski haline döner. Arşivlenen firma da pasif sayılır.
+3. **Firmayı sil (kalıcı):** firma kartında kırmızı **Firmayı sil** düğmesi, yalnızca **işletme sahibi** ve **sistem yöneticisi** görür. Firma adını aynen yazmadan çalışmaz. Firmanın TÜM kayıtları (kişiler, fırsatlar, görüşmeler, teklifler, sözleşmeler, faturalar ve tahsilatlar, görevlendirmeler, zaman kayıtları, giderler, işyerleri, takvim kayıtları, görevler) geri alınamaz biçimde silinir. Hangi kaydın silindiği Denetim kaydında görünür. **Silmeden önce Yedekleme sayfasından yedek alın.** Kayıtları saklamak istiyorsanız silmeyin, Pasife al'ı kullanın.
+4. **Sınırlar:** Kârlılık hesabı geçmiş ayları bozmamak için değiştirilmedi: pasife alınan firmanın eski aylardaki gelir/maliyeti aynen kalır. Pasife alma tarihi tutulmaz; firma "eski müşteri" olduğu andan itibaren yukarıdaki kurallar uygulanır. Silme sonrası yüklenmiş dosya (ek) varsa depolamadaki dosya silinmez (şu an ek yükleme ekranı yoktur).

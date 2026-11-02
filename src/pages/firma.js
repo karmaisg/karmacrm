@@ -70,6 +70,7 @@ export async function firmaSayfasi(app, id) {
   const durum = { sekme: hatirla.id === id ? hatirla.sekme : 'genel', ay: ayBasi(bugun()) };
   const duzenleyebilir = app.can('companies', 'edit');
   const arsivleyebilir = app.can('companies', 'archive');
+  const silebilir = ['isletme_sahibi', 'sistem_yoneticisi'].includes(app.ctx?.role?.key);
   const profilEkleyebilir = app.can('companies', 'edit');
   const kisiEkleyebilir = app.can('contacts', 'create');
   const guncel = guncelProfil(profiller, bugun());
@@ -328,6 +329,39 @@ export async function firmaSayfasi(app, id) {
     catch (e) { toast(humanError(e), 'hata'); }
   }
 
+  async function pasifIslemi() {
+    const pasifMi = firma.customer_status === 'eski_musteri';
+    const onay = await confirmDialog({
+      baslik: pasifMi ? 'Firmayı aktif et' : 'Firmayı pasife al', onayEtiketi: pasifMi ? 'Aktif et' : 'Pasife al', tehlikeli: !pasifMi,
+      mesaj: pasifMi
+        ? `"${firma.name}" yeniden müşteri olacak: aylık toplu faturaya girer, görevlendirmeleri uzman/hekim yüküne tekrar sayılır.`
+        : `"${firma.name}" pasife alınacak (eski müşteri). Tüm kayıtları (fatura, sözleşme, zaman kaydı vb.) kalır; ama sonraki aylarda otomatik fatura üretilmez, görevlendirmeleri uzman/hekim yük ve kapasite hesabına katılmaz, yeni zaman kaydı veya görevlendirme girilemez. İstediğiniz zaman aktif edebilirsiniz.`,
+    });
+    if (!onay) return;
+    try { await app.api.updateCompany(firma.id, { customer_status: pasifMi ? 'musteri' : 'eski_musteri' }); toast(pasifMi ? 'Firma aktif edildi.' : 'Firma pasife alındı.'); app.aramaOnbellegiTemizle(); app.yenile(); }
+    catch (e) { toast(humanError(e), 'hata'); }
+  }
+
+  function silIslemi() {
+    const m = openFormModal({
+      baslik: 'Firmayı kalıcı sil', altBaslik: firma.name, boyut: 'md', gonderEtiketi: 'Kalıcı olarak sil',
+      govde: html`<div class="field field-full"><div class="notice notice-warn" role="alert" id="firma-sil-uyari"><strong>Bu işlem geri alınamaz.</strong>
+        Firmanın TÜM kayıtları kalıcı silinir: kişiler, fırsatlar, görüşmeler, teklifler, sözleşmeler, faturalar ve tahsilatlar, görevlendirmeler, zaman kayıtları, giderler, işyerleri, takvim kayıtları ve görevler.
+        Kayıtları saklayıp yalnızca firmayı devre dışı bırakmak için "Pasife al" kullanın. Silmeden önce Yedekleme sayfasından yedek almanızı öneririz.</div></div>
+        ${field({ ad: 'onay_adi', etiket: `Onay için firma adını aynen yazın: ${firma.name}`, zorunlu: true, tam: true, maksUzunluk: 200, otomatik: 'off' })}`,
+      async onSubmit(fd) {
+        const yazilan = String(fd.get('onay_adi') ?? '').trim();
+        if (yazilan !== firma.name.trim()) return { errors: { onay_adi: 'Firma adı aynen yazılmalıdır.' } };
+        const r = await app.api.deleteCompany(firma.id, yazilan);
+        const toplam = Object.values(r?.silinen ?? {}).reduce((t, x) => t + Number(x || 0), 0);
+        toast(`"${firma.name}" ve ${sayi(toplam)} bağlı kayıt kalıcı silindi.`);
+        app.aramaOnbellegiTemizle();
+      },
+      onDone: () => { location.hash = '#/firmalar'; },
+    });
+    return m;
+  }
+
   return {
     baslik: firma.name,
     altBaslik: [firma.sector, [firma.city, firma.district].filter(Boolean).join(' / ')].filter(Boolean).join(' · '),
@@ -337,8 +371,10 @@ export async function firmaSayfasi(app, id) {
       <div class="company-meta">${durumPill(firma)} ${guncel ? html`${tehlikePill(guncel.hazard_class)} <span class="muted">${sayi(guncel.employee_count)} çalışan</span>` : html`<span class="muted">Çalışan sayısı girilmedi</span>`}</div>
     </div></div>`,
     eylemler: html`${duzenleyebilir && !firma.archived_at ? html`<button type="button" class="btn btn-secondary" data-action="duzenle">${icon('pencil', 18)} Düzenle</button>` : ''}
-      ${arsivleyebilir ? html`<button type="button" class="btn ${firma.archived_at ? 'btn-primary' : 'btn-secondary'}" data-action="arsiv">${icon(firma.archived_at ? 'restore' : 'archive', 18)} ${firma.archived_at ? 'Arşivden çıkar' : 'Arşivle'}</button>` : ''}`,
-    govde: html`${firma.archived_at ? html`<div class="notice notice-warn" role="status">Bu firma arşivde. Kayıtları görüntüleyebilirsiniz; düzenlemek için önce arşivden çıkarın.</div>` : ''}
+      ${arsivleyebilir ? html`<button type="button" class="btn ${firma.archived_at ? 'btn-primary' : 'btn-secondary'}" data-action="arsiv">${icon(firma.archived_at ? 'restore' : 'archive', 18)} ${firma.archived_at ? 'Arşivden çıkar' : 'Arşivle'}</button>` : ''}
+      ${duzenleyebilir && !firma.archived_at ? html`<button type="button" class="btn btn-secondary" data-action="pasif">${icon('archive', 18)} ${firma.customer_status === 'eski_musteri' ? 'Aktif et' : 'Pasife al'}</button>` : ''}
+      ${silebilir ? html`<button type="button" class="btn btn-danger" data-action="firma-sil">${icon('x', 18)} Firmayı sil</button>` : ''}`,
+    govde: html`${!firma.archived_at && firma.customer_status === 'eski_musteri' ? html`<div class="notice notice-info" role="status" id="firma-pasif-notu">Bu firma pasif (eski müşteri). Kayıtları durur; yeni aylık fatura üretilmez, görevlendirmeleri uzman/hekim yüküne sayılmaz ve yeni zaman kaydı girilemez.</div>` : ''}${firma.archived_at ? html`<div class="notice notice-warn" role="status">Bu firma arşivde. Kayıtları görüntüleyebilirsiniz; düzenlemek için önce arşivden çıkarın.</div>` : ''}
       <div id="sekme-cubugu">${sekmeCubugu()}</div>
       <div id="sekme-govde" role="tabpanel">${sekmeGovdesi()}</div>`,
     mount(kok) {
@@ -376,6 +412,8 @@ export async function firmaSayfasi(app, id) {
           const eylem = a.dataset.action;
           if (eylem === 'duzenle') firmaFormuAc(app, { firma });
           else if (eylem === 'arsiv') await arsivIslemi();
+          else if (eylem === 'pasif') await pasifIslemi();
+          else if (eylem === 'firma-sil') silIslemi();
           else if (eylem === 'isyeri-ekle') isyeriFormu();
           else if (eylem === 'profil-ekle') profilFormu();
           else if (eylem === 'kisi-ekle') kisiFormuAc(app, { firmaId: firma.id });

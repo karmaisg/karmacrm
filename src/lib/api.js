@@ -145,6 +145,7 @@ export function createApi(db) {
     })),
     updateCompany: (id, degerler) => bir(T('companies').update(degerler).eq('id', id).select().single()),
     archiveCompany: (id) => bir(T('companies').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    deleteCompany: (id, ad) => bir(db.rpc('firma_sil', { p_firma: id, p_ad: ad })),
     unarchiveCompany: (id) => bir(T('companies').update({ archived_at: null }).eq('id', id).select().single()),
 
     // ----- çalışan sayısı / tehlike sınıfı geçmişi

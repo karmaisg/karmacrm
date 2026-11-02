@@ -23,6 +23,14 @@ export function ayBitisi(ay) {
   return gunEkle(sonraki, -1);
 }
 
+/** Pasif firma: arşivli veya eski müşteri. Kayıtları durur ama yeni gelir üretmez, uzman/hekim yüküne katılmaz. */
+export const firmaPasifMi = (f) => !!f && (!!f.archived_at || (f.customer_status ?? 'musteri') !== 'musteri');
+/** Pasif firmaların görevlendirmelerini çıkarır (yük / kapasite hesabı için). Firma listesi boşsa süzmez. */
+export function aktifFirmaAtamalari(atamalar, firmalar) {
+  const pasif = new Set((firmalar ?? []).filter(firmaPasifMi).map((f) => f.id));
+  return pasif.size ? atamalar.filter((a) => !pasif.has(a.company_id)) : atamalar;
+}
+
 /** Bir firmada, hizmet türü ve gün için toplam görevlendirme payı (%). */
 export function kapsamPayi(atamalar, companyId, staffType, tarih) {
   return atamalar.filter((a) => a.company_id === companyId && a.staff_type === staffType && aktifMi(a, tarih))

@@ -47,6 +47,7 @@ karmacrm/
 │  ├─ 11_asama11.sql         Aşama 11: denetim kaydı okuma izni, tam yetki, yedek kaydı (bir kez)
 │  ├─ 12_asama12.sql         Aşama 12: müşteri teklif bağlantısı (offer_shares, girişsiz müşteri fonksiyonları) (bir kez)
 │  ├─ 14_asama13_katip.sql   Aşama 13: İSG-Katip aktarımı (company_sites, katip_imports/rows/people, katip_uygula) (bir kez)
+│  ├─ 19_asama18.sql         Aşama 18: firmayı kalıcı silme (firma_sil), pasif firmaya toplu fatura üretmeme (bir kez)
 │  ├─ 18_asama17.sql         Aşama 17: gelir Excel aktarımı, spot/elden gelir, fatura takma adları (bir kez)
 │  ├─ 17_asama16.sql         Aşama 16: elle işyeri, Takvim, günlük özette Bugün/Yaklaşan (bir kez)
 │  ├─ 16_asama15.sql         Aşama 15: personel rolleri, yönetim gideri, işyeri takma adı (bir kez)
@@ -99,6 +100,7 @@ psql -d osgb -f supabase/15_asama14.sql
 psql -d osgb -f supabase/16_asama15.sql
 psql -d osgb -f supabase/17_asama16.sql
 psql -d osgb -f supabase/18_asama17.sql
+psql -d osgb -f supabase/19_asama18.sql
 psql -d osgb -f tests/db_tests_asama7.sql
 psql -d osgb -f tests/db_tests_asama9.sql
 psql -d osgb -f tests/db_tests_asama10.sql
