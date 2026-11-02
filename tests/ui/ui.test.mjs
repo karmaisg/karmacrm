@@ -2387,6 +2387,62 @@ await test('gelir ekle: spot iş (KDV oranı) ve elden ödeme (KDV yok, tahsil e
   await ekran(s, '63-gelir-detay');
 });
 
+// ---------------------------------------------------------------- Firmayı kalıcı sil, pasife al (Aşama 18)
+await test('firma pasife al / aktif et: kayıtlar kalır, kapasite yükü ve yeni görevlendirme listesi pasif firmayı saymaz', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Pasif Test A.Ş.', vergi: '8888888891', calisan: 30, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head h1:has-text("Pasif Test")'); const firmaHash = hashOf(s.url());
+  await personelEkle(s, 'is_guvenligi_uzmani', 'Pasif Uzman');
+  await git(s, '#/gorevlendirmeler'); await atamaYap(s, 'Pasif Test A.Ş.', 'Pasif Uzman', 60);
+  await git(s, '#/kapasite'); await s.waitForSelector('#kap-icerik .table');
+  if (!(await s.locator('#kap-icerik tr:has-text("Pasif Uzman")').innerText()).includes('6 sa')) throw new Error('aktif firmada yük 6 sa olmalı');
+  await git(s, firmaHash); await s.waitForSelector('[data-action="pasif"]');
+  esit((await s.locator('[data-action="pasif"]').innerText()).trim(), 'Pasife al', 'düğme metni');
+  await s.click('[data-action="pasif"]'); await s.click('[data-ok]');
+  await s.waitForSelector('#firma-pasif-notu');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.companies.find((c) => c.name === 'Pasif Test A.Ş.').customer_status), 'eski_musteri', 'pasif durumu');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.assignments.filter((a) => !a.archived_at).length), 1, 'görevlendirme kaydı silinmedi');
+  esit((await s.locator('[data-action="pasif"]').innerText()).trim(), 'Aktif et', 'düğme metni (pasif)');
+  await git(s, '#/kapasite'); await s.waitForSelector('#kap-icerik .table');
+  if ((await s.locator('#kap-icerik tr:has-text("Pasif Uzman")').innerText()).includes('6 sa')) throw new Error('pasif firma uzman yüküne sayılmamalı');
+  await git(s, '#/gorevlendirmeler'); await s.locator('[data-action="yeni-gv"]').first().click();
+  const secenek = await modal(s).locator('#f-company_id option').allInnerTexts(); if (secenek.some((x) => x.includes('Pasif Test'))) throw new Error('pasif firma görevlendirme listesinde olmamalı');
+  await modal(s).locator('[data-close], .modal-close').first().click().catch(() => {}); await s.keyboard.press('Escape');
+  await git(s, firmaHash); await s.click('[data-action="pasif"]'); await s.click('[data-ok]'); await s.waitForFunction(() => !document.querySelector('#firma-pasif-notu'));
+  await git(s, '#/kapasite'); await s.waitForSelector('#kap-icerik .table');
+  if (!(await s.locator('#kap-icerik tr:has-text("Pasif Uzman")').innerText()).includes('6 sa')) throw new Error('aktif edilince yük geri gelmeli');
+});
+
+await test('firmayı kalıcı sil: yanlış ad reddedilir, doğru adla tüm kayıtlar silinir, diğer firma korunur', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Silinecek Ltd', vergi: '8888888892', calisan: 10, tehlike: 'az_tehlikeli' }); await s.waitForSelector('.company-head h1:has-text("Silinecek")'); const silHash = hashOf(s.url());
+  await firmaEkle(s, { ad: 'Kalacak Ltd', vergi: '8888888893', calisan: 10, tehlike: 'az_tehlikeli' }); await s.waitForSelector('.company-head h1:has-text("Kalacak")');
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; const a = t.companies.find((c) => c.name === 'Silinecek Ltd'); const b = t.companies.find((c) => c.name === 'Kalacak Ltd');
+    for (const [f, no] of [[a, 'S-1'], [b, 'K-1']]) { const id = `inv-${no}`; t.invoices.push({ id, organization_id: f.organization_id, company_id: f.id, invoice_no: no, invoice_date: '2026-01-05', due_date: '2026-02-05', amount_excl_vat: 100, vat_amount: 20, archived_at: null });
+      t.invoice_items.push({ id: `it-${no}`, invoice_id: id, description: 'x', unit_price_excl: 100, vat_rate: 20 }); t.payments.push({ id: `p-${no}`, invoice_id: id, paid_at: '2026-01-06', amount: 50 });
+      t.contracts.push({ id: `c-${no}`, organization_id: f.organization_id, company_id: f.id, status: 'aktif', start_date: '2026-01-01', end_date: '2026-12-31', archived_at: null });
+      t.tasks.push({ id: `t-${no}`, organization_id: f.organization_id, company_id: f.id, title: `görev ${no}`, status: 'acik' }); } });
+  await git(s, '#/firmalar'); await git(s, silHash); await s.waitForSelector('[data-action="firma-sil"]');
+  await s.click('[data-action="firma-sil"]'); const m = modal(s);
+  await var_(m.locator('#firma-sil-uyari'), 'uyarı'); if (!(await m.locator('#firma-sil-uyari').innerText()).includes('geri alınamaz')) throw new Error('uyarı metni');
+  await m.locator('#f-onay_adi').fill('Silinecek'); await m.locator('button[type=submit]').click();
+  if (!(await m.innerText()).includes('aynen yazılmalıdır')) throw new Error('yanlış ad reddedilmeli');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.companies.filter((c) => c.name === 'Silinecek Ltd').length), 1, 'yanlış adla silinmedi');
+  await m.locator('#f-onay_adi').fill('Silinecek Ltd'); await m.locator('button[type=submit]').click();
+  await s.waitForFunction(() => location.hash === '#/firmalar');
+  const d = await s.evaluate(() => { const t = globalThis.__fake.tablo; return { firma: t.companies.map((c) => c.name).join(','), fat: t.invoices.map((i) => i.invoice_no).join(','), kalem: t.invoice_items.length, odeme: t.payments.length, soz: t.contracts.length, gorev: t.tasks.map((x) => x.title).join(',') }; });
+  esit(d.firma, 'Kalacak Ltd', 'yalnız kalan firma'); esit(d.fat, 'K-1', 'fatura'); esit(d.kalem, 1, 'kalem'); esit(d.odeme, 1, 'tahsilat'); esit(d.soz, 1, 'sözleşme'); esit(d.gorev, 'görev K-1', 'görev');
+  await ekran(s, '64-firma-silindi');
+});
+
+await test('firmayı kalıcı sil: finans rolü silme düğmesini görmez; sahip görür', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Yetki Test Ltd', vergi: '8888888894', calisan: 10, tehlike: 'az_tehlikeli' }); await s.waitForSelector('.company-head h1:has-text("Yetki")'); const h = hashOf(s.url());
+  esit(await s.locator('[data-action="firma-sil"]').count(), 1, 'sahip silme düğmesini görür');
+  await cikisYapGir(s, 'finans@test.com'); await git(s, '#/firmalar'); await git(s, h); await s.waitForSelector('.company-head h1');
+  esit(await s.locator('[data-action="firma-sil"]').count(), 0, 'finans silme düğmesini görmez');
+});
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }

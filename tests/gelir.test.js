@@ -121,3 +121,18 @@ test('boş şablon: okunur, başlıklar ayrıştırıcıyla uyumlu; yazıcı tar
   const g = gelirSatirlari(t.satirlar); assert.equal(g.satirlar.length, 1); assert.equal(g.satirlar[0].tarih, '2026-10-05');
   assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
 });
+
+import { firmaPasifMi, aktifFirmaAtamalari, personelAyYuku } from '../src/lib/operasyon.js';
+test('pasif firma: arşivli veya eski müşteri; atamaları yük hesabından çıkarılır, süzme yoksa aynen döner', () => {
+  assert.equal(firmaPasifMi({ customer_status: 'musteri' }), false); assert.equal(firmaPasifMi({ customer_status: 'eski_musteri' }), true); assert.equal(firmaPasifMi({ archived_at: 'x', customer_status: 'musteri' }), true); assert.equal(firmaPasifMi(null), false);
+  const at = [{ id: 'a1', company_id: 'f1' }, { id: 'a2', company_id: 'f2' }, { id: 'a3', company_id: 'f3' }];
+  const f = [{ id: 'f1', customer_status: 'musteri' }, { id: 'f2', customer_status: 'eski_musteri' }, { id: 'f3', customer_status: 'musteri', archived_at: 'x' }];
+  assert.deepEqual(aktifFirmaAtamalari(at, f).map((a) => a.id), ['a1']);
+  assert.equal(aktifFirmaAtamalari(at, []), at); assert.equal(aktifFirmaAtamalari(at, undefined), at);
+  const profil = new Map([['f1', [{ valid_from: '2026-01-01', valid_to: null, employee_count: 30, hazard_class: 'tehlikeli' }]], ['f2', [{ valid_from: '2026-01-01', valid_to: null, employee_count: 30, hazard_class: 'tehlikeli' }]]]);
+  const kurallar = [{ staff_type: 'is_guvenligi_uzmani', hazard_class: 'tehlikeli', minutes_per_employee: 12, valid_from: '2000-01-01', valid_to: null }, { staff_type: 'isyeri_hekimi', hazard_class: 'tehlikeli', minutes_per_employee: 6, valid_from: '2000-01-01', valid_to: null }];
+  const atamalar = [{ id: 'x1', employee_id: 'e', company_id: 'f1', staff_type: 'is_guvenligi_uzmani', share_pct: 100, valid_from: '2026-01-01', valid_to: null }, { id: 'x2', employee_id: 'e', company_id: 'f2', staff_type: 'is_guvenligi_uzmani', share_pct: 100, valid_from: '2026-01-01', valid_to: null }];
+  const hepsi = personelAyYuku({ atamalar, employeeId: 'e', profilHaritasi: profil, kurallar, ay: '2026-03-01' });
+  const aktif = personelAyYuku({ atamalar: aktifFirmaAtamalari(atamalar, f), employeeId: 'e', profilHaritasi: profil, kurallar, ay: '2026-03-01' });
+  assert.ok(hepsi.dakika > 0 && aktif.dakika === hepsi.dakika / 2, `${hepsi.dakika} / ${aktif.dakika}`);
+});

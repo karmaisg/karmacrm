@@ -490,6 +490,23 @@ const rpcler = {
     return { data: kopya(y) };
   },
   fatura_kaydet(a) { return faturaYaz(a, a.p_id); },
+  // Aşama 18: gerçek firma_sil'in (19_asama18.sql) basitleştirilmiş taklidi
+  firma_sil({ p_firma, p_ad }) {
+    const ben = tablo.users.find((u) => u.id === oturum?.user?.id);
+    const rol = tablo.roles.find((r) => r.id === ben?.role_id)?.key;
+    if (!['isletme_sahibi', 'sistem_yoneticisi'].includes(rol)) return { error: hata('Firmayı kalıcı silme yetkisi yalnızca işletme sahibi ve sistem yöneticisindedir.', 'P0001') };
+    const c = tablo.companies.find((x) => x.id === p_firma); if (!c) return { error: hata('Firma bulunamadı.', 'P0001') };
+    if (String(p_ad ?? '').trim() !== c.name.trim()) return { error: hata('Firma adı doğru yazılmadı; silme yapılmadı.', 'P0001') };
+    const sil = {}; const fat = tablo.invoices.filter((i) => i.company_id === p_firma).map((i) => i.id);
+    const at = (ad, fn) => { const once = tablo[ad].length; tablo[ad] = tablo[ad].filter((x) => !fn(x)); sil[ad] = once - tablo[ad].length; };
+    at('payments', (x) => fat.includes(x.invoice_id)); at('invoice_items', (x) => fat.includes(x.invoice_id)); at('invoices', (x) => x.company_id === p_firma);
+    at('invoice_aliases', (x) => x.company_id === p_firma);
+    const soz = tablo.contracts.filter((x) => x.company_id === p_firma).map((x) => x.id);
+    at('contract_prices', (x) => soz.includes(x.contract_id)); at('contracts', (x) => x.company_id === p_firma);
+    for (const ad of ['offers', 'sales_opportunities', 'contacts', 'activities', 'tasks', 'time_entries', 'assignments', 'expenses', 'company_sites', 'company_profiles', 'calendar_items', 'overhead_allocations']) if (tablo[ad]) at(ad, (x) => x.company_id === p_firma);
+    at('companies', (x) => x.id === p_firma);
+    return { data: { ad: c.name, silinen: sil } };
+  },
   // Aşama 17: gerçek gelir_aktar / gelir_kalemi_ekle (18_asama17.sql) basitleştirilmiş taklidi (hepsi ya da hiçbiri)
   gelir_aktar({ p_paket: p }) {
     if (!izinVar('invoices', 'can_create') || !izinVar('import_export', 'can_create')) return { error: hata('Gelir aktarımı için fatura ekleme ve içe aktarma yetkisi gerekir.', 'P0001') };
@@ -532,6 +549,8 @@ const rpcler = {
     const tarih = p_fatura_tarihi ?? bugun(); const vade = new Date(`${tarih}T00:00:00Z`); vade.setUTCDate(vade.getUTCDate() + p_vade_gun);
     let n = 0; const atlanan = [];
     for (const c of tablo.contracts.filter((x) => !x.archived_at && ['aktif', 'yenilendi', 'sona_erdi'].includes(x.status) && x.start_date <= bit && x.end_date >= donem)) {
+      const fk = tablo.companies.find((x) => x.id === c.company_id);
+      if (!fk || fk.archived_at || fk.customer_status !== 'musteri') continue;
       const firma = tablo.companies.find((x) => x.id === c.company_id)?.name ?? 'Firma';
       if (tablo.invoices.some((i) => !i.archived_at && i.contract_id === c.id && i.service_period === donem)) { atlanan.push({ firma, neden: 'Bu dönem için fatura zaten var' }); continue; }
       const gun = c.start_date > donem ? c.start_date : donem;
