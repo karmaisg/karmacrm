@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions']) tablo[ad] ??= [];
+for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -490,6 +490,43 @@ const rpcler = {
     return { data: kopya(y) };
   },
   fatura_kaydet(a) { return faturaYaz(a, a.p_id); },
+  // Aşama 17: gerçek gelir_aktar / gelir_kalemi_ekle (18_asama17.sql) basitleştirilmiş taklidi (hepsi ya da hiçbiri)
+  gelir_aktar({ p_paket: p }) {
+    if (!izinVar('invoices', 'can_create') || !izinVar('import_export', 'can_create')) return { error: hata('Gelir aktarımı için fatura ekleme ve içe aktarma yetkisi gerekir.', 'P0001') };
+    if (!p.faturalar?.length) return { error: hata('Aktarılacak fatura satırı yok.', 'P0001') };
+    const yedek = { c: kopya(tablo.companies), i: kopya(tablo.invoices), it: kopya(tablo.invoice_items), a: kopya(tablo.invoice_aliases) };
+    const geri = (m) => { tablo.companies = yedek.c; tablo.invoices = yedek.i; tablo.invoice_items = yedek.it; tablo.invoice_aliases = yedek.a; return { error: hata(m, 'P0001') }; };
+    const harita = {}; const simdi = new Date().toISOString(); let yeni = 0; let eklenen = 0; const atlanan = [];
+    for (const y of p.yeni_firmalar ?? []) { const f = { id: uid(), organization_id: ORG, name: y.ad, customer_status: 'musteri', created_at: simdi, archived_at: null }; tablo.companies.push(f); harita[y.anahtar] = f.id; yeni += 1; }
+    for (const f of p.faturalar) {
+      const firma = f.firma_id ?? harita[f.yeni_firma]; const no = String(f.no ?? '').trim();
+      if (!firma) return geri(`Firma belirlenmemiş satır var (${no || '?'}).`);
+      if (!tablo.companies.some((c) => c.id === firma)) return geri(`Firma bulunamadı (${no || '?'}).`);
+      if (no && tablo.invoices.some((x) => x.invoice_no === no)) { atlanan.push({ no, neden: 'Bu fatura numarası zaten kayıtlı' }); continue; }
+      const haric = f.kalemler.reduce((t, k) => t + k.haric, 0); const kdv = f.kalemler.reduce((t, k) => t + k.kdv, 0);
+      if (!(haric > 0)) return geri(`Fatura tutarı sıfırdan büyük olmalıdır (${no || '?'}).`);
+      const v = new Date(`${f.tarih}T00:00:00Z`); v.setUTCDate(v.getUTCDate() + (p.vade_gun ?? 30));
+      const yil = f.tarih.slice(0, 4); const sayac = Math.max(0, ...tablo.invoices.map((x) => { const m = x.invoice_no.match(new RegExp(`^F-${yil}-(\\d+)$`)); return m ? Number(m[1]) : 0; })) + 1;
+      const i = { id: uid(), organization_id: ORG, company_id: firma, contract_id: null, invoice_no: no || `F-${yil}-${String(sayac).padStart(4, '0')}`, invoice_date: f.tarih, due_date: v.toISOString().slice(0, 10),
+        service_period: f.donem ? `${f.donem.slice(0, 7)}-01` : null, amount_excl_vat: haric, vat_amount: kdv, amount_incl_vat: haric + kdv, flag: null, notes: null, site_id: f.site_id ?? null, income_kind: 'fatura', created_at: simdi, updated_at: simdi, archived_at: null };
+      tablo.invoices.push(i);
+      for (const k of f.kalemler) tablo.invoice_items.push({ id: uid(), organization_id: ORG, invoice_id: i.id, description: k.aciklama, quantity: 1, unit_price_excl: k.haric, vat_rate: k.oran, created_at: simdi, archived_at: null });
+      if (f.alias_key) { const m = tablo.invoice_aliases.find((x) => x.alias_key === f.alias_key); if (m) Object.assign(m, { company_id: firma, site_id: f.site_id ?? null }); else tablo.invoice_aliases.push({ id: uid(), organization_id: ORG, alias_key: f.alias_key, alias_text: f.alias_text, company_id: firma, site_id: f.site_id ?? null, created_at: simdi }); }
+      eklenen += 1;
+    }
+    return { data: { eklenen, yeni_firma: yeni, atlanan, fatura_idleri: [] } };
+  },
+  gelir_kalemi_ekle(a) {
+    if (!['spot', 'elden'].includes(a.p_tur)) return { error: hata('Gelir türü spot veya elden olmalıdır.', 'P0001') };
+    if (!String(a.p_aciklama ?? '').trim()) return { error: hata('Gelir kaleminin ne olduğunu yazın.', 'P0001') };
+    const elden = a.p_tur === 'elden';
+    const r = faturaYaz({ p_id: null, p_firma: a.p_firma, p_sozlesme: null, p_no: a.p_no, p_tarih: a.p_tarih, p_vade: a.p_tarih, p_donem: `${a.p_tarih.slice(0, 7)}-01`,
+      p_tutar: a.p_tutar, p_kdv_modu: elden ? 'kdv_haric' : a.p_kdv_modu, p_kdv_orani: elden ? 0 : a.p_kdv_orani, p_aciklama: a.p_aciklama.trim(), p_not: null }, null);
+    if (r.error) return r;
+    const i = tablo.invoices.find((x) => x.id === r.data.id); i.income_kind = a.p_tur;
+    if (a.p_tahsil) tablo.payments.push({ id: uid(), organization_id: ORG, invoice_id: i.id, paid_at: a.p_tarih, amount: i.amount_incl_vat, method: elden ? 'Elden' : null, notes: 'Gelir girişi sırasında tahsil edildi', created_at: new Date().toISOString(), archived_at: null });
+    return { data: kopya(i) };
+  },
   donem_faturalari_olustur({ p_donem, p_fatura_tarihi, p_vade_gun }) {
     const donem = `${p_donem.slice(0, 7)}-01`; const bit = new Date(Date.UTC(Number(donem.slice(0, 4)), Number(donem.slice(5, 7)), 0)).toISOString().slice(0, 10);
     const tarih = p_fatura_tarihi ?? bugun(); const vade = new Date(`${tarih}T00:00:00Z`); vade.setUTCDate(vade.getUTCDate() + p_vade_gun);

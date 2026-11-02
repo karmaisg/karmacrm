@@ -1,0 +1,198 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama18.sql:81: NOTICE:  PASS | Excel aktarımı: iki fatura + yeni firma
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:83: NOTICE:  PASS | EFT-1 toplamları: 1500 hariç, 250 KDV, 1750 dahil
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:84: NOTICE:  PASS | EFT-1 iki kalem (%20 ve %10)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:85: NOTICE:  PASS | Vade = fatura tarihi + 30
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:86: NOTICE:  PASS | Yeni firma oluşturuldu ve faturaya bağlandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:87: NOTICE:  PASS | Dönem boş bırakılabilir
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:88: NOTICE:  PASS | İşyeri bağlandı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:89: NOTICE:  PASS | Takma ad hafızaya yazıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:90: NOTICE:  PASS | Gelir türü fatura
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama18.sql:93: NOTICE:  PASS | Aynı numara tekrar yüklenince atlanır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:96: NOTICE:  PASS | Hata olursa hiçbiri yazılmaz (ikinci satır firmasız) [Firma belirlenmemiş satır var (EFT-10).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:97: NOTICE:  PASS | Başka kurumun firması kullanılamaz [Firma bulunamadı (EFT-11).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:98: NOTICE:  PASS | İşyeri başka firmaya ait olamaz [İşyeri bu firmaya ait değil (EFT-12).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:99: NOTICE:  PASS | Sıfır tutarlı fatura reddedilir [Fatura tutarı sıfırdan büyük olmalıdır (EFT-13).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:100: NOTICE:  PASS | Boş paket reddedilir [Aktarılacak fatura satırı yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:102: NOTICE:  PASS | Hatalı pakette Hayalet AŞ oluşmadı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:103: NOTICE:  PASS | Hatalı pakette EFT-9 oluşmadı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama18.sql:107: NOTICE:  PASS | Satış rolü gelir aktaramaz [Gelir aktarımı için fatura ekleme ve içe aktarma yetkisi gerekir.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:108: NOTICE:  PASS | Satış rolü takma adları göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama18.sql:113: NOTICE:  PASS | Spot iş: %20 KDV hariç
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:114: NOTICE:  PASS | Elden ödeme: KDV yok
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:115: NOTICE:  PASS | Açıklamasız gelir reddedilir [Gelir kaleminin ne olduğunu yazın.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:116: NOTICE:  PASS | Geçersiz tür reddedilir [Gelir türü spot veya elden olmalıdır.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:118: NOTICE:  PASS | Spot: 1000 + 200 KDV, tahsil edilmedi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:119: NOTICE:  PASS | Elden: KDV 0 (oran girilse bile), kalem oranı 0
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:120: NOTICE:  PASS | Elden: otomatik tahsilat yöntemi Elden
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:121: NOTICE:  PASS | Fatura numarası otomatik verildi
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama18.sql:122: NOTICE:  PASS | Geçersiz gelir türü veri tabanında da engelli [new row for relation "invoices" violates check constraint "invoices_income_kind_chk"]
+ fails 
+-------
+ 
+(1 row)
+

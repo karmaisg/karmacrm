@@ -41,7 +41,7 @@ async function test(ad, fn, { genislik = 1366, yukseklik = 900 } = {}) {
     gecen += 1; console.log(`PASS  ${ad}`);
   } catch (e) {
     basarisiz.push(ad); console.log(`FAIL  ${ad}\n      ${String(e.message).split('\n').slice(0, 4).join('\n      ')}`);
-    if (process.env.DEBUG_DOM) console.log((await sayfa.evaluate(() => document.body.innerText).catch(() => '')).slice(0, 1500));
+    if (process.env.DEBUG_DOM) console.log(hatalar.join(' | ').slice(0, 800), (await sayfa.evaluate(() => document.body.innerText).catch(() => '')).slice(0, 1500));
     if (EKRAN) await sayfa.screenshot({ path: path.join(EKRAN, `FAIL-${ad.replace(/\W+/g, '_')}.png`) }).catch(() => {});
   } finally { await ctx.close(); }
 }
@@ -2285,6 +2285,106 @@ await test('mobil 375px: İSG-Katip analiz ekranında yatay taşma yok', async (
   const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (t > 1) { const w = await s.evaluate(() => [...document.querySelectorAll('#sayfa *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map((e) => `${e.tagName}.${e.className}#${e.id}:${Math.round(e.getBoundingClientRect().right)}`).join(' | ')); throw new Error(`yatay taşma ${t}px: ${w}`); }
   await ekran(s, '44-mobil-katip');
+});
+
+// ---------------------------------------------------------------- Aylık gelir Excel'i, spot / elden gelir (Aşama 17)
+const { xlsxYaz: gelirXlsx } = await import(path.join(KOK, 'src/lib/xlsxyaz.js'));
+const { xlsxOku: gelirOku } = await import(path.join(KOK, 'src/lib/xlsx.js'));
+const GELIR_BASLIK = ['Fatura No', 'Fatura Tarihi', 'Açıklama', 'Ücret', '%20 KDV', '%10 KDV', 'Toplam'];
+const gelirDosyasi = (satirlar, ad = 'gelirler.xlsx') => ({ name: ad, mimeType: 'application/octet-stream',
+  buffer: Buffer.from(gelirXlsx([{ ad: 'Sayfa1', satirlar: [GELIR_BASLIK, ...satirlar.map((r) => r.map((h, i) => (i === 1 ? { t: 'tarih', v: h } : h)))] }])) });
+const GELIR_SATIRLARI = [
+  ['EFT-1', '2026-10-22', 'Alfa Gıda (Ekim)', 1500, 200, 50, 1750],
+  ['EFT-2', '2026-10-22', 'Beta Teknik (Ekim)', 1000, 200, null, 1200],
+  ['EFT-3', '2026-10-22', 'Bilinmeyen Boya (Ekim)', 400, 80, null, 480],
+  ['EFT-4', '2026-10-23', 'UKEM (Ekim)', 100, null, 10, 110],
+  ['EFT-5', '2026-10-23', 'Alfa Gıda (Ekim) ek hizmet', 500, null, null, 500],
+];
+const gelirKurulum = async (s) => {
+  await girisYap(s);
+  for (const f of [{ ad: 'Alfa Gıda', calisan: 40, tehlike: 'az_tehlikeli' }, { ad: 'Beta Teknik', calisan: 10, tehlike: 'tehlikeli' }, { ad: 'Gama İnşaat', calisan: 8, tehlike: 'tehlikeli' }]) {
+    await firmaEkle(s, f); await s.waitForSelector('.modal-overlay', { state: 'detached' }); await s.waitForTimeout(200);
+  }
+  await s.evaluate(() => { const t = globalThis.__fake.tablo;
+    for (const f of t.companies) t.contracts.push({ id: `c-${f.id}`, organization_id: f.organization_id, company_id: f.id, status: 'aktif', start_date: '2026-01-01', end_date: '2026-12-31', archived_at: null }); });
+};
+const gelirYukle = async (s, dosya) => { await git(s, '#/firmalar'); await git(s, '#/aktarim'); await s.waitForSelector('#gelir-dosya'); await s.setInputFiles('#gelir-dosya', dosya); await s.waitForSelector('#gelir-ozet'); };
+
+await test('gelir Excel: önizleme, ortalama KDV, bulunamayan firma uyarısı, eşleştirme kararları, unutulan fatura uyarısı, atomik aktarım', async (s) => {
+  await gelirKurulum(s); await gelirYukle(s, gelirDosyasi(GELIR_SATIRLARI));
+  esit(await s.locator('#gelir-n').innerText(), '5', 'satır sayısı');
+  const ort = await s.locator('#gelir-ort').innerText(); if (!/%\d+,\d+/.test(ort)) throw new Error(`ortalama KDV: ${ort}`);
+  const onizleme = await s.locator('#gelir-onizleme').innerText(); if (!onizleme.includes('%20') || !onizleme.includes('%10')) throw new Error(`önizleme KDV kırılımı: ${onizleme.slice(0, 200)}`);
+  const bek = await s.locator('#gelir-bekleyen').innerText(); if (!bek.includes('Bilinmeyen Boya') || !bek.includes('UKEM')) throw new Error(`bekleyen: ${bek}`);
+  esit(await s.locator('#gelir-uygula').isDisabled(), true, 'kararlar bitmeden aktarılamaz');
+  const unut = await s.locator('#gelir-unutulan').innerText(); if (!unut.includes('Gama İnşaat') || unut.includes('Alfa Gıda')) throw new Error(`unutulan: ${unut}`);
+  esit(await s.locator('#gelir-unutulan').getAttribute('data-adet'), '1', 'unutulan firma sayısı');
+  await ekran(s, '60-gelir-onizleme');
+  // yeni firma oluştur + bir ad için aktarma
+  const anahtarlar = await s.evaluate(() => [...document.querySelectorAll('#gelir-eslesme [data-karar]')].map((x) => [x.dataset.karar, x.value]));
+  for (const [k, v] of anahtarlar) {
+    if (v) continue;
+    if (k.startsWith('bilinmeyen')) { await s.selectOption(`[data-karar="${k}"]`, 'yeni'); await s.fill(`[data-yeni-ad="${k}"]`, 'Bilinmeyen Boya Ltd'); await s.locator(`[data-yeni-ad="${k}"]`).blur(); }
+    else if (k.startsWith('alfa')) await s.selectOption(`[data-karar="${k}"]`, { label: 'Alfa Gıda' });
+    else await s.selectOption(`[data-karar="${k}"]`, 'yoksay');
+  }
+  await s.waitForFunction(() => !document.querySelector('#gelir-bekleyen'));
+  esit(await s.locator('#gelir-uygula').isDisabled(), false, 'kararlardan sonra düğme açık');
+  await s.click('#gelir-uygula'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#gelir-sonuc');
+  const sonuc = await s.locator('#gelir-sonuc').innerText(); if (!sonuc.includes('1 yeni firma')) throw new Error(`sonuç: ${sonuc}`);
+  if (!(await s.locator('#gelir-sonuc-unutulan').innerText()).includes('Gama İnşaat')) throw new Error('sonuçta unutulan uyarısı');
+  const d = await s.evaluate(() => { const t = globalThis.__fake.tablo; const f = (n) => t.invoices.find((i) => i.invoice_no === n); const e1 = f('EFT-1');
+    return { adet: t.invoices.filter((i) => i.invoice_no.startsWith('EFT-')).length, e1: `${e1.amount_excl_vat}/${e1.vat_amount}`, kalem: t.invoice_items.filter((k) => k.invoice_id === e1.id).map((k) => `${k.vat_rate}:${k.unit_price_excl}`).join(','),
+      donem: e1.service_period, vade: e1.due_date, e2: t.invoice_items.find((k) => k.invoice_id === f('EFT-2').id).vat_rate, e5: t.invoice_items.find((k) => k.invoice_id === f('EFT-5').id).vat_rate,
+      yeni: t.companies.some((c) => c.name === 'Bilinmeyen Boya Ltd'), ukem: !!f('EFT-4'), alias: t.invoice_aliases.map((a) => a.alias_key).join(',') }; });
+  esit(d.adet, 4, 'faturalar (UKEM aktarılmadı)'); esit(d.e1, '1500/250', 'EFT-1 tutarları'); esit(d.kalem, '20:1000,10:500', 'EFT-1 kalemleri'); esit(d.donem, '2026-10-01', 'dönem'); esit(d.vade, '2026-11-21', 'vade 30 gün');
+  esit(d.e2, 20, 'EFT-2 oranı'); esit(d.e5, 0, 'EFT-5 KDV yok'); esit(d.yeni, true, 'yeni firma'); esit(d.ukem, false, 'atlanan satır'); if (!d.alias.includes('bilinmeyen boya')) throw new Error(`alias: ${d.alias}`);
+  // aynı dosya tekrar: kayıtlı eşleşme hatırlanır, numaralar zaten kayıtlı
+  await gelirYukle(s, gelirDosyasi(GELIR_SATIRLARI));
+  const e = await s.locator('#gelir-eslesme tr[data-anahtar^="bilinmeyen"]').innerText(); if (!e.includes('Kayıtlı eşleşme')) throw new Error(`alias hatırlanmadı: ${e}`);
+  esit(await s.locator('#gelir-onizleme tr[data-var="1"]').count(), 4, 'zaten kayıtlı satırlar (UKEM hariç)');
+  await ekran(s, '61-gelir-tekrar');
+});
+
+await test('gelir Excel: hatalı satırlar, bozuk dosya, boş şablon indirme, yetkisiz rol, mobil taşma', async (s) => {
+  await gelirKurulum(s); await git(s, '#/aktarim'); await s.waitForSelector('#gelir-dosya');
+  const [ind] = await Promise.all([s.waitForEvent('download'), s.click('[data-action="gelir-sablon"]')]);
+  esit(ind.suggestedFilename(), 'gelir-sablonu.xlsx', 'şablon adı');
+  const t = await gelirOku(fs.readFileSync(await ind.path())); esit(t.satirlar[0].join('|'), GELIR_BASLIK.join('|'), 'şablon başlıkları'); esit(t.satirlar.length, 1, 'şablon boş');
+  await s.setInputFiles('#gelir-dosya', { name: 'a.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('bu excel degil') });
+  await s.waitForFunction(() => document.querySelector('#gelir-hata') && !document.querySelector('#gelir-hata').hidden);
+  await s.setInputFiles('#gelir-dosya', gelirDosyasi([['E-1', '2026-10-22', 'Alfa Gıda (Ekim)', 100, 20, null, 120], ['E-2', '2026-10-22', 'Alfa Gıda (Ekim)', 0, null, null, 0], ['E-3', '2026-10-22', 'Alfa Gıda (Ekim)', 100, 20, null, 120]]));
+  await s.waitForSelector('#gelir-hatalar'); if (!(await s.locator('#gelir-hatalar').innerText()).includes('Ücret')) throw new Error('hatalı satır mesajı');
+  await s.setViewportSize({ width: 375, height: 800 }); await s.waitForTimeout(200);
+  const tas = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (tas > 1) { const w = await s.evaluate(() => [...document.querySelectorAll('#sayfa *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 5).map((e) => `${e.tagName}.${e.className}`).join(',')); throw new Error(`yatay taşma ${tas}px: ${w}`); }
+  await ekran(s, '62-mobil-gelir');
+});
+await test('gelir Excel: izinsiz rol yükleme alanı görmez', async (s) => {
+  await girisYap(s, 'satis@test.com'); await git(s, '#/aktarim'); await s.waitForSelector('#gelir-karti, .empty, #aktarim-kok');
+  esit(await s.locator('#gelir-dosya').count(), 0, 'satış gelir yükleme alanı görmez');
+});
+
+await test('gelir ekle: spot iş (KDV oranı) ve elden ödeme (KDV yok, tahsil edildi); fatura detayında ortalama KDV', async (s) => {
+  await gelirKurulum(s); await git(s, '#/tahsilat'); await s.waitForSelector('[data-action="yeni-gelir"]');
+  await s.click('[data-action="yeni-gelir"]'); const m = modal(s);
+  await m.locator('button[type=submit]').click(); const hata = await m.innerText(); if (!hata.includes('Firmayı seçin') || !hata.includes('ne olduğunu')) throw new Error(`doğrulama: ${hata.slice(0, 200)}`);
+  await m.locator('#f-company_id').selectOption({ label: 'Alfa Gıda' }); await m.locator('#f-aciklama').fill('Ek eğitim'); await m.locator('#f-tutar').fill('1000'); await m.locator('#f-vat_rate').fill('10');
+  if (!(await m.locator('#gelir-bilgi').innerText()).includes('1.100')) throw new Error(`KDV bilgisi: ${await m.locator('#gelir-bilgi').innerText()}`);
+  await m.locator('button[type=submit]').click(); await s.waitForSelector('.modal-overlay', { state: 'detached' });
+  await s.click('[data-action="yeni-gelir"]'); const m2 = modal(s);
+  await m2.locator('#f-company_id').selectOption({ label: 'Beta Teknik' }); await m2.locator('#f-tur').selectOption('elden');
+  esit(await m2.locator('#f-vat_rate').isDisabled(), true, 'elden: KDV oranı kapalı'); esit(await m2.locator('input[name="tahsil"]').isChecked(), true, 'elden: tahsil işaretli');
+  await m2.locator('#f-aciklama').fill('Nakit sağlık taraması'); await m2.locator('#f-tutar').fill('500');
+  await m2.locator('button[type=submit]').click(); await s.waitForSelector('.modal-overlay', { state: 'detached' });
+  const d = await s.evaluate(() => { const t = globalThis.__fake.tablo; const sp = t.invoices.find((i) => i.income_kind === 'spot'); const el = t.invoices.find((i) => i.income_kind === 'elden');
+    return { sp: `${sp.amount_excl_vat}/${sp.vat_amount}`, el: `${el.amount_excl_vat}/${el.vat_amount}`, odeme: t.payments.filter((p) => p.invoice_id === el.id).map((p) => `${p.amount}/${p.method}`).join(), spOdeme: t.payments.filter((p) => p.invoice_id === sp.id).length }; });
+  esit(d.sp, '1000/100', 'spot KDV'); esit(d.el, '500/0', 'elden KDV yok'); esit(d.odeme, '500/Elden', 'elden tahsilat'); esit(d.spOdeme, 0, 'spot tahsil edilmedi');
+  await git(s, '#/tahsilat'); await s.waitForSelector('[data-fatura-detay]');
+  await s.locator('[data-fatura-detay]').first().click(); await s.waitForSelector('#fatura-ort-kdv');
+  const tur = await s.locator('#fatura-tur').innerText(); const ort = await s.locator('#fatura-ort-kdv').innerText();
+  if (!/Spot|Elden/.test(tur) || !/%/.test(ort)) throw new Error(`detay: ${tur} / ${ort}`);
+  await ekran(s, '63-gelir-detay');
 });
 
 await tarayici.close(); sunucu.close();
