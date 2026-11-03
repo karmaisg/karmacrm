@@ -73,3 +73,24 @@ export function gelirSablonu() {
     ] },
   ]);
 }
+
+/** Boş aylık gider şablonu: satır = gider kalemi, sütun = ay. Personel maliyeti (maaş/SGK) bu dosyaya yazılmaz. */
+export function giderSablonu(yil = new Date().getFullYear(), kalemler = null) {
+  const b = (v) => ({ kalin: true, v });
+  const ad = kalemler ?? ['Şirket Açılış Giderleri', 'Yönetime Ödenen', 'Vergi', '3th Party Ödeme', 'Kira ve Aidat', 'Araç Masrafları', 'Elektrik', 'Su', 'Doğal Gaz',
+    'Cep telefonu', 'İnternet / Telefon', 'Kırtasiye Giderleri', 'Ofis Genel Giderler', 'Ofis Mobilya', 'Elektronik', 'Reklam, Pzarlama, Web', 'Avukatlık Giderleri',
+    'Muhasebe Giderleri', 'Yeme ve İçme', 'KKD Giderleri', 'Diğer Giderler'];
+  const aylar = Array.from({ length: 12 }, (_, i) => ({ t: 'tarih', v: `${yil}-${String(i + 1).padStart(2, '0')}-01` }));
+  return xlsxYaz([
+    { ad: 'Giderler', genislikler: [30, ...aylar.map(() => 14)],
+      satirlar: [[b('Gider kalemi'), ...aylar], ...ad.map((k) => [k])] },
+    { ad: 'Yönerge', genislikler: [100], satirlar: [
+      [b('Gider şablonu nasıl doldurulur?')],
+      ['Her satır bir gider kalemi, her sütun bir aydır. Tutarlar aylık toplamdır; boş veya 0 bırakılan hücre aktarılmaz.'],
+      ['"Yönetime Ödenen" satırı yönetim olarak işaretli uzman/hekim maliyetidir; firma kârlılığında yönetim giderine yazılır.'],
+      ['Personel (uzman, hekim, diğer) maaş ve SGK maliyetleri bu dosyaya yazılmaz; personel kârlılığı için kişi bazında ayrıca girilir. Dosyada "Personel Giderleri" satırı varsa aktarılmaz.'],
+      ['Aylar tarih hücresi olmalıdır (01.01.2026 gibi). Yeni kalem eklemek için satır ekleyin; aktarım sırasında kategori eşleştirilir.'],
+      ['Her yüklenen dosya, içindeki aylar için önceki Excel aktarımının yerine geçer (eski kayıtlar silinmez, arşivlenir). Elle girilen giderlere dokunulmaz.'],
+    ] },
+  ]);
+}

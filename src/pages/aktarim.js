@@ -11,6 +11,7 @@ import {
 import { csvIndir, dosyaIndir, dosyaAdiParcasi } from '../ui/indir.js';
 import { humanError } from '../lib/api.js';
 import { gelirAktarimKarti } from './gelir_aktarim.js';
+import { giderAktarimKarti } from './gider_aktarim.js';
 
 const ONIZLEME_SATIRI = 100;
 const ART_ARDA_HATA_SINIRI = 5;
@@ -33,6 +34,7 @@ export async function aktarimSayfasi(app) {
   const disa = VERI_KUMELERI.filter((k) => app.can(k.modul, 'view'));
   const iceTurleri = Object.entries(ICE_AKTARIM_TURLERI).filter(([, t]) => app.can(t.modul, 'create'));
   const gelir = gelirAktarimKarti(app);
+  const gider = giderAktarimKarti(app);
   const iceIzni = app.can('import_export', 'create') && iceTurleri.length > 0;
 
   // sihirbaz durumu
@@ -116,10 +118,11 @@ export async function aktarimSayfasi(app) {
   };
 
   return {
-    baslik: 'Veri içe/dışa aktarma', altBaslik: 'CSV ile dışa aktarın; firma ve kişileri içe aktarın; aylık gelir (fatura) Excel dosyasını yükleyin',
-    govde: html`<div id="aktarim-kok">${disaKarti()}<div class="pad-t" id="ice-kok">${iceKarti()}</div><div class="pad-t">${gelir.govde}</div></div>`,
+    baslik: 'Veri içe/dışa aktarma', altBaslik: 'CSV ile dışa aktarın; firma ve kişileri içe aktarın; aylık gelir (fatura) ve gider Excel dosyalarını yükleyin',
+    govde: html`<div id="aktarim-kok">${disaKarti()}<div class="pad-t" id="ice-kok">${iceKarti()}</div><div class="pad-t">${gelir.govde}</div><div class="pad-t">${gider.govde}</div></div>`,
     mount(kok) {
       gelir.mount(kok);
+      gider.mount(kok);
       const iceYenile = () => { kok.querySelector('#ice-kok').innerHTML = iceKarti().s; };
       const onizlemeYenile = () => { const k = kok.querySelector('#ice-onizleme-kutu'); if (k) k.innerHTML = onizleme().s; };
       const sifirla = () => { Object.assign(d, { dosyaAdi: '', basliklar: [], kayitlar: [], esleme: [], sonuclar: [], bitti: null, hata: '', calisiyor: false }); };

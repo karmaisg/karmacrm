@@ -61,12 +61,13 @@ export function hesaplaKarlilik(g) {
 
   // ---- giderlerin sınıflandırılması
   const havuz = new Map(); const dogrudanFirma = new Map(); const dogrudanKisi = new Map();
-  let vergiK = 0; let maasAtlanan = 0;
+  let vergiK = 0; let maasAtlanan = 0; let yonetimOdenenK = 0;
   for (const x of giderler) {
     if (x.archived_at || ay7(x.expense_date) !== ayAnahtar) continue;
     const kat = katMap.get(x.category_id); const k = kurus(x.amount_excl_vat);
     if (kat?.is_payroll) { maasAtlanan += 1; continue; }
     if (kat?.is_income_tax) { vergiK += k; continue; }
+    if (kat?.is_management_pay) { yonetimOdenenK += k; continue; }
     if (x.cost_type === 'ortak') topla(havuz, x.category_id, k);
     else if (x.company_id) topla(dogrudanFirma, x.company_id, k);
     else if (x.employee_id) topla(dogrudanKisi, x.employee_id, k);
@@ -115,6 +116,11 @@ export function hesaplaKarlilik(g) {
     personel.push({ id: e.id, ad: e.full_name, tur: e.staff_type ?? null, rol: e.role_kind ?? null, yonetim: false, maliyetK, dogrudanK, toplamK, kapasite, teorikDk, fiiliDk, doluluk: kapasite > 0 ? teorikDk / kapasite : null, firmaPay, bostaK, eksik, gelirPayiK: 0, gelirKalemleri: [] });
   }
 
+  // Excel'den gelen "Yönetime ödenen" varsa o ayın yönetim gideri odur (personel kartı maliyetiyle çift sayılmaz)
+  if (yonetimOdenenK > 0) {
+    if (yonetimPersonelK > 0) uyarilar.push('Bu ay için Excel\'den "Yönetime ödenen" tutarı girilmiş; yönetim olarak işaretli personelin kart maliyeti çift sayılmaması için kullanılmadı.');
+    yonetimPersonelK = yonetimOdenenK;
+  }
   if (yonetimPersonelK > 0) topla(havuz, YONETIM_KATEGORI, yonetimPersonelK);
 
   // ---- personel gelir payı (görevlendirme esaslı; yaklaşık)
