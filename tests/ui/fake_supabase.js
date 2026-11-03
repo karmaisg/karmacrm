@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases']) tablo[ad] ??= [];
+for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -532,6 +532,40 @@ const rpcler = {
       eklenen += 1;
     }
     return { data: { eklenen, yeni_firma: yeni, atlanan, fatura_idleri: [] } };
+  },
+  // Aşama 19: gider_aktar (20_asama19.sql) basitleştirilmiş taklidi: yeni kayıtlar eklenir, önceki Excel kayıtları arşivlenir
+  gider_aktar({ p_paket: p }) {
+    if (!izinVar('expenses', 'can_create') || !izinVar('import_export', 'can_create') || !izinVar('expenses', 'can_archive')) return { error: hata('Gider aktarımı için gider ekleme, arşivleme ve içe aktarma yetkisi gerekir.', 'P0001') };
+    if (!p.aylar?.length || !p.satirlar?.length) return { error: hata('Aktarılacak gider satırı yok.', 'P0001') };
+    const simdi = new Date().toISOString(); const aylar = new Set(p.aylar);
+    const eski = tablo.expenses.filter((e) => e.import_id && !e.archived_at && aylar.has(`${e.expense_date.slice(0, 7)}-01`));
+    const imp = { id: uid(), organization_id: ORG, file_name: p.dosya, months: p.aylar, created_at: simdi, row_count: 0, archived_count: 0, total_excl_vat: 0 };
+    tablo.expense_imports.push(imp); let eklenen = 0; let yeniKat = 0; let negatif = 0; let toplam = 0;
+    const kdvAyirF = (t) => (p.kdv_modu === 'kdv_dahil' ? { haric: Math.round(t / (1 + p.kdv_orani / 100) * 100) / 100 } : { haric: t });
+    let yonKat = tablo.expense_categories.find((k) => k.is_management_pay);
+    for (const r of p.satirlar) {
+      let kid = null;
+      if (r.islem === 'yonetim') { if (!yonKat) { yonKat = { id: uid(), organization_id: ORG, name: 'Yönetime ödenen (yönetim personeli maliyeti)', nature: 'isletme', default_cost_type: 'ortak', is_payroll: false, is_management_pay: true, is_income_tax: false, sort_order: 99 }; tablo.expense_categories.push(yonKat); yeniKat += 1; } kid = yonKat.id; }
+      else if (r.islem === 'kategori') {
+        if (r.kategori_id) { const k = tablo.expense_categories.find((x) => x.id === r.kategori_id); if (!k || k.is_payroll || k.is_management_pay) return { error: hata('Kategori kullanılamaz.', 'P0001') }; kid = k.id; }
+        else { const ad = String(r.yeni_kategori?.ad ?? '').trim(); let k = tablo.expense_categories.find((x) => x.name === ad); if (!k) { k = { id: uid(), organization_id: ORG, name: ad, nature: r.yeni_kategori.tur === 'vergi' ? 'vergi' : 'isletme', default_cost_type: 'ortak', is_payroll: false, is_management_pay: false, is_income_tax: r.yeni_kategori.tur === 'vergi', sort_order: 100 }; tablo.expense_categories.push(k); yeniKat += 1; } kid = k.id; }
+      }
+      const m = tablo.expense_row_map.find((x) => x.row_key === r.anahtar);
+      const kayit = { row_key: r.anahtar, row_label: r.etiket, action: r.islem, category_id: r.islem === 'kategori' ? kid : null };
+      if (m) Object.assign(m, kayit); else tablo.expense_row_map.push({ id: uid(), organization_id: ORG, ...kayit });
+      if (r.islem === 'atla') continue;
+      for (const [ay, t] of Object.entries(r.tutarlar ?? {})) {
+        if (!aylar.has(ay)) return { error: hata('Tutar, dosya aylarının dışında.', 'P0001') };
+        if (!(t > 0)) { negatif += 1; continue; }
+        const { haric } = kdvAyirF(t); const kdv = Math.round((t - haric) * 100) / 100;
+        const h = p.kdv_modu === 'kdv_dahil' ? haric : t; const v = p.kdv_modu === 'kdv_dahil' ? kdv : Math.round(t * p.kdv_orani) / 100;
+        tablo.expenses.push({ id: uid(), organization_id: ORG, category_id: kid, expense_date: ay, amount_excl_vat: h, vat_amount: v, amount_incl_vat: h + v, cost_type: 'ortak', company_id: null, employee_id: null, paid: ay < `${bugun().slice(0, 7)}-01`, description: `Excel aktarımı: ${r.etiket}`, import_id: imp.id, created_at: simdi, updated_at: simdi, archived_at: null });
+        eklenen += 1; toplam += h;
+      }
+    }
+    for (const e of eski) e.archived_at = simdi;
+    Object.assign(imp, { row_count: eklenen, archived_count: eski.length, total_excl_vat: toplam });
+    return { data: { import_id: imp.id, eklenen, arsivlenen: eski.length, yeni_kategori: yeniKat, negatif_atlanan: negatif } };
   },
   gelir_kalemi_ekle(a) {
     if (!['spot', 'elden'].includes(a.p_tur)) return { error: hata('Gelir türü spot veya elden olmalıdır.', 'P0001') };

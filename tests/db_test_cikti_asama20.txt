@@ -1,0 +1,214 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama20.sql:76: NOTICE:  PASS | İlk gider yüklemesi
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:78: NOTICE:  PASS | Kayıt sayısı: kira 2 + muhasebe 1 + vergi 1 + yönetim 2 = 6 (sıfır ve atlanan yazılmaz)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:79: NOTICE:  PASS | Personel Giderleri satırı hiç yazılmadı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:80: NOTICE:  PASS | Tutarlar KDV hariç, KDV 0, ortak gider
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:81: NOTICE:  PASS | Muhasebe yeni kategori olarak açıldı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:82: NOTICE:  PASS | Vergi kategorisi vergi niteliğinde (gelir vergisi işaretli)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:83: NOTICE:  PASS | Yönetime ödenen kategorisi işaretli ve tek
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:84: NOTICE:  PASS | Yönetim satırı yönetim kategorisine yazıldı (2 ay)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:85: NOTICE:  PASS | Satır eşleşmeleri hatırlandı (5 satır)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:86: NOTICE:  PASS | Geçmiş aylar ödendi, tarih ayın ilk günü
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:87: NOTICE:  PASS | Yükleme geçmişi
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama20.sql:99: NOTICE:  PASS | İkinci yükleme (Şubat ve Mart güncel, Ocak yok)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:101: NOTICE:  PASS | Ocak kayıtlarına dokunulmadı (dosyada ay yoktu)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:102: NOTICE:  PASS | Şubat: eski Excel kayıtları arşivde (kira, vergi, yönetim)
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:103: NOTICE:  PASS | Şubat: vergi eski kaydı yerine yenisi yok (yeni dosyada vergi satırı yoktu) → aktif Şubat toplamı yalnız 1200
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:104: NOTICE:  PASS | Mart: yönetim 7000 ve kira 1200 aktif
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:105: NOTICE:  PASS | Elle girilen gider korunuyor
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:106: NOTICE:  PASS | Yükleme geçmişinde arşivlenen sayısı 3
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:107: NOTICE:  PASS | Aynı kategori ikinci kez oluşmadı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama20.sql:111: NOTICE:  PASS | KDV dahil yükleme: %20 ayrılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:113: NOTICE:  PASS | KDV dahil 1200 → hariç 1000 + KDV 200
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama20.sql:117: NOTICE:  PASS | Kategorisiz satır reddedilir [Satır için kategori seçilmemiş (X).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:118: NOTICE:  PASS | Maaş kategorisi atanamaz [Maaş veya yönetim kategorisi bu satıra atanamaz (X).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:119: NOTICE:  PASS | Ay listesi dışında ay reddedilir [Satırdaki ay dosyadaki ay listesinde yok (X).]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:120: NOTICE:  PASS | Ay yoksa reddedilir [Dosyada ay sütunu yok.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:122: NOTICE:  PASS | Hatalı pakette Mayıs kaydı oluşmadı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama20.sql:123: NOTICE:  PASS | Hatalı pakette yükleme geçmişi de oluşmadı
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama20.sql:127: NOTICE:  PASS | Satış rolü gider aktaramaz [Gider aktarımı için gider ekleme ve içe aktarma yetkisi gerekir.]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama20.sql:129: NOTICE:  PASS | Başka kurum yükleme geçmişini göremez
+ ok 
+----
+ 
+(1 row)
+

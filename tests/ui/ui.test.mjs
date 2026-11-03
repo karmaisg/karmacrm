@@ -2365,6 +2365,52 @@ await test('gelir Excel: izinsiz rol yükleme alanı görmez', async (s) => {
   esit(await s.locator('#gelir-dosya').count(), 0, 'satış gelir yükleme alanı görmez');
 });
 
+const GIDER_AYLAR = ['2026-09-01', '2026-10-01'];
+const giderDosyasi = (satirlar, ad = 'giderler.xlsx') => ({ name: ad, mimeType: 'application/octet-stream',
+  buffer: Buffer.from(gelirXlsx([{ ad: 'Giderler', satirlar: [['Gider kalemi', ...GIDER_AYLAR.map((v) => ({ t: 'tarih', v }))], ...satirlar] }])) });
+const giderYukle = async (s, dosya) => { await git(s, '#/firmalar'); await git(s, '#/aktarim'); await s.waitForSelector('#gider-dosya'); await s.setInputFiles('#gider-dosya', dosya); await s.waitForSelector('#gider-eslesme'); };
+await test('gider Excel: eşleştirme, yönetime ödenen, personel satırı atlanır, aktarım; yeni dosya önceki Excel kayıtlarının yerine geçer', async (s) => {
+  await girisYap(s);
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; t.expenses.push({ id: 'elle1', organization_id: t.companies[0]?.organization_id ?? 'o', category_id: t.expense_categories[0].id, expense_date: '2026-10-01', amount_excl_vat: 77, vat_amount: 0, amount_incl_vat: 77, cost_type: 'ortak', description: 'elle', archived_at: null, import_id: null }); });
+  await git(s, '#/aktarim'); await s.waitForSelector('#gider-dosya');
+  const [ind] = await Promise.all([s.waitForEvent('download'), s.click('[data-action="gider-sablon"]')]);
+  esit(ind.suggestedFilename(), 'gider-sablonu.xlsx', 'şablon adı');
+  const sablon = await gelirOku(fs.readFileSync(await ind.path())); esit(sablon.satirlar[0][0], 'Gider kalemi', 'şablon başlığı');
+  await giderYukle(s, giderDosyasi([['Yönetime Ödenen', 1000, 1100], ['Personel Giderleri', 5000, 5000], ['Kira', 200, 200], ['Vergi', 0, 50], ['Elektrik', 30, null], ['TOPLAM', 1, 1]]));
+  esit(await s.locator('#gider-eslesme tr[data-anahtar="yonetime odenen"]').getAttribute('data-islem'), 'yonetim', 'yönetime ödenen otomatik');
+  esit(await s.locator('#gider-eslesme tr[data-anahtar="personel giderleri"]').getAttribute('data-islem'), 'atla', 'personel satırı atlanır');
+  esit(await s.locator('#gider-yerine').getAttribute('data-adet'), '0', 'önceki aktarım yok');
+  await ekran(s, '63-gider-onizleme');
+  await s.click('#gider-uygula'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#gider-sonuc');
+  let d = await s.evaluate(() => { const t = globalThis.__fake.tablo; const a = t.expenses.filter((e) => e.import_id && !e.archived_at);
+    return { adet: a.length, ytop: a.filter((e) => t.expense_categories.find((k) => k.id === e.category_id)?.is_management_pay).reduce((x, e) => x + e.amount_excl_vat, 0),
+      personel: a.some((e) => /Personel/.test(e.description)), elle: t.expenses.find((e) => e.id === 'elle1').archived_at, vergi: t.expense_categories.find((k) => k.name === 'Vergi')?.is_income_tax, harita: t.expense_row_map.length }; });
+  esit(d.adet, 6, 'eklenen kayıt (boş hücreler hariç)'); esit(d.ytop, 2100, 'yönetime ödenen'); esit(d.personel, false, 'personel gideri aktarılmadı'); esit(d.elle, null, 'elle gider korunur'); esit(d.vergi, true, 'vergi kategorisi'); esit(d.harita, 5, 'eşleşmeler hatırlandı');
+  // ikinci dosya: eylül ve ekim değişir, öncekinin yerine geçer
+  await giderYukle(s, giderDosyasi([['Yönetime Ödenen', 900, 900], ['Kira', 250, null]]));
+  esit(await s.locator('#gider-yerine').getAttribute('data-adet'), '6', 'yerine geçecek kayıt sayısı');
+  if (!(await s.locator('#gider-yerine').innerText()).includes('arşivlenir')) throw new Error('yerine geçme uyarısı');
+  await s.click('#gider-uygula'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#gider-sonuc');
+  d = await s.evaluate(() => { const t = globalThis.__fake.tablo; const a = t.expenses.filter((e) => e.import_id && !e.archived_at);
+    return { aktif: a.length, toplam: a.reduce((x, e) => x + e.amount_excl_vat, 0), arsiv: t.expenses.filter((e) => e.import_id && e.archived_at).length, elle: t.expenses.find((e) => e.id === 'elle1').archived_at }; });
+  esit(d.aktif, 3, 'yalnızca yeni dosyadaki kayıtlar aktif'); esit(d.toplam, 900 + 900 + 250, 'yeni toplam'); esit(d.arsiv, 6, 'eskiler arşivde'); esit(d.elle, null, 'elle gider hâlâ korunur');
+});
+await test('gider Excel: hatalı dosya, kategori seçilmeden aktarılamaz, yetkisiz rol alanı görmez', async (s) => {
+  await girisYap(s); await git(s, '#/aktarim'); await s.waitForSelector('#gider-dosya');
+  await s.setInputFiles('#gider-dosya', { name: 'a.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('bu excel degil') });
+  await s.waitForFunction(() => document.querySelector('#gider-hata') && !document.querySelector('#gider-hata').hidden);
+  await giderYukle(s, giderDosyasi([['Kira', 200, 200]]));
+  const k = await s.locator('#gider-eslesme select[data-gkarar="kira"]').inputValue(); if (!k.startsWith('k:')) throw new Error(`kira mevcut kategoriye eşleşmeli: ${k}`);
+  await s.selectOption('#gider-eslesme select[data-gkarar="kira"]', 'yeni'); await s.fill('[data-gyeni-ad="kira"]', ''); await s.locator('[data-gyeni-ad="kira"]').blur();
+  await s.waitForSelector('#gider-bekleyen'); esit(await s.locator('#gider-uygula').isDisabled(), true, 'kategori boşken aktarılamaz');
+  await s.setViewportSize({ width: 375, height: 800 }); await s.waitForTimeout(200);
+  const tas = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); if (tas > 1) throw new Error(`yatay taşma ${tas}px`);
+  await ekran(s, '64-mobil-gider');
+});
+await test('gider Excel: izinsiz rol yükleme alanı görmez', async (s) => {
+  await girisYap(s, 'satis@test.com'); await git(s, '#/aktarim'); await s.waitForSelector('#aktarim-kok, .empty');
+  esit(await s.locator('#gider-dosya').count(), 0, 'satış gider yükleme alanı görmez');
+});
 await test('gelir ekle: spot iş (KDV oranı) ve elden ödeme (KDV yok, tahsil edildi); fatura detayında ortalama KDV', async (s) => {
   await gelirKurulum(s); await git(s, '#/tahsilat'); await s.waitForSelector('[data-action="yeni-gelir"]');
   await s.click('[data-action="yeni-gelir"]'); const m = modal(s);
