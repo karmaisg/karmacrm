@@ -335,8 +335,8 @@ export function createApi(db) {
     unarchiveEmployee: (id) => bir(T('employees').update({ archived_at: null }).eq('id', id).select().single()),
     linkEmployeeUser: (employeeId, userId) => bir(db.rpc('personel_kullanici_bagla', { p_employee: employeeId, p_user: userId ?? null })),
     listEmployeeCosts: (employeeId) => bir(T('employee_costs').select('*').eq('employee_id', employeeId).order('valid_from', { ascending: false })),
-    addEmployeeCost: ({ employeeId, brut, sgk, diger, baslangic }) => bir(db.rpc('personel_maliyeti_ekle', {
-      p_employee: employeeId, p_brut: brut, p_sgk: sgk, p_diger: diger, p_baslangic: baslangic,
+    addEmployeeCost: ({ employeeId, baslangic, brut, net, emekli, sgk, elden }) => bir(db.rpc('personel_maliyeti_kaydet', {
+      p_employee: employeeId, p_baslangic: baslangic, p_brut: brut ?? null, p_net: net ?? null, p_emekli: !!emekli, p_sgk: sgk ?? null, p_elden: elden ?? null,
     })),
 
     // ----- görevlendirmeler

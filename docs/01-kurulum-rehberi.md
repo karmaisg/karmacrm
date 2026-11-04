@@ -407,3 +407,13 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
 
 ### Logo
 Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.png` (simge + yazı, giriş ekranı), `favicon.png`, `favicon-32.png` ve `apple-touch-icon.png` (sekme simgesi, yalnızca simge). Değiştirmek için aynı adlarla dosya koymak yeterlidir. Not: tam logo beyaz zemin için hazırlanmıştır; koyu temada giriş kartı açık renkli kalır.
+
+## Aşama 20 kurulumu (personel bazlı maliyet)
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/22_asama20.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. Eski maliyet kayıtları aynen korunur (toplamları eskisi gibi brüt + SGK + diğer kalır).
+2. **Kullanım:** Uzman / hekim / diğer personel kartında **Aylık maliyet > Yeni dönem**. Alanlar: Geçerlilik başlangıcı, Net maaş, Brüt maaş, Personel emekli, SGK primi, Elden verilen. Hiçbiri (başlangıç hariç) zorunlu değildir.
+3. **SGK primi** boş bırakılırsa brüt maaştan otomatik hesaplanır: emekli ise brüt × (%2,25 + %30) = %32,25; emekli değilse brüt × (%2,25 + %21 + %12,5 + %3) = %38,75. Maaş girmeden yalnızca SGK primi girmek için SGK alanına tutarı yazın (elle girilen SGK, "elle" etiketiyle gösterilir).
+4. **İşverene toplam maliyet** = net maaş + SGK primi + elden verilen. Form, yazarken sonucu gösterir.
+5. **Geçerlilik:** Yeni başlangıç girilince kayıt o tarihten sonraki aylara, başka bir başlangıç girilene kadar aynı hesapla devam eder; önceki dönem bir gün öncesinde kapanır. Geçmişe araya dönem girilirse kapsayan dönem bölünür, sonraki dönemler korunur. Aynı başlangıç tarihi yeniden girilirse o dönem güncellenir.
+6. **Not:** Kârlılık, personel kartındaki bu toplamı kullanır. Excel'deki "Personel Giderleri" toplam gider satırı ayrıca gider olarak alınır ve firma kârlılığında çift sayılmaz. SGK oranları kodda sabittir; oranlar değişirse bildirin.
+

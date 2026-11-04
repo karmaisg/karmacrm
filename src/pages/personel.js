@@ -1,10 +1,11 @@
 // OSGB 360 - Uzmanlar ve işyeri hekimleri: liste, kayıt formu, personel sayfası (görevlendirmeler, zaman, maliyet, kullanıcı bağı).
-import { html, bugun, tarih, para, sayi, icerir, trSirala, ayBasi, ayAdi } from '../lib/format.js';
+import { html, bugun, tarih, para, para2, sayi, icerir, trSirala, ayBasi, ayAdi } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { avatar, pill, emptyState, field, checkbox, openFormModal, confirmDialog, toast } from '../ui/components.js';
 import { PERSONEL_TURU, ROL_TURU, personelEtiketi, aktifMi, ayBitisi, aktifFirmaAtamalari, personelAyYuku, zamanOzeti, sureMetni, dolulukSeviyesi } from '../lib/operasyon.js';
 import { bosIseNull, kapasiteDakika, profilleriGrupla, epostaGecerli, telefonGecerli } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
+import { maliyetHesapla } from '../lib/maliyet.js';
 import { gorevlendirmeFormuAc, gorevlendirmeDurumu } from './gorevlendirmeler.js';
 
 export const dolulukPill = (s) => ({ asiri: pill('Aşırı yüklü', 'danger'), dolu: pill('Dolu', 'warning'), normal: pill('Uygun', 'success'), bos: pill('Boş kapasite', 'info'), bilinmiyor: pill('Veri yok', 'neutral') }[s]);
@@ -190,8 +191,8 @@ export async function personelSayfasi(app, id) {
         <button type="button" class="btn btn-secondary btn-sm" data-action="bagla">Bağlantıyı kaydet</button></section>` : ''}
       ${app.can('payroll', 'view') ? html`<section class="card"><div class="card-head"><div><h2 class="card-title">Aylık maliyet</h2><p class="card-sub">Hassas bilgi: yalnızca maaş yetkisi olanlar görür.</p></div>
           ${maliyetYonet ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="maliyet">${icon('plus', 16)} Yeni dönem</button>` : ''}</div>
-        ${maliyetler.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Dönem</th><th scope="col" class="num">Brüt</th><th scope="col" class="num">İşveren SGK</th><th scope="col" class="num">Diğer</th><th scope="col" class="num">Toplam</th></tr></thead><tbody>
-          ${maliyetler.map((m) => html`<tr><td>${tarih(m.valid_from)} – ${m.valid_to ? tarih(m.valid_to) : 'devam'} ${guncelMaliyet?.id === m.id ? pill('Güncel', 'success') : ''}</td><td class="num">${para(m.gross_salary)}</td><td class="num">${para(m.employer_sgk)}</td><td class="num">${para(m.other_benefits)}</td><td class="num"><strong>${para(m.total_monthly_cost)}</strong></td></tr>`)}</tbody></table></div>`
+        ${maliyetler.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Dönem</th><th scope="col" class="num">Net</th><th scope="col" class="num">Brüt</th><th scope="col" class="num">SGK primi</th><th scope="col" class="num">Elden</th><th scope="col" class="num">Toplam</th></tr></thead><tbody>
+          ${maliyetler.map((m) => html`<tr><td>${tarih(m.valid_from)} – ${m.valid_to ? tarih(m.valid_to) : 'devam'} ${guncelMaliyet?.id === m.id ? pill('Güncel', 'success') : ''}</td><td class="num">${Number(m.cost_version) === 2 ? para(m.net_salary) : '—'}</td><td class="num">${para(m.gross_salary)}${m.is_retired ? html`<small class="block muted">emekli</small>` : ''}</td><td class="num">${para(m.employer_sgk)}${m.sgk_manual ? html`<small class="block muted">elle</small>` : ''}</td><td class="num">${Number(m.cost_version) === 2 ? para(m.cash_paid) : (Number(m.other_benefits) ? `${para(m.other_benefits)} (diğer)` : '—')}</td><td class="num"><strong>${para(m.total_monthly_cost)}</strong></td></tr>`)}</tbody></table></div>`
     : emptyState({ simge: 'wallet', baslik: 'Maliyet girilmemiş', metin: 'Personel kârlılığı (Aşama 7) bu bilgiye ihtiyaç duyar.' })}</section>` : ''}
       ${gorevGorur ? html`<section class="card card-flush grid-full"><div class="card-head"><h2 class="card-title">Görevlendirmeler</h2></div>
         ${benim.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Firma</th><th scope="col" class="num">Pay</th><th scope="col">Dönem</th><th scope="col">Durum</th></tr></thead><tbody>
@@ -218,24 +219,33 @@ export async function personelSayfasi(app, id) {
 }
 
 function maliyetFormu(app, p, maliyetler) {
-  const acik = maliyetler.find((m) => !m.valid_to);
-  openFormModal({
-    baslik: 'Yeni maliyet dönemi', altBaslik: `${p.full_name} · ${acik ? `mevcut dönem (${tarih(acik.valid_from)}) bu tarihin bir gün öncesinde kapanır` : 'ilk dönem'}`, gonderEtiketi: 'Kaydet',
+  const guncel = maliyetler.find((m) => m.valid_from <= bugun() && (!m.valid_to || m.valid_to >= bugun())) ?? maliyetler[0] ?? null;
+  const yeniSurum = guncel && Number(guncel.cost_version) === 2;
+  const m = openFormModal({
+    baslik: 'Yeni maliyet dönemi', altBaslik: `${p.full_name} · seçtiğiniz tarihten itibaren, başka bir başlangıç girilene kadar aynı hesapla devam eder`, gonderEtiketi: 'Kaydet',
     govde: html`${field({ ad: 'baslangic', etiket: 'Geçerlilik başlangıcı', tur: 'date', zorunlu: true, deger: ayBasi(bugun()), tam: true })}
-      ${field({ ad: 'brut', etiket: 'Brüt maaş (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', zorunlu: true, deger: acik?.gross_salary ?? '' })}
-      ${field({ ad: 'sgk', etiket: 'İşveren SGK (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: acik?.employer_sgk ?? 0 })}
-      ${field({ ad: 'diger', etiket: 'Diğer yan haklar (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: acik?.other_benefits ?? 0 })}`,
+      ${field({ ad: 'net', etiket: 'Net maaş (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: yeniSurum ? guncel.net_salary : '' })}
+      ${field({ ad: 'brut', etiket: 'Brüt maaş (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: guncel?.gross_salary ?? '', ipucu: 'SGK primi bu tutardan hesaplanır.' })}
+      ${checkbox({ ad: 'emekli', etiket: 'Personel emekli', isaretli: !!guncel?.is_retired, ipucu: 'Emekli: brüt × (%2,25 + %30). Emekli değil: brüt × (%2,25 + %21 + %12,5 + %3).' })}
+      ${field({ ad: 'sgk', etiket: 'SGK primi (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: guncel?.sgk_manual ? guncel.employer_sgk : '', ipucu: 'Boş bırakırsanız brüt maaştan otomatik hesaplanır. Maaş girmeden yalnızca SGK primi girmek için buraya yazın.' })}
+      ${field({ ad: 'elden', etiket: 'Elden verilen (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: yeniSurum ? guncel.cash_paid : '' })}
+      <div class="field field-full" id="maliyet-bilgi" aria-live="polite"></div>`,
     async onSubmit(fd) {
       const g = (k) => String(fd.get(k) ?? '').trim();
       const h = {};
       if (!g('baslangic')) h.baslangic = 'Başlangıç tarihini seçin.';
-      else if (acik && g('baslangic') <= acik.valid_from) h.baslangic = 'Başlangıç, mevcut dönemin başlangıcından sonra olmalıdır.';
-      if (g('brut') === '' || !(Number(g('brut')) >= 0)) h.brut = 'Brüt maaşı girin (0 veya üstü).';
-      for (const k of ['sgk', 'diger']) if (g(k) !== '' && !(Number(g(k)) >= 0)) h[k] = 'Tutar 0 veya daha büyük olmalıdır.';
+      for (const k of ['net', 'brut', 'sgk', 'elden']) if (g(k) !== '' && !(Number(g(k)) >= 0)) h[k] = 'Tutar 0 veya daha büyük olmalıdır.';
       if (Object.keys(h).length) return { errors: h };
-      await app.api.addEmployeeCost({ employeeId: p.id, brut: Number(g('brut')), sgk: Number(g('sgk') || 0), diger: Number(g('diger') || 0), baslangic: g('baslangic') });
+      const x = maliyetHesapla({ brut: g('brut'), net: g('net'), emekli: fd.get('emekli') === '1', sgk: g('sgk'), elden: g('elden') });
+      await app.api.addEmployeeCost({ employeeId: p.id, baslangic: g('baslangic'), brut: x.brut, net: x.net, emekli: fd.get('emekli') === '1', sgk: x.sgkElle ? x.sgk : null, elden: x.elden });
       toast('Maliyet dönemi kaydedildi.');
     },
     onDone: () => app.yenile(),
   });
+  const form = m.el.querySelector('form'); const bilgi = form.querySelector('#maliyet-bilgi');
+  const guncelle = () => {
+    const x = maliyetHesapla({ brut: form.elements.brut.value, net: form.elements.net.value, emekli: form.elements.emekli.checked, sgk: form.elements.sgk.value, elden: form.elements.elden.value });
+    bilgi.innerHTML = html`<div class="notice notice-info" role="status">SGK primi <strong>${para2(x.sgk)}</strong> ${x.sgkElle ? '(elle girildi)' : '(otomatik)'} · İşverene toplam maliyet = net ${para2(x.net)} + SGK ${para2(x.sgk)} + elden ${para2(x.elden)} = <strong>${para2(x.toplam)}</strong></div>`.s;
+  };
+  form.addEventListener('input', guncelle); form.addEventListener('change', guncelle); guncelle();
 }
