@@ -65,7 +65,7 @@ export function hesaplaKarlilik(g) {
   for (const x of giderler) {
     if (x.archived_at || ay7(x.expense_date) !== ayAnahtar) continue;
     const kat = katMap.get(x.category_id); const k = kurus(x.amount_excl_vat);
-    if (kat?.is_payroll) { maasAtlanan += 1; continue; }
+    if (kat?.is_payroll) { if (!x.import_id) maasAtlanan += 1; continue; }   // Excel'den gelen toplu personel gideri uyarı gerektirmez
     if (kat?.is_income_tax) { vergiK += k; continue; }
     if (kat?.is_management_pay) { yonetimOdenenK += k; continue; }
     if (x.cost_type === 'ortak') topla(havuz, x.category_id, k);

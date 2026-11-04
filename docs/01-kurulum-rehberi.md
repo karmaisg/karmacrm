@@ -392,9 +392,18 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
 
 1. **SQL:** Supabase > SQL Editor'de `supabase/20_asama19.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir.
 2. **Şablon:** Veri içe/dışa aktarma sayfasında "Aylık gider Excel'i" kartından **Boş şablonu indir**. Satır = gider kalemi, sütun = ay (01.01.2026 gibi tarih hücresi). Tutarlar aylık toplamdır; boş/0 hücre aktarılmaz.
-3. **Yükleme:** Dosyayı seçin. Her kalem için kategori önerilir (aynı ada sahip kategori; yoksa "+ Yeni kategori"; **Yönetime Ödenen** otomatik "Yönetime ödenen"e; **Personel Giderleri** otomatik "Aktarma"ya gider). Onayladığınız eşleşmeler hatırlanır, sonraki ayda sorulmaz. "Vergi" satırı varsayılan olarak yeni bir **gelir vergisi** kategorisi olur (kâr-sonrası hesapta kullanılır); isterseniz başka kategori seçin.
+3. **Yükleme:** Dosyayı seçin. Her kalem için kategori önerilir (aynı ada sahip kategori; yoksa "+ Yeni kategori"; **Yönetime Ödenen** otomatik "Yönetime ödenen"e; **Personel Giderleri** otomatik yeni "Personel Giderleri" (personel/maaş türü) kategorisine gider ve gider olarak alınır). Onayladığınız eşleşmeler hatırlanır, sonraki ayda sorulmaz. "Vergi" satırı varsayılan olarak yeni bir **gelir vergisi** kategorisi olur (kâr-sonrası hesapta kullanılır); isterseniz başka kategori seçin.
 4. **KDV:** Dosyadaki tutarlar varsayılan olarak **KDV hariç** kabul edilir. KDV dahilse "KDV dahil" ve oranı seçin; tutar hariç + KDV olarak ayrılır.
 5. **Yerine geçme:** Her yükleme, dosyadaki aylar için daha önce **Excel'den aktarılmış** kayıtların yerine geçer; eski kayıtlar silinmez, **arşivlenir**. Elle girilen giderlere dokunulmaz. Dosyada olmayan aylara dokunulmaz. Hepsi tek işlemde yazılır, hata olursa hiçbir şey değişmez.
 6. **Yönetime ödenen:** Yönetim olarak işaretli uzman/hekim maliyetidir. Firma kârlılığında yönetim giderine yazılır ve o ay için, işaretli personelin kart maliyetinin yerine geçer (çift sayılmaz). O ay Excel'de yönetime ödenen yoksa eski hesap (personel kartı) sürer.
-7. **Personel maliyeti:** Uzman, hekim ve diğer personelin maaş/SGK maliyetleri gider kalemi değildir; personel kartındaki maliyet dönemlerinden girilir. Bu dosyadaki personel satırı aktarılmaz.
+7. **Personel giderleri:** Dosyadaki "Personel Giderleri" toplam satırı gider olarak alınır (Giderler sayfasında ve gider toplamlarında görünür). Firma kârlılığında personel kartındaki maliyetle çift sayılmaması için hesaba katılmaz; kişi bazlı personel maliyeti (personel kârlılığı) ayrıca, sonraki aşamada girilecektir.
 8. **Sınırlar:** Geçmiş ödenmiş sayılır (içinde bulunulan aydan önceki aylar "ödendi"). Negatif tutarlar aktarılmaz (uyarı verilir). Kategoriye göre ortak gider dağıtımı daha önce kaydedilmiş bir ay yeniden yüklenirse dağıtım havuzu denetimi arşivlemeyi reddedebilir; önce o ayın dağıtımını sıfırlayın.
+
+### Tek seferlik: faturaları toplu "tahsil edildi" yapma
+1. Yedek alın (Yedekleme sayfası).
+2. Supabase > SQL Editor'de `supabase/21_toplu_tahsilat_tek_sefer.sql` dosyasını **bir kez** çalıştırın.
+3. Dosyadaki 245 numara "tahsil edilmeyen" listesidir; EAR-/EFT- ile başlayan diğer tüm faturalar bakiyesi kadar tahsilatla kapatılır. Tahsilat tarihi bilinmediğinden fatura tarihi yazılır ve not alanına "Toplu işaretleme" eklenir. EAR-/EFT- dışı (elle kesilmiş) faturalara dokunulmaz. Çalıştırma sonunda sonuç tablosu çıkar: işaretlenen fatura sayısı/tutarı, kalan açık fatura, listede olup sistemde bulunamayan numara sayısı.
+4. Sonradan fatura yükleyip dosyayı tekrar çalıştırmayın (yeni faturalar da tahsil edilmiş olur).
+
+### Logo
+Logo ve sekme simgesi (favicon) `assets/` klasöründedir (`logo.png`, `favicon.png`, `apple-touch-icon.png`). Verdiğiniz görseldeki yazı kırmızı üstüne kırmızı ve bulanık olduğu için yalnızca kırmızı yuvarlak kare kısmı kullanıldı; "OSGB 360" yazısı yanında normal metin olarak kalır. Daha net bir PNG/SVG verirseniz aynı dosya adlarıyla değiştirmek yeterlidir.

@@ -1,5 +1,5 @@
 // OSGB 360 - Aylık gider Excel'i (satır = gider kalemi, sütun = ay): ayrıştırma, kategori eşleştirme, yerine geçme önizlemesi.
-// Saf fonksiyonlar. Personel maliyeti (maaş/SGK) bu dosyadan alınmaz; "Yönetime ödenen" yönetim personeli maliyetidir.
+// Saf fonksiyonlar. "Personel Giderleri" satırı gider olarak alınır (personel kategorisi); kişi bazlı maliyet ayrıca girilir. "Yönetime ödenen" yönetim personeli maliyetidir.
 import { trKucukAscii, adBenzerligi } from './katip.js';
 import { sayiOku, tarihOku } from './gelir.js';
 
@@ -51,7 +51,8 @@ export function giderTablosu(tablo) {
  */
 export function varsayilanKararlar(satirlar, { kategoriler = [], harita = [] } = {}) {
   const hMap = new Map(harita.map((h) => [h.row_key, h]));
-  const uygun = kategoriler.filter((k) => !k.is_payroll && !k.is_management_pay);
+  const uygun = kategoriler.filter((k) => !k.is_management_pay);          // maaş/personel kategorileri de seçilebilir
+  const benzerAday = uygun.filter((k) => !k.is_payroll);
   const kararlar = {};
   for (const s of satirlar) {
     const h = hMap.get(s.anahtar);
@@ -59,10 +60,14 @@ export function varsayilanKararlar(satirlar, { kategoriler = [], harita = [] } =
     if (h?.action === 'atla') { kararlar[s.anahtar] = { islem: 'atla', kategori_id: null, yeni: null }; continue; }
     if (h?.action === 'kategori' && uygun.some((k) => k.id === h.category_id)) { kararlar[s.anahtar] = { islem: 'kategori', kategori_id: h.category_id, yeni: null }; continue; }
     if (/yonetime odenen/.test(s.anahtar) || /^yonetim odeme/.test(s.anahtar)) { kararlar[s.anahtar] = { islem: 'yonetim', kategori_id: null, yeni: null }; continue; }
-    if (/^personel( giderleri| gideri| maliyet)/.test(s.anahtar)) { kararlar[s.anahtar] = { islem: 'atla', kategori_id: null, yeni: null }; continue; }
+    if (/^personel( giderleri| gideri| maliyet)/.test(s.anahtar)) {      // gider olarak alınır; firma kârlılığında kart maliyetiyle çift sayılmaz
+      const p = uygun.find((k) => anahtarOf(k.name) === s.anahtar);
+      kararlar[s.anahtar] = p ? { islem: 'kategori', kategori_id: p.id, yeni: null } : { islem: 'kategori', kategori_id: null, yeni: { ad: s.etiket, tur: 'personel' } };
+      continue;
+    }
     const tam = uygun.find((k) => anahtarOf(k.name) === s.anahtar);
     if (tam) { kararlar[s.anahtar] = { islem: 'kategori', kategori_id: tam.id, yeni: null }; continue; }
-    const en = uygun.map((k) => ({ k, skor: adBenzerligi(s.etiket, k.name) })).filter((x) => x.skor >= 0.85).sort((a, b) => b.skor - a.skor)[0];
+    const en = benzerAday.map((k) => ({ k, skor: adBenzerligi(s.etiket, k.name) })).filter((x) => x.skor >= 0.85).sort((a, b) => b.skor - a.skor)[0];
     if (en) { kararlar[s.anahtar] = { islem: 'kategori', kategori_id: en.k.id, yeni: null }; continue; }
     kararlar[s.anahtar] = { islem: 'kategori', kategori_id: null, yeni: { ad: s.etiket, tur: s.anahtar === 'vergi' ? 'vergi' : 'isletme' } };
   }
@@ -85,7 +90,7 @@ export function giderPaketi({ dosya, aylar, satirlar, kararlar, kdvModu = 'kdv_h
     if (k.islem === 'atla') { gidecek.push({ anahtar: s.anahtar, etiket: s.etiket, islem: 'atla', tutarlar: {} }); continue; }
     if (!s.dolu) continue;
     const p = { anahtar: s.anahtar, etiket: s.etiket, islem: k.islem, tutarlar: s.tutarlar };
-    if (k.islem === 'kategori') { if (k.kategori_id) p.kategori_id = k.kategori_id; else p.yeni_kategori = { ad: String(k.yeni.ad).trim(), tur: k.yeni.tur === 'vergi' ? 'vergi' : 'isletme' }; }
+    if (k.islem === 'kategori') { if (k.kategori_id) p.kategori_id = k.kategori_id; else p.yeni_kategori = { ad: String(k.yeni.ad).trim(), tur: ['vergi', 'personel'].includes(k.yeni.tur) ? k.yeni.tur : 'isletme' }; }
     gidecek.push(p);
   }
   return { dosya: dosya ?? null, aylar, kdv_modu: kdvModu, kdv_orani: kdvOrani, satirlar: gidecek };

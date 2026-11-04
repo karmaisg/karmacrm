@@ -47,6 +47,7 @@ karmacrm/
 │  ├─ 11_asama11.sql         Aşama 11: denetim kaydı okuma izni, tam yetki, yedek kaydı (bir kez)
 │  ├─ 12_asama12.sql         Aşama 12: müşteri teklif bağlantısı (offer_shares, girişsiz müşteri fonksiyonları) (bir kez)
 │  ├─ 14_asama13_katip.sql   Aşama 13: İSG-Katip aktarımı (company_sites, katip_imports/rows/people, katip_uygula) (bir kez)
+│  ├─ 21_toplu_tahsilat_tek_sefer.sql  Tek seferlik: listedekiler dışındaki EAR-/EFT- faturaları tahsil edildi işaretler (bir kez)
 │  ├─ 20_asama19.sql         Aşama 19: aylık gider Excel aktarımı (gider_aktar, yönetime ödenen kategorisi, eşleşme hafızası) (bir kez)
 │  ├─ 19_asama18.sql         Aşama 18: firmayı kalıcı silme (firma_sil), pasif firmaya toplu fatura üretmeme (bir kez)
 │  ├─ 18_asama17.sql         Aşama 17: gelir Excel aktarımı, spot/elden gelir, fatura takma adları (bir kez)

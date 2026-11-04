@@ -1,5 +1,5 @@
 // OSGB 360 - Aylık gider Excel'i yükleme: kalem eşleştirme, ay özeti, "önceki aktarımın yerine geçer" önizlemesi, tek işlemde aktarım.
-// Mantık: lib/gider_aktar.js. Personel maliyeti (maaş/SGK) bu dosyadan alınmaz.
+// Mantık: lib/gider_aktar.js.
 import { html, sayi, para2 } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { toast, confirmDialog } from '../ui/components.js';
@@ -16,7 +16,7 @@ export function giderAktarimKarti(app) {
   const kategoriYarat = app.can('settings', 'create');
   const d = { dosyaAdi: '', tablo: null, kararlar: {}, kdvModu: 'kdv_haric', kdvOrani: 20, calisiyor: false, sonuc: null, hata: '', veri: null };
 
-  const uygunKategoriler = () => d.veri.kategoriler.filter((k) => !k.is_payroll && !k.is_management_pay && !k.archived_at).sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  const uygunKategoriler = () => d.veri.kategoriler.filter((k) => !k.is_management_pay && !k.archived_at).sort((a, b) => a.name.localeCompare(b.name, 'tr'));
   const bekleyen = () => bekleyenSatirlar(d.tablo.satirlar, d.kararlar);
 
   const kararSecimi = (s) => {
@@ -25,12 +25,12 @@ export function giderAktarimKarti(app) {
       <optgroup label="Gider kategorisi">${uygunKategoriler().map((c) => html`<option value="k:${c.id}" ${deger === `k:${c.id}` ? html`selected` : ''}>${c.name}</option>`)}</optgroup>
       ${kategoriYarat ? html`<option value="yeni" ${deger === 'yeni' ? html`selected` : ''}>+ Yeni kategori oluştur</option>` : ''}
       <option value="yonetim" ${deger === 'yonetim' ? html`selected` : ''}>Yönetime ödenen (yönetim personeli maliyeti)</option>
-      <option value="atla" ${deger === 'atla' ? html`selected` : ''}>Aktarma (ör. Personel Giderleri)</option></select></label>
+      <option value="atla" ${deger === 'atla' ? html`selected` : ''}>Aktarma (bu satırı alma)</option></select></label>
       ${deger === 'yeni' ? html`<div class="field"><label class="sr-only" for="gy-${s.anahtar}">Yeni kategori adı</label><input id="gy-${s.anahtar}" data-gyeni-ad="${s.anahtar}" type="text" maxlength="120" value="${k.yeni?.ad ?? ''}" placeholder="Yeni kategori adı"></div>` : ''}`;
   };
 
   const eslesme = () => html`<h3 class="card-title pad-t">Kalem eşleştirme</h3>
-    <p class="card-sub">Her satır bir gider kategorisine bağlanır; onayladığınız eşleşmeler hatırlanır. "Yönetime ödenen" yönetim olarak işaretli uzman/hekim maliyetidir; personel maaş ve SGK satırları aktarılmaz.</p>
+    <p class="card-sub">Her satır bir gider kategorisine bağlanır; onayladığınız eşleşmeler hatırlanır. "Yönetime ödenen" yönetim olarak işaretli uzman/hekim maliyetidir; "Personel Giderleri" satırı gider olarak alınır; kişi bazlı personel maliyeti ayrıca girilir ve kârlılıkta çift sayılmaz.</p>
     <div class="table-wrap"><table class="table" id="gider-eslesme"><thead><tr><th scope="col">Dosyadaki kalem</th><th scope="col" class="num">Toplam (KDV hariç)</th><th scope="col">Kategori</th></tr></thead><tbody>
     ${d.tablo.satirlar.map((s) => html`<tr data-anahtar="${s.anahtar}" data-islem="${d.kararlar[s.anahtar].islem}"><td><strong>${s.etiket}</strong>${s.dolu ? '' : html`<small class="block muted">Tüm aylar boş — aktarılmaz</small>`}</td><td class="num">${para2(s.toplam)}</td><td>${kararSecimi(s)}</td></tr>`)}</tbody></table></div>`;
 
@@ -62,7 +62,7 @@ export function giderAktarimKarti(app) {
   };
 
   const kart = () => html`<section class="card" id="gider-karti"><div class="card-head"><div><h2 class="card-title">Aylık gider Excel'i</h2>
-    <p class="card-sub">Satırı gider kalemi, sütunu ay olan tabloyu yükleyin. Her yükleme, içindeki aylar için önceki Excel aktarımının yerine geçer. Personel maaş/SGK maliyetleri gider değildir; personel kârlılığı için kişi bazında ayrıca girilir.</p></div></div>
+    <p class="card-sub">Satırı gider kalemi, sütunu ay olan tabloyu yükleyin. Her yükleme, içindeki aylar için önceki Excel aktarımının yerine geçer. "Personel Giderleri" satırı da gider olarak alınır; personel kârlılığı için kişi bazlı maliyet ayrıca (sonraki aşamada) girilir.</p></div></div>
     ${izin ? html`<div class="toolbar"><button type="button" class="btn btn-secondary btn-sm" data-action="gider-sablon">${icon('upload', 16)} Boş şablonu indir (.xlsx)</button></div>
       <div class="pad">${d.sonuc ? '' : html`<div class="field"><label for="gider-dosya">Gider Excel dosyası (.xlsx, en çok 8 MB)</label><input id="gider-dosya" type="file" accept=".xlsx,${XLSX_TUR}"></div>
       <p class="form-error" id="gider-hata" role="alert" ${d.hata ? '' : html`hidden`}>${d.hata}</p>${d.dosyaAdi && !d.hata ? html`<p class="muted">${d.dosyaAdi}</p>` : ''}`}

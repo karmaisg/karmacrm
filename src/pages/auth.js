@@ -4,11 +4,7 @@ import { icon } from '../ui/icons.js';
 import { humanError } from '../lib/api.js';
 import { showFieldErrors } from '../ui/components.js';
 
-export const logo = (boyut = 36) => html`<svg class="logo-mark" width="${boyut}" height="${boyut}" viewBox="0 0 32 32" aria-hidden="true">
-  <rect width="32" height="32" rx="9" fill="var(--primary)"/>
-  <path d="M16 7.5a8.5 8.5 0 1 0 8.5 8.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="16" cy="16" r="2.6" fill="#fff"/>
-</svg>`;
+export const logo = (boyut = 36) => html`<img class="logo-mark" src="assets/logo.png" width="${boyut}" height="${boyut}" alt="" aria-hidden="true">`;
 
 function kart(icerik) {
   return html`<main class="auth" id="main">
