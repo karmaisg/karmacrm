@@ -29,24 +29,25 @@ test('biçim yardımcıları', () => {
 });
 
 test('konu: yalnızca dolu bölümler, test öneki, boş özet', () => {
-  assert.equal(ozetKonu(OZET), 'OSGB 360 özet — 12 gecikmiş fatura, 1 yaklaşan vade, 2 sözleşme, 1 gecikmiş görev');
+  assert.equal(ozetKonu(OZET), 'OSGB 360 özet — 12 gecikmiş fatura, 1 yaklaşan vade, 2 sözleşme');
   assert.equal(ozetKonu(OZET, true).startsWith('[TEST] '), true);
   assert.equal(ozetKonu(BOS), 'OSGB 360 özet: bildirilecek kayıt yok');
-  assert.equal(ozetKonu({ ...BOS, gorev: OZET.gorev }), 'OSGB 360 özet — 1 gecikmiş görev');
-  assert.equal(ozetBos(BOS), true); assert.equal(ozetBos(OZET), false); assert.equal(ozetBos({}), true); assert.equal(ozetBos(null), true);
+  assert.equal(ozetKonu({ ...BOS, gorev: OZET.gorev }), 'OSGB 360 özet: bildirilecek kayıt yok');   // gecikmiş görevler özette gösterilmez
+  assert.equal(ozetBos(BOS), true); assert.equal(ozetBos({ ...BOS, gorev: OZET.gorev }), true); assert.equal(ozetBos(OZET), false); assert.equal(ozetBos({}), true); assert.equal(ozetBos(null), true);
 });
 
 test('metin ve HTML: içerik, "ve N daha", gecikme/kalan gün yazımı, bağlantılar', () => {
   const t = ozetMetni(OZET, 'https://ornek.test/app/');
-  for (const s of ['29.10.2026', 'Vadesi geçmiş faturalar: 12 adet, toplam 5.000,50 TL', 'F-2 · Firma 1 · vade 01.09.2026 (58 gün gecikmiş) · 101,00 TL · itirazlı', '… ve 2 kayıt daha',
-    'bugün', '1 gün önce doldu', '30 gün kaldı', 'Ara · son tarih 28.10.2026 (gecikmiş) · öncelik yüksek', 'https://ornek.test/app/#/tahsilat', 'müşterilere gönderilmez']) assert.ok(t.includes(s), s);
+  for (const s of ['29.10.2026', 'Vadesi geçmiş faturalar: 12 adet, toplam 5.000,50 TL', 'F-2 · Firma 1 · vade 01.09.2026 (58 gün gecikmiş) · 101,00 TL · itirazlı', '… ve 9 kayıt daha', 'F-3 · Firma 2',
+    'bugün', '1 gün önce doldu', '30 gün kaldı', 'https://ornek.test/app/#/tahsilat', 'müşterilere gönderilmez']) assert.ok(t.includes(s), s);
   assert.equal(ozetMetni(BOS).includes('bildirilecek bir kayıt yok'), true);
+  assert.ok(!t.includes('F-4 ·'), 'yalnızca ilk 3 vadesi geçmiş fatura listelenir'); assert.ok(!t.includes('Gecikmiş görevler'), 'gecikmiş görev bölümü yok');
   const h = ozetHtml(OZET, 'https://ornek.test/app/');
   assert.ok(h.includes('&lt;b&gt;Alfa&lt;/b&gt; &amp; &quot;Ortak&quot;'), 'firma adı kaçırıldı');
   assert.ok(!h.includes('<b>Alfa</b>'), 'ham etiket yok');
   assert.ok(h.includes('href="https://ornek.test/app/#/sozlesmeler"'));
-  assert.equal(ozetBolumleri(OZET).length, 4);
-  const kotu = ozetHtml({ ...BOS, gorev: { adet: 1, liste: [{ baslik: '"><script>alert(1)</script>', firma: null, son: '2026-10-29', oncelik: 'orta', gecikmis: false }] } }, 'https://a.test/"onmouseover="x/');
+  assert.equal(ozetBolumleri(OZET).length, 3); assert.equal(ozetBolumleri(OZET)[0].satirlar.length, 3);
+  const kotu = ozetHtml({ ...BOS, sozlesme: { adet: 1, liste: [{ firma: '"><script>alert(1)</script>', bitis: '2026-10-29', kalan_gun: 0 }] } }, 'https://a.test/"onmouseover="x/');
   assert.ok(!kotu.includes('<script>')); assert.ok(!kotu.includes('"onmouseover="'), 'adres kaçırıldı');
 });
 

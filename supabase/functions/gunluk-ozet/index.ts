@@ -29,8 +29,9 @@ const ONCELIK = { dusuk: 'düşük', orta: 'orta', yuksek: 'yüksek', kritik: 'k
 const ISARET = { itirazli: 'itirazlı', takip_gerekiyor: 'takip gerekiyor' };
 export const maskele = (e) => { const [a, d] = String(e).split('@'); return `${a.slice(0, 1)}***@${d}`; };
 
+const GECIKMIS_FATURA_SINIRI = 3;
 const bol = (o, k) => o?.[k] ?? { adet: 0, liste: [] };
-export const ozetBos = (o) => ['bugun', 'program', 'gecikmis_fatura', 'yaklasan_vade', 'sozlesme', 'gorev'].every((k) => !(bol(o, k).adet > 0));
+export const ozetBos = (o) => ['bugun', 'program', 'gecikmis_fatura', 'yaklasan_vade', 'sozlesme'].every((k) => !(bol(o, k).adet > 0));
 
 /** Bölümler: [{baslik, satirlar:[metin], fazla:n}] — hem düz metin hem HTML bunlardan üretilir. */
 const TAKVIM_TURU = { odeme: 'ödeme', hatirlatma: 'hatırlatma', gorev: 'görev' };
@@ -50,8 +51,9 @@ export function ozetBolumleri(o) {
   }
   const g = bol(o, 'gecikmis_fatura');
   if (g.adet > 0) {
-    b.push({ baslik: `Vadesi geçmiş faturalar: ${g.adet} adet, toplam ${para(g.toplam)}`, baglanti: '#/tahsilat', fazla: g.adet - g.liste.length,
-      satirlar: g.liste.map((x) => `${x.no} · ${x.firma} · vade ${tarih(x.vade)} (${x.gun} gün gecikmiş) · ${para(x.kalan)}${x.isaret ? ` · ${ISARET[x.isaret] ?? x.isaret}` : ''}`) });
+    const ilk = g.liste.slice(0, GECIKMIS_FATURA_SINIRI);      // yalnızca ilk 3 fatura listelenir; adet ve toplam tümünü kapsar
+    b.push({ baslik: `Vadesi geçmiş faturalar: ${g.adet} adet, toplam ${para(g.toplam)}`, baglanti: '#/tahsilat', fazla: g.adet - ilk.length,
+      satirlar: ilk.map((x) => `${x.no} · ${x.firma} · vade ${tarih(x.vade)} (${x.gun} gün gecikmiş) · ${para(x.kalan)}${x.isaret ? ` · ${ISARET[x.isaret] ?? x.isaret}` : ''}`) });
   }
   const y = bol(o, 'yaklasan_vade');
   if (y.adet > 0) {
@@ -63,11 +65,6 @@ export function ozetBolumleri(o) {
     b.push({ baslik: `90 gün içinde biten sözleşmeler: ${s.adet} adet`, baglanti: '#/sozlesmeler', fazla: s.adet - s.liste.length,
       satirlar: s.liste.map((x) => `${x.firma} · bitiş ${tarih(x.bitis)} (${x.kalan_gun < 0 ? `${-x.kalan_gun} gün önce doldu` : x.kalan_gun === 0 ? 'bugün bitiyor' : `${x.kalan_gun} gün kaldı`})`) });
   }
-  const t = bol(o, 'gorev');
-  if (t.adet > 0) {
-    b.push({ baslik: `Gecikmiş görevler: ${t.adet} adet`, baglanti: '#/gorevler', fazla: t.adet - t.liste.length,
-      satirlar: t.liste.map((x) => `${x.baslik}${x.firma ? ` · ${x.firma}` : ''} · son tarih ${tarih(x.son)}${x.gecikmis ? ' (gecikmiş)' : ' (bugün)'} · öncelik ${ONCELIK[x.oncelik] ?? x.oncelik}`) });
-  }
   return b;
 }
 
@@ -78,7 +75,6 @@ export function ozetKonu(o, test = false) {
   const g = bol(o, 'gecikmis_fatura').adet; if (g > 0) p.push(`${g} gecikmiş fatura`);
   const y = bol(o, 'yaklasan_vade').adet; if (y > 0) p.push(`${y} yaklaşan vade`);
   const s = bol(o, 'sozlesme').adet; if (s > 0) p.push(`${s} sözleşme`);
-  const t = bol(o, 'gorev').adet; if (t > 0) p.push(`${t} gecikmiş görev`);
   return `${test ? '[TEST] ' : ''}OSGB 360 özet${p.length ? ` — ${p.join(', ')}` : ': bildirilecek kayıt yok'}`;
 }
 

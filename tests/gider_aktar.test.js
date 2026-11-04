@@ -37,6 +37,8 @@ test('varsayılan kararlar: yönetim, personel atla, ad eşleşmesi, yeni katego
   assert.deepEqual(k.vergi.yeni, { ad: 'Vergi', tur: 'vergi' }); assert.equal(k.elektrik.yeni.tur, 'isletme');
   const h = varsayilanKararlar(t.satirlar, { kategoriler: KAT, harita: [{ row_key: 'kira ve aidat', action: 'kategori', category_id: 'k1' }, { row_key: 'vergi', action: 'atla' }] });
   assert.equal(h['kira ve aidat'].kategori_id, 'k1'); assert.equal(h.vergi.islem, 'atla');
+  // eski sürümden kalan "personel giderleri = atla" hafızası yok sayılır
+  assert.equal(varsayilanKararlar(t.satirlar, { kategoriler: KAT, harita: [{ row_key: 'personel giderleri', action: 'atla' }] })['personel giderleri'].islem, 'kategori');
   // maaş kategorisine yalnızca birebir ad eşleşirse bağlanır; benzer ad bağlanmaz; personel satırı mevcut personel kategorisine bağlanır
   assert.equal(varsayilanKararlar([{ etiket: 'Uzman maaşları', anahtar: anahtarOf('Uzman maaşları'), dolu: 1 }], { kategoriler: KAT })['uzman maaslari'].kategori_id, 'kp');
   assert.equal(varsayilanKararlar([{ etiket: 'Uzman maaş', anahtar: anahtarOf('Uzman maaş'), dolu: 1 }], { kategoriler: KAT })['uzman maas'].kategori_id, null);
