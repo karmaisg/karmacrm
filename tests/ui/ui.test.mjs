@@ -1002,15 +1002,37 @@ await test('uzman/hekim rolü: kendi kaydına bağlanır, yalnız kendi zamanın
   await git(s, '#/kapasite'); await var_(s.locator('h3:has-text("görme izniniz yok"), h3:has-text("Bu sayfayı")'), 'kapasite engelli');
 });
 
+await test('maliyet: yeni geçerlilik başlangıcı sonrasına devam eder; yalnızca SGK girilebilir; boş alanlarla kaydedilir', async (s) => {
+  await girisYap(s);
+  await personelEkle(s, 'is_guvenligi_uzmani', 'Dönemli Uzman');
+  await s.waitForSelector('[data-action="maliyet"]');
+  const aç = async (tarihi) => { await s.click('[data-action="maliyet"]'); await modal(s).locator('#f-baslangic').fill(tarihi); };
+  await aç('2026-01-01'); await modal(s).locator('#f-net').fill('20000'); await modal(s).locator('#f-brut').fill('30000'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelector('#sayfa')?.textContent.includes('31.625'));          // 20.000 + 11.625
+  await aç('2026-07-01'); await modal(s).locator('#f-net').fill(''); await modal(s).locator('#f-brut').fill(''); await modal(s).locator('#f-sgk').fill('2000'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => globalThis.__fake.tablo.employee_costs.length === 2);
+  const d = await s.evaluate(() => globalThis.__fake.tablo.employee_costs.map((c) => `${c.valid_from}>${c.valid_to ?? 'devam'}:${c.total_monthly_cost}`).sort());
+  esit(d.join('|'), '2026-01-01>2026-06-30:31625|2026-07-01>devam:2000', 'dönemler: önceki kapanır, yenisi devam eder');
+  await aç('2026-03-01'); await modal(s).locator('#f-net').fill('100'); await modal(s).locator('button[type=submit]').click();     // araya dönem
+  await s.waitForFunction(() => globalThis.__fake.tablo.employee_costs.length === 3);
+  const d2 = await s.evaluate(() => globalThis.__fake.tablo.employee_costs.map((c) => `${c.valid_from}>${c.valid_to ?? 'devam'}`).sort());
+  esit(d2.join('|'), '2026-01-01>2026-02-28|2026-03-01>2026-06-30|2026-07-01>devam', 'araya girilen dönem bölünür');
+});
 await test('maliyet: maaş yetkisi olan görür ve girer, operasyon göremez; finans kayıt açamaz', async (s) => {
   await girisYap(s);
   const url = await personelEkle(s, 'is_guvenligi_uzmani', 'Maaş Uzman');
   await s.waitForSelector('[data-action="maliyet"]');
   await s.click('[data-action="maliyet"]');
   await modal(s).locator('#f-baslangic').fill(ayinBirinci());
-  await modal(s).locator('#f-brut').fill('50000'); await modal(s).locator('#f-sgk').fill('12000'); await modal(s).locator('#f-diger').fill('3000');
+  await modal(s).locator('#f-net').fill('30000'); await modal(s).locator('#f-brut').fill('40000'); await modal(s).locator('#f-elden').fill('5000');
+  await s.waitForFunction(() => document.querySelector('#maliyet-bilgi')?.textContent.includes('50.500'));       // 30.000 + 15.500 SGK (%38,75) + 5.000
+  await modal(s).locator('#f-emekli').check();
+  await s.waitForFunction(() => document.querySelector('#maliyet-bilgi')?.textContent.includes('47.900'));       // SGK %32,25 = 12.900
+  await modal(s).locator('#f-emekli').uncheck(); await modal(s).locator('#f-sgk').fill('1000');
+  await s.waitForFunction(() => document.querySelector('#maliyet-bilgi')?.textContent.includes('elle girildi'));
+  await modal(s).locator('#f-sgk').fill('');
   await modal(s).locator('button[type=submit]').click();
-  await s.waitForFunction(() => document.querySelector('#sayfa')?.textContent.includes('65.000'));
+  await s.waitForFunction(() => document.querySelector('#sayfa')?.textContent.includes('50.500'));
   await cikisYapGir(s, 'operasyon@test.com');
   await git(s, hashOf(url)); await s.waitForSelector('.company-head h1:has-text("Maaş Uzman")');
   esit(await s.locator('h2:has-text("Aylık maliyet")').count(), 0, 'operasyon maliyeti görmez');

@@ -479,6 +479,24 @@ const rpcler = {
     tablo.employee_costs.push(y);
     return { data: kopya(y) };
   },
+  // Aşama 20: personel_maliyeti_kaydet (22_asama20.sql) taklidi
+  personel_maliyeti_kaydet({ p_employee, p_baslangic, p_brut, p_net, p_emekli, p_sgk, p_elden }) {
+    if (!izinVar('payroll', 'can_create') || !izinVar('payroll', 'can_edit')) return { error: hata('Personel maliyeti girme yetkiniz yok.', 'P0001') };
+    if (!p_baslangic) return { error: hata('Geçerlilik başlangıcını girin.', 'P0001') };
+    const b = Number(p_brut ?? 0); const n = Number(p_net ?? 0); const e = Number(p_elden ?? 0);
+    if (b < 0 || n < 0 || e < 0 || Number(p_sgk ?? 0) < 0) return { error: hata('Tutarlar negatif olamaz.', 'P0001') };
+    const sgk = p_sgk !== null && p_sgk !== undefined ? Math.round(Number(p_sgk) * 100) / 100 : Math.round(b * (p_emekli ? 0.0225 + 0.30 : 0.0225 + 0.21 + 0.125 + 0.03) * 100) / 100;
+    const gun = (d, k) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + k); return x.toISOString().slice(0, 10); };
+    const liste = tablo.employee_costs.filter((c) => c.employee_id === p_employee);
+    const on = liste.find((c) => c.valid_from <= p_baslangic && (!c.valid_to || c.valid_to >= p_baslangic));
+    const alanlar = { gross_salary: b, net_salary: n, cash_paid: e, employer_sgk: sgk, other_benefits: 0, is_retired: !!p_emekli, sgk_manual: p_sgk !== null && p_sgk !== undefined, cost_version: 2, total_monthly_cost: Math.round((n + sgk + e) * 100) / 100 };
+    if (on && on.valid_from === p_baslangic) { Object.assign(on, alanlar); return { data: kopya(on) }; }
+    let son = null;
+    if (on) { son = on.valid_to; on.valid_to = gun(p_baslangic, -1); }
+    else { const sonraki = liste.filter((c) => c.valid_from > p_baslangic).map((c) => c.valid_from).sort()[0]; son = sonraki ? gun(sonraki, -1) : null; }
+    const y = { id: uid(), organization_id: ORG, employee_id: p_employee, valid_from: p_baslangic, valid_to: son, ...alanlar };
+    tablo.employee_costs.push(y); return { data: kopya(y) };
+  },
   gorevlendirme_degistir({ p_id, p_pay, p_baslangic, p_not }) {
     const a = tablo.assignments.find((x) => x.id === p_id && !x.archived_at);
     if (!a) return { error: hata('Görevlendirme bulunamadı.', 'P0001') };
