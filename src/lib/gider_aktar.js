@@ -57,7 +57,8 @@ export function varsayilanKararlar(satirlar, { kategoriler = [], harita = [] } =
   for (const s of satirlar) {
     const h = hMap.get(s.anahtar);
     if (h?.action === 'yonetim') { kararlar[s.anahtar] = { islem: 'yonetim', kategori_id: null, yeni: null }; continue; }
-    if (h?.action === 'atla') { kararlar[s.anahtar] = { islem: 'atla', kategori_id: null, yeni: null }; continue; }
+    const personelSatiri = /^personel( giderleri| gideri| maliyet)/.test(s.anahtar);
+    if (h?.action === 'atla' && !personelSatiri) { kararlar[s.anahtar] = { islem: 'atla', kategori_id: null, yeni: null }; continue; }   // eski sürümde personel satırı "atla" önerilmişti; o hafıza yok sayılır
     if (h?.action === 'kategori' && uygun.some((k) => k.id === h.category_id)) { kararlar[s.anahtar] = { islem: 'kategori', kategori_id: h.category_id, yeni: null }; continue; }
     if (/yonetime odenen/.test(s.anahtar) || /^yonetim odeme/.test(s.anahtar)) { kararlar[s.anahtar] = { islem: 'yonetim', kategori_id: null, yeni: null }; continue; }
     if (/^personel( giderleri| gideri| maliyet)/.test(s.anahtar)) {      // gider olarak alınır; firma kârlılığında kart maliyetiyle çift sayılmaz
