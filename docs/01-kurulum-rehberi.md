@@ -406,4 +406,4 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
 4. Sonradan fatura yükleyip dosyayı tekrar çalıştırmayın (yeni faturalar da tahsil edilmiş olur).
 
 ### Logo
-Logo ve sekme simgesi (favicon) `assets/` klasöründedir (`logo.png`, `favicon.png`, `apple-touch-icon.png`). Verdiğiniz görseldeki yazı kırmızı üstüne kırmızı ve bulanık olduğu için yalnızca kırmızı yuvarlak kare kısmı kullanıldı; "OSGB 360" yazısı yanında normal metin olarak kalır. Daha net bir PNG/SVG verirseniz aynı dosya adlarıyla değiştirmek yeterlidir.
+Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.png` (simge + yazı, giriş ekranı), `favicon.png`, `favicon-32.png` ve `apple-touch-icon.png` (sekme simgesi, yalnızca simge). Değiştirmek için aynı adlarla dosya koymak yeterlidir. Not: tam logo beyaz zemin için hazırlanmıştır; koyu temada giriş kartı açık renkli kalır.

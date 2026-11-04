@@ -9,7 +9,7 @@ export const logo = (boyut = 36) => html`<img class="logo-mark" src="assets/logo
 function kart(icerik) {
   return html`<main class="auth" id="main">
     <div class="auth-card">
-      <div class="auth-brand">${logo(40)}<span class="auth-brand-ad">OSGB 360</span></div>
+      <div class="auth-brand"><img class="logo-tam" src="assets/logo-tam.png" width="170" height="63" alt="OSGB 360"></div>
       ${icerik}
     </div>
     <p class="auth-foot">Yönetim amaçlı analiz yazılımıdır; resmî muhasebe veya vergi beyanı yerine geçmez.</p>
