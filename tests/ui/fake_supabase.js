@@ -547,8 +547,8 @@ const rpcler = {
       let kid = null;
       if (r.islem === 'yonetim') { if (!yonKat) { yonKat = { id: uid(), organization_id: ORG, name: 'Yönetime ödenen (yönetim personeli maliyeti)', nature: 'isletme', default_cost_type: 'ortak', is_payroll: false, is_management_pay: true, is_income_tax: false, sort_order: 99 }; tablo.expense_categories.push(yonKat); yeniKat += 1; } kid = yonKat.id; }
       else if (r.islem === 'kategori') {
-        if (r.kategori_id) { const k = tablo.expense_categories.find((x) => x.id === r.kategori_id); if (!k || k.is_payroll || k.is_management_pay) return { error: hata('Kategori kullanılamaz.', 'P0001') }; kid = k.id; }
-        else { const ad = String(r.yeni_kategori?.ad ?? '').trim(); let k = tablo.expense_categories.find((x) => x.name === ad); if (!k) { k = { id: uid(), organization_id: ORG, name: ad, nature: r.yeni_kategori.tur === 'vergi' ? 'vergi' : 'isletme', default_cost_type: 'ortak', is_payroll: false, is_management_pay: false, is_income_tax: r.yeni_kategori.tur === 'vergi', sort_order: 100 }; tablo.expense_categories.push(k); yeniKat += 1; } kid = k.id; }
+        if (r.kategori_id) { const k = tablo.expense_categories.find((x) => x.id === r.kategori_id); if (!k || k.is_management_pay) return { error: hata('Kategori kullanılamaz.', 'P0001') }; kid = k.id; }
+        else { const ad = String(r.yeni_kategori?.ad ?? '').trim(); let k = tablo.expense_categories.find((x) => x.name === ad); if (!k) { k = { id: uid(), organization_id: ORG, name: ad, nature: r.yeni_kategori.tur === 'vergi' ? 'vergi' : r.yeni_kategori.tur === 'personel' ? 'personel' : 'isletme', default_cost_type: r.yeni_kategori.tur === 'personel' ? 'dogrudan' : 'ortak', is_payroll: r.yeni_kategori.tur === 'personel', is_management_pay: false, is_income_tax: r.yeni_kategori.tur === 'vergi', sort_order: 100 }; tablo.expense_categories.push(k); yeniKat += 1; } kid = k.id; }
       }
       const m = tablo.expense_row_map.find((x) => x.row_key === r.anahtar);
       const kayit = { row_key: r.anahtar, row_label: r.etiket, action: r.islem, category_id: r.islem === 'kategori' ? kid : null };

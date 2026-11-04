@@ -2378,22 +2378,22 @@ await test('gider Excel: eşleştirme, yönetime ödenen, personel satırı atla
   const sablon = await gelirOku(fs.readFileSync(await ind.path())); esit(sablon.satirlar[0][0], 'Gider kalemi', 'şablon başlığı');
   await giderYukle(s, giderDosyasi([['Yönetime Ödenen', 1000, 1100], ['Personel Giderleri', 5000, 5000], ['Kira', 200, 200], ['Vergi', 0, 50], ['Elektrik', 30, null], ['TOPLAM', 1, 1]]));
   esit(await s.locator('#gider-eslesme tr[data-anahtar="yonetime odenen"]').getAttribute('data-islem'), 'yonetim', 'yönetime ödenen otomatik');
-  esit(await s.locator('#gider-eslesme tr[data-anahtar="personel giderleri"]').getAttribute('data-islem'), 'atla', 'personel satırı atlanır');
+  esit(await s.locator('#gider-eslesme tr[data-anahtar="personel giderleri"]').getAttribute('data-islem'), 'kategori', 'personel satırı gider olarak alınır');
   esit(await s.locator('#gider-yerine').getAttribute('data-adet'), '0', 'önceki aktarım yok');
   await ekran(s, '63-gider-onizleme');
   await s.click('#gider-uygula'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#gider-sonuc');
   let d = await s.evaluate(() => { const t = globalThis.__fake.tablo; const a = t.expenses.filter((e) => e.import_id && !e.archived_at);
     return { adet: a.length, ytop: a.filter((e) => t.expense_categories.find((k) => k.id === e.category_id)?.is_management_pay).reduce((x, e) => x + e.amount_excl_vat, 0),
-      personel: a.some((e) => /Personel/.test(e.description)), elle: t.expenses.find((e) => e.id === 'elle1').archived_at, vergi: t.expense_categories.find((k) => k.name === 'Vergi')?.is_income_tax, harita: t.expense_row_map.length }; });
-  esit(d.adet, 6, 'eklenen kayıt (boş hücreler hariç)'); esit(d.ytop, 2100, 'yönetime ödenen'); esit(d.personel, false, 'personel gideri aktarılmadı'); esit(d.elle, null, 'elle gider korunur'); esit(d.vergi, true, 'vergi kategorisi'); esit(d.harita, 5, 'eşleşmeler hatırlandı');
+      personel: a.filter((e) => t.expense_categories.find((k) => k.id === e.category_id)?.is_payroll).reduce((x, e) => x + e.amount_excl_vat, 0), elle: t.expenses.find((e) => e.id === 'elle1').archived_at, vergi: t.expense_categories.find((k) => k.name === 'Vergi')?.is_income_tax, harita: t.expense_row_map.length }; });
+  esit(d.adet, 8, 'eklenen kayıt (boş hücreler hariç)'); esit(d.ytop, 2100, 'yönetime ödenen'); esit(d.personel, 10000, 'personel giderleri gider olarak alındı'); esit(d.elle, null, 'elle gider korunur'); esit(d.vergi, true, 'vergi kategorisi'); esit(d.harita, 5, 'eşleşmeler hatırlandı');
   // ikinci dosya: eylül ve ekim değişir, öncekinin yerine geçer
   await giderYukle(s, giderDosyasi([['Yönetime Ödenen', 900, 900], ['Kira', 250, null]]));
-  esit(await s.locator('#gider-yerine').getAttribute('data-adet'), '6', 'yerine geçecek kayıt sayısı');
+  esit(await s.locator('#gider-yerine').getAttribute('data-adet'), '8', 'yerine geçecek kayıt sayısı');
   if (!(await s.locator('#gider-yerine').innerText()).includes('arşivlenir')) throw new Error('yerine geçme uyarısı');
   await s.click('#gider-uygula'); await modal(s).locator('[data-ok]').click(); await s.waitForSelector('#gider-sonuc');
   d = await s.evaluate(() => { const t = globalThis.__fake.tablo; const a = t.expenses.filter((e) => e.import_id && !e.archived_at);
     return { aktif: a.length, toplam: a.reduce((x, e) => x + e.amount_excl_vat, 0), arsiv: t.expenses.filter((e) => e.import_id && e.archived_at).length, elle: t.expenses.find((e) => e.id === 'elle1').archived_at }; });
-  esit(d.aktif, 3, 'yalnızca yeni dosyadaki kayıtlar aktif'); esit(d.toplam, 900 + 900 + 250, 'yeni toplam'); esit(d.arsiv, 6, 'eskiler arşivde'); esit(d.elle, null, 'elle gider hâlâ korunur');
+  esit(d.aktif, 3, 'yalnızca yeni dosyadaki kayıtlar aktif'); esit(d.toplam, 900 + 900 + 250, 'yeni toplam'); esit(d.arsiv, 8, 'eskiler arşivde'); esit(d.elle, null, 'elle gider hâlâ korunur');
 });
 await test('gider Excel: hatalı dosya, kategori seçilmeden aktarılamaz, yetkisiz rol alanı görmez', async (s) => {
   await girisYap(s); await git(s, '#/aktarim'); await s.waitForSelector('#gider-dosya');

@@ -32,13 +32,15 @@ test('tablo ayrıştırma: aylar, toplam satırı atlanır, negatif ve sayı olm
 test('varsayılan kararlar: yönetim, personel atla, ad eşleşmesi, yeni kategori, hatırlanan eşleşme', () => {
   const t = giderTablosu(TABLO);
   const k = varsayilanKararlar(t.satirlar, { kategoriler: KAT });
-  assert.equal(k['yonetime odenen'].islem, 'yonetim'); assert.equal(k['personel giderleri'].islem, 'atla');
+  assert.equal(k['yonetime odenen'].islem, 'yonetim'); assert.equal(k['personel giderleri'].islem, 'kategori'); assert.deepEqual(k['personel giderleri'].yeni, { ad: 'Personel Giderleri', tur: 'personel' });
   assert.equal(k['kira ve aidat'].kategori_id, 'k2');                   // tam ad
   assert.deepEqual(k.vergi.yeni, { ad: 'Vergi', tur: 'vergi' }); assert.equal(k.elektrik.yeni.tur, 'isletme');
   const h = varsayilanKararlar(t.satirlar, { kategoriler: KAT, harita: [{ row_key: 'kira ve aidat', action: 'kategori', category_id: 'k1' }, { row_key: 'vergi', action: 'atla' }] });
   assert.equal(h['kira ve aidat'].kategori_id, 'k1'); assert.equal(h.vergi.islem, 'atla');
-  // maaş kategorisine otomatik eşleşmez
-  assert.notEqual(varsayilanKararlar([{ etiket: 'Uzman maaşları', anahtar: anahtarOf('Uzman maaşları'), dolu: 1 }], { kategoriler: KAT })['uzman maaslari'].kategori_id, 'kp');
+  // maaş kategorisine yalnızca birebir ad eşleşirse bağlanır; benzer ad bağlanmaz; personel satırı mevcut personel kategorisine bağlanır
+  assert.equal(varsayilanKararlar([{ etiket: 'Uzman maaşları', anahtar: anahtarOf('Uzman maaşları'), dolu: 1 }], { kategoriler: KAT })['uzman maaslari'].kategori_id, 'kp');
+  assert.equal(varsayilanKararlar([{ etiket: 'Uzman maaş', anahtar: anahtarOf('Uzman maaş'), dolu: 1 }], { kategoriler: KAT })['uzman maas'].kategori_id, null);
+  assert.equal(varsayilanKararlar(t.satirlar, { kategoriler: [...KAT, { id: 'kpg', name: 'Personel giderleri', is_payroll: true }] })['personel giderleri'].kategori_id, 'kpg');
   assert.equal(kararTamam({ islem: 'kategori', kategori_id: null, yeni: { ad: ' ' } }), false);
   assert.equal(bekleyenSatirlar(t.satirlar, { ...k, kira_: 1, 'kira ve aidat': { islem: 'kategori', kategori_id: null, yeni: { ad: '' } } }).length, 1);
 });
@@ -47,11 +49,11 @@ test('paket ve özet: boş satırlar gitmez, atla eşleşme için gider, yöneti
   const t = giderTablosu(TABLO); const k = varsayilanKararlar(t.satirlar, { kategoriler: KAT });
   const p = giderPaketi({ dosya: 'g.xlsx', aylar: t.aylar, satirlar: t.satirlar, kararlar: k, kdvModu: 'kdv_dahil', kdvOrani: 20 });
   assert.equal(p.kdv_modu, 'kdv_dahil'); assert.equal(p.satirlar.length, 4);                 // elektrik (boş) yok
-  assert.deepEqual(p.satirlar.find((s) => s.anahtar === 'personel giderleri').tutarlar, {});
+  assert.deepEqual(p.satirlar.find((s) => s.anahtar === 'personel giderleri').yeni_kategori, { ad: 'Personel Giderleri', tur: 'personel' });
   assert.equal(p.satirlar.find((s) => s.anahtar === 'kira ve aidat').kategori_id, 'k2');
   assert.deepEqual(p.satirlar.find((s) => s.anahtar === 'vergi').yeni_kategori, { ad: 'Vergi', tur: 'vergi' });
   const o = eklenecekOzet({ aylar: t.aylar, satirlar: t.satirlar, kararlar: k });
-  assert.equal(o.ay['2026-02-01'].yonetim, 1100); assert.equal(o.ay['2026-02-01'].gider, 250); assert.equal(o.atlanan, 15000);
+  assert.equal(o.ay['2026-02-01'].yonetim, 1100); assert.equal(o.ay['2026-02-01'].gider, 5250); assert.equal(o.atlanan, 0); assert.equal(o.ay['2026-01-01'].gider, 5200);
 });
 
 test('yerine geçenler: yalnızca Excel kaynaklı, arşivsiz, dosya aylarındaki kayıtlar', () => {
@@ -61,11 +63,11 @@ test('yerine geçenler: yalnızca Excel kaynaklı, arşivsiz, dosya aylarındaki
   assert.equal(y.adet, 2); assert.equal(y.tutar, 150.5); assert.equal(y.ay['2026-01-01'].adet, 2);
 });
 
-test('boş şablon okunur: başlık + 12 ay, personel satırı yok', async () => {
+test('boş şablon okunur: başlık + 12 ay, personel giderleri satırı var', async () => {
   const x = await xlsxOku(giderSablonu(2026).buffer.slice(0));
   const t = giderTablosu(x.satirlar);
   assert.equal(t.aylar.length, 12); assert.equal(t.aylar[0], '2026-01-01'); assert.equal(t.aylar[11], '2026-12-01');
-  assert.ok(t.satirlar.some((s) => s.anahtar === 'yonetime odenen')); assert.ok(!t.satirlar.some((s) => /personel/.test(s.anahtar)));
+  assert.ok(t.satirlar.some((s) => s.anahtar === 'yonetime odenen')); assert.ok(t.satirlar.some((s) => s.anahtar === 'personel giderleri'));
   assert.ok(t.satirlar.every((s) => s.dolu === 0));
   const r = await xlsxOku(xlsxYaz([{ ad: 'G', satirlar: [['Kalem', { t: 'tarih', v: '2026-03-01' }, { t: 'tarih', v: '2026-04-01' }], ['Kira', 10, 20]] }]).buffer.slice(0));
   assert.equal(giderTablosu(r.satirlar).satirlar[0].toplam, 30);

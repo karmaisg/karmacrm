@@ -115,7 +115,6 @@ select tst.ok('KDV dahil 1200 → hariç 1000 + KDV 200', (select amount_excl_va
 -- hatalar: hiçbir şey değişmez
 set role authenticated; select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',false);
 select tst.fails('Kategorisiz satır reddedilir', $$select public.gider_aktar('{"aylar":["2026-05-01"],"satirlar":[{"anahtar":"x","etiket":"X","islem":"kategori","tutarlar":{"2026-05-01":5}}]}'::jsonb)$$, 'kategori seçilmemiş');
-select tst.fails('Maaş kategorisi atanamaz', $$select public.gider_aktar(('{"aylar":["2026-05-01"],"satirlar":[{"anahtar":"x","etiket":"X","islem":"kategori","kategori_id":"' || (select id from expense_categories where is_payroll limit 1) || '","tutarlar":{"2026-05-01":5}}]}')::jsonb)$$, 'Maaş');
 select tst.fails('Ay listesi dışında ay reddedilir', $$select public.gider_aktar('{"aylar":["2026-05-01"],"satirlar":[{"anahtar":"x","etiket":"X","islem":"kategori","kategori_id":"aaaaaaaa-cccc-0000-0000-000000000001","tutarlar":{"2026-06-01":5}}]}'::jsonb)$$, 'ay listesinde yok');
 select tst.fails('Ay yoksa reddedilir', $$select public.gider_aktar('{"aylar":[],"satirlar":[]}'::jsonb)$$, 'ay sütunu');
 reset role;
@@ -128,3 +127,13 @@ select tst.fails('Satış rolü gider aktaramaz', $$select public.gider_aktar('{
 select set_config('request.jwt.claim.sub','44444444-4444-4444-4444-444444444444',false);
 select tst.ok('Başka kurum yükleme geçmişini göremez', (select count(*) = 0 from expense_imports));
 reset role;
+
+-- Personel giderleri (toplu satır) gider olarak alınır: personel kategorisi (is_payroll) oluşur, kayıt ortak gider olarak yazılır
+set role authenticated; select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',false);
+select tst.works('Personel giderleri satırı yeni personel kategorisiyle aktarılır', $$select public.gider_aktar('{"dosya":"g4.xlsx","aylar":["2026-06-01"],"satirlar":[{"anahtar":"personel giderleri","etiket":"Personel Giderleri","islem":"kategori","yeni_kategori":{"ad":"Personel Giderleri","tur":"personel"},"tutarlar":{"2026-06-01":9000}}]}'::jsonb)$$);
+select tst.works('Var olan maaş kategorisi de seçilebilir', $$select public.gider_aktar(('{"dosya":"g5.xlsx","aylar":["2026-07-01"],"satirlar":[{"anahtar":"personel giderleri","etiket":"Personel Giderleri","islem":"kategori","kategori_id":"' || (select id from expense_categories where name = 'Personel Giderleri') || '","tutarlar":{"2026-07-01":100}}]}')::jsonb)$$);
+select tst.fails('Yönetime ödenen kategorisi "kategori" işlemiyle atanamaz', $$select public.gider_aktar(('{"aylar":["2026-08-01"],"satirlar":[{"anahtar":"x","etiket":"X","islem":"kategori","kategori_id":"' || (select id from expense_categories where is_management_pay limit 1) || '","tutarlar":{"2026-08-01":5}}]}')::jsonb)$$, 'Yönetime ödenen');
+reset role;
+select tst.ok('Personel kategorisi: personel doğası, is_payroll, doğrudan varsayılan', (select is_payroll and nature = 'personel' and default_cost_type = 'dogrudan' from expense_categories where name = 'Personel Giderleri'));
+select tst.ok('Haziran personel gideri 9000 yazıldı (ortak, firma/personel yok)', (select count(*) = 1 and sum(amount_excl_vat) = 9000 and bool_and(cost_type = 'ortak' and company_id is null and employee_id is null) from expenses where expense_date = '2026-06-01' and import_id is not null));
+

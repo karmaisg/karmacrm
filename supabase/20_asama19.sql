@@ -117,15 +117,18 @@ begin
       if nullif(s ->> 'kategori_id', '') is not null then
         v_kat := (s ->> 'kategori_id')::uuid;
         if not exists (select 1 from expense_categories where id = v_kat) then raise exception 'Kategori bulunamadı (%).', v_ad; end if;
-        if exists (select 1 from expense_categories where id = v_kat and (is_payroll or is_management_pay)) then
-          raise exception 'Maaş veya yönetim kategorisi bu satıra atanamaz (%).', v_ad;
+        if exists (select 1 from expense_categories where id = v_kat and is_management_pay) then
+          raise exception 'Yönetime ödenen kategorisi bu satıra atanamaz; "yönetim" işlemini seçin (%).', v_ad;
         end if;
       elsif s -> 'yeni_kategori' is not null and nullif(btrim(s -> 'yeni_kategori' ->> 'ad'), '') is not null then
         if not app.can('settings', 'create') then raise exception 'Yeni gider kategorisi oluşturmak için ayar yetkisi gerekir (%).', v_ad; end if;
         select id into v_kat from expense_categories where lower(name) = lower(btrim(s -> 'yeni_kategori' ->> 'ad'));
         if v_kat is null then
           insert into expense_categories(name, nature, default_cost_type, is_payroll, is_income_tax, sort_order)
-          values (btrim(s -> 'yeni_kategori' ->> 'ad'), case when s -> 'yeni_kategori' ->> 'tur' = 'vergi' then 'vergi' else 'isletme' end, 'ortak', false, s -> 'yeni_kategori' ->> 'tur' = 'vergi', 80)
+          values (btrim(s -> 'yeni_kategori' ->> 'ad'),
+                  case s -> 'yeni_kategori' ->> 'tur' when 'vergi' then 'vergi' when 'personel' then 'personel' else 'isletme' end,
+                  case when s -> 'yeni_kategori' ->> 'tur' = 'personel' then 'dogrudan'::cost_type else 'ortak'::cost_type end,
+                  s -> 'yeni_kategori' ->> 'tur' = 'personel', s -> 'yeni_kategori' ->> 'tur' = 'vergi', 80)
           returning id into v_kat;
           v_yeni_kat := v_yeni_kat + 1;
         end if;
