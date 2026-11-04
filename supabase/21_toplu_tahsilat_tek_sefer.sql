@@ -4,12 +4,10 @@
 -- Yalnızca açık bakiyesi kalan, arşivde olmayan faturalara, bakiye kadar tahsilat eklenir. EAR-/EFT- ile başlamayan
 -- (sistemde elle kesilmiş F-... ve spot) faturalara DOKUNULMAZ.
 -- BİR KEZ ÇALIŞTIRIN. Sonradan yeni fatura yükleyip tekrar çalıştırırsanız yeni faturalar da "tahsil edildi" olur.
--- Çalıştırmadan önce Yedekleme sayfasından yedek alın. Sonuç tablosu en altta görünür.
+-- Çalıştırmadan önce Yedekleme sayfasından yedek alın. Tek bir komuttur (geçici tablo yok); sonuç tablosu çıkar.
 
-begin;
-
-create temporary table _tahsil_edilmeyen(no text primary key) on commit drop;
-insert into _tahsil_edilmeyen(no) values
+with liste(no) as (
+  values
     ('EAR-008'),
     ('EFT-053'),
     ('EFT-064'),
@@ -255,17 +253,13 @@ insert into _tahsil_edilmeyen(no) values
     ('EFT-934'),
     ('EAR-236'),
     ('EAR-237')
-on conflict do nothing;
-
-create temporary table _toplu_sonuc(kalem text, adet bigint, tutar numeric) on commit drop;
-
-with hedef as (
+), hedef as (
   select i.id, i.organization_id, i.invoice_date, i.amount_incl_vat - coalesce(p.odenen, 0) as kalan
     from invoices i
     left join (select invoice_id, sum(amount) as odenen from payments where archived_at is null group by invoice_id) p on p.invoice_id = i.id
    where i.archived_at is null
      and upper(btrim(i.invoice_no)) ~ '^(EAR|EFT)-'
-     and upper(btrim(i.invoice_no)) not in (select no from _tahsil_edilmeyen)
+     and upper(btrim(i.invoice_no)) not in (select no from liste)
      and i.amount_incl_vat - coalesce(p.odenen, 0) > 0
 ), eklenen as (
   insert into payments(organization_id, invoice_id, paid_at, amount, method, notes)
@@ -273,20 +267,13 @@ with hedef as (
     from hedef
   returning amount
 )
-insert into _toplu_sonuc select 'Tahsil edildi olarak işaretlenen fatura', count(*), coalesce(sum(amount), 0) from eklenen;
-
-insert into _toplu_sonuc
+select 'Tahsil edildi olarak işaretlenen fatura' as kalem, count(*) as adet, coalesce(sum(amount), 0) as tutar from eklenen
+union all
 select 'Tahsil edilmemiş kalan (listedeki) fatura', count(*), coalesce(sum(b.balance), 0)
-  from invoice_balances b where upper(btrim(b.invoice_no)) in (select no from _tahsil_edilmeyen) and b.balance > 0;
-
-insert into _toplu_sonuc
+  from invoice_balances b where upper(btrim(b.invoice_no)) in (select no from liste) and b.balance > 0
+union all
 select 'Listede olup sistemde bulunamayan numara', count(*), 0
-  from _tahsil_edilmeyen t where not exists (select 1 from invoices i where upper(btrim(i.invoice_no)) = t.no and i.archived_at is null);
-
-insert into _toplu_sonuc
+  from liste t where not exists (select 1 from invoices i where upper(btrim(i.invoice_no)) = t.no and i.archived_at is null)
+union all
 select 'Dokunulmayan fatura (EAR-/EFT- dışı numara, açık bakiyeli)', count(*), coalesce(sum(b.balance), 0)
   from invoice_balances b where upper(btrim(b.invoice_no)) !~ '^(EAR|EFT)-' and b.balance > 0;
-
-select * from _toplu_sonuc order by 1;
-
-commit;
