@@ -1345,6 +1345,16 @@ await test('kârlılık: firma kârlılığı hesabı, işletme sonucu, yöntem 
   await var_(s.locator('.card:has-text("İşletme sonucu") li:has-text("boşta kapasite"):has-text("10.000,00")'), 'fiilî: kayıt yok, tamamı boşta');
   await s.selectOption('#kar-yontem', 'teorik');
   await var_(s.locator('.kpi:has-text("Vergi sonrası") .kpi-v:has-text("5.250")'), 'vergi sonrası 7000 - %25');
+  // kutucuklara tıklayınca hesap detayı penceresi
+  await s.click('[data-kpi="maliyet"]'); await s.waitForSelector('.modal h2:has-text("Toplam maliyet nasıl hesaplandı")');
+  let pm = await s.locator('.modal').innerText(); for (const b of ['Personel maliyeti', 'Doğrudan giderler', 'Ortak giderler', '13.000,00']) if (!pm.includes(b)) throw new Error(`maliyet detayında ${b} yok: ${pm}`);
+  await s.click('.modal [data-close].btn'); await s.waitForSelector('.modal', { state: 'detached' });
+  await s.click('[data-kpi="oncesi"]'); await s.waitForSelector('.modal h2:has-text("Vergi öncesi kâr nasıl")');
+  pm = await s.locator('.modal').innerText(); for (const b of ['20.000,00', '13.000,00', '7.000,00']) if (!pm.includes(b)) throw new Error(`vergi öncesi detayında ${b} yok`);
+  await s.click('.modal [data-close].btn'); await s.waitForSelector('.modal', { state: 'detached' });
+  await s.click('[data-kpi="sonrasi"]'); await s.waitForSelector('.modal h2:has-text("Vergi sonrası kâr")');
+  pm = await s.locator('.modal').innerText(); for (const b of ['Vergi matrahı', '%25', '1.750,00', '5.250,00']) if (!pm.includes(b)) throw new Error(`vergi sonrası detayında ${b} yok: ${pm}`);
+  await ekran(s, '74-kar-hesap-detayi');
 });
 
 await test('kârlılık: ortak gider ölçütü değişir, dağıtım kaydedilir, ay seçimi', async (s) => {
@@ -1366,11 +1376,18 @@ await test('kârlılık: ortak gider ölçütü değişir, dağıtım kaydedilir
 
 await test('kârlılık: personel kârlılığı, doluluk, katkı ve firma dağılımı', async (s) => {
   await karlilikHazirla(s);
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; const org = t.organizations[0].id; const id = crypto.randomUUID();
+    t.employees.push({ id, organization_id: org, full_name: 'Pasif Kişi', staff_type: 'is_guvenligi_uzmani', role_kind: null, is_active: false, end_date: null, monthly_capacity_min: 11700, archived_at: null });
+    t.employee_costs.push({ id: crypto.randomUUID(), organization_id: org, employee_id: id, valid_from: '2020-01-01', valid_to: null, gross_salary: 5000, employer_sgk: 0, other_benefits: 0, total_monthly_cost: 5000 }); });
   await git(s, '#/personel-karlilik'); await s.waitForSelector('#kar-personel-tablo tbody tr');
+  if ((await s.locator('#kar-personel-tablo').innerText()).includes('Pasif Kişi')) throw new Error('ayrılış tarihsiz pasif personel listelenmemeli');
   const metin = await s.locator('#kar-personel-tablo tbody tr').first().innerText();
   for (const beklenen of ['Kar Uzman', '10.000,00', '20.000,00', '9.658,12']) if (!metin.includes(beklenen)) throw new Error(`personel satırında ${beklenen} yok: ${metin}`);
   await var_(s.locator('#kar-personel-tablo tbody tr td.num:has-text("%3,4")'), 'doluluk 400/11700');
   await var_(s.locator('.kpi:has-text("Boşta kapasite") .kpi-v:has-text("9.658")'), 'boşta kpi');
+  await s.click('[data-kpi="bosta"]'); await s.waitForSelector('.modal h2:has-text("Boşta kapasite maliyeti nasıl")');
+  const bm = await s.locator('.modal').innerText(); for (const b of ['Kar Uzman', '9.658,12', 'kapasite']) if (!bm.includes(b)) throw new Error(`boşta detayında ${b} yok: ${bm}`);
+  await s.click('.modal [data-close].btn'); await s.waitForSelector('.modal', { state: 'detached' });
   await s.click('[data-kar-detay]');
   await s.waitForSelector('.modal h2:has-text("Kar Uzman")');
   await var_(s.locator('.modal td:has-text("Kar A.Ş.")'), 'firma dağılımı');

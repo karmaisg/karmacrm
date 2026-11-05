@@ -44,10 +44,12 @@ test('personelAyYuku: firma ihtiyacının payı kadar; iki kişinin toplamı iht
   assert.equal(e1.kalemler.length, 2);
 });
 
-test('personelAyYuku: ay içinde başlayan görevlendirme o ay sayılmaz, bitmiş olan sayılmaz', () => {
+test('personelAyYuku: ay içinde başlayan görevlendirme o aya dahildir (tam ay), önceki ayda biten sonraki aya girmez', () => {
   const l = [atama('1', 'f1', 'e1', 'is_guvenligi_uzmani', 100, '2026-10-15'), atama('2', 'f2', 'e1', 'is_guvenligi_uzmani', 100, '2026-01-01', '2026-09-30')];
-  assert.equal(personelAyYuku({ atamalar: l, employeeId: 'e1', profilHaritasi: harita, kurallar, ay: '2026-10-01' }).dakika, 0);
+  assert.equal(personelAyYuku({ atamalar: l, employeeId: 'e1', profilHaritasi: harita, kurallar, ay: '2026-10-01' }).dakika, 1000);   // 15 Ekim'de başladı: Ekim'e dahil
   assert.equal(personelAyYuku({ atamalar: l, employeeId: 'e1', profilHaritasi: harita, kurallar, ay: '2026-11-01' }).dakika, 1000);
+  assert.equal(personelAyYuku({ atamalar: l, employeeId: 'e1', profilHaritasi: harita, kurallar, ay: '2026-09-01' }).dakika, 200);   // Eylül'de yalnızca f2 sürüyor, 15 Ekim'de başlayan henüz yok
+  assert.equal(personelAyYuku({ atamalar: [l[1]], employeeId: 'e1', profilHaritasi: harita, kurallar, ay: '2026-10-01' }).dakika, 0);   // 30 Eylül'de bitti: Ekim'e girmez
 });
 
 test('personelAyYuku: firma profili yoksa eksik işaretlenir, toplam 0 sayılır', () => {

@@ -183,3 +183,18 @@ test('KDV 0 spot iş ve elden gelir vergi tahminine dahil edilmez; kâra ve geli
   assert.equal(b.isletme.vergiSonrasiKar, Math.round((b.isletme.vergiOncesiKar - b.isletme.tahminiVergi) * 100) / 100);
   assert.equal(b.firmalar.find((f) => f.id === null).ad, 'Firma dışı işler'); assert.equal(b.firmalar.find((f) => f.id === null).gelir, 1900);
 });
+
+test('ay içinde başlayan görevlendirme ve maliyet dönemi o aya dahil edilir (tam ay)', () => {
+  const geç = [atama('g1', 'f1', 'u1', 'is_guvenligi_uzmani', 100)].map((a) => ({ ...a, valid_from: '2026-10-15' }));
+  const mal = [{ employee_id: 'u1', total_monthly_cost: 40000, valid_from: '2026-10-10', valid_to: null }];
+  const r = hesaplaKarlilik({ ...temel, atamalar: geç, maliyetler: mal, personeller: [personeller[0]] });
+  const u = r.personel.find((p) => p.id === 'u1');
+  assert.equal(u.maliyet, 40000); assert.equal(u.teorikDk, 1000); assert.ok(u.gelirPayi > 0);          // 1000 dk = 50 çalışan x 20 dk
+  assert.equal(r.firmalar.find((f) => f.id === 'f1').personel > 0, true);
+});
+
+test('ayrılış tarihi girilmemiş pasif personel hiç listelenmez', () => {
+  const pasif = { id: 'u3', full_name: 'Pasif', staff_type: 'is_guvenligi_uzmani', monthly_capacity_min: 1000, is_active: false, end_date: null };
+  const r = hesaplaKarlilik({ ...temel, personeller: [...personeller, pasif], maliyetler: [...maliyetler, maliyet('u3', 9999)] });
+  assert.equal(r.personel.find((p) => p.id === 'u3'), undefined);
+});
