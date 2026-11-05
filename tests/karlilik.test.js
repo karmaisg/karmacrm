@@ -158,5 +158,28 @@ test('yönetim gideri işaretli personelin maliyeti firmalara değil, ortak gide
   assert.ok(o.sanal); assert.equal(o.dagitim.f1, 3600);   // tek firma: tamamı ona
   assert.equal(r.firmalar.find((f) => f.id === 'f1').ortak, 3600);
   assert.equal(r.isletme.vergiOncesiKar, 10000 - 6000 - 3600);
-  assert.equal(r.personel.find((p) => p.id === 'e1').yonetim, true);
+  assert.equal(r.personel.find((p) => p.id === 'e1'), undefined);     // yönetim personeli kârlılık listesinde yok
+  assert.deepEqual(r.yonetimPersonel.map((p) => p.id), ['e1']);
+});
+
+test('ayrılış tarihinden sonraki aylarda personel kârlılığında ve maliyette yer almaz; ayrılış ayında yer alır', () => {
+  const ayrilan = { id: 'u2', full_name: 'Ayrılan', staff_type: 'is_guvenligi_uzmani', monthly_capacity_min: 1000, is_active: false, end_date: '2026-09-15' };
+  const mal = [...maliyetler, maliyet('u2', 20000)];
+  let r = hesaplaKarlilik({ ...temel, personeller: [...personeller, ayrilan], maliyetler: mal });                 // ekim: ayrılıştan sonra
+  assert.equal(r.personel.find((p) => p.id === 'u2'), undefined); assert.equal(r.isletme.personel, 70000);
+  r = hesaplaKarlilik({ ...temel, ay: '2026-09-01', personeller: [...personeller, ayrilan], maliyetler: mal, faturalar: [] });   // eylül: ayrılış ayı
+  assert.ok(r.personel.find((p) => p.id === 'u2'));
+});
+
+test('KDV 0 spot iş ve elden gelir vergi tahminine dahil edilmez; kâra ve gelire dahildir', () => {
+  const ek = [fat('s1', null, 1000, '2026-10-10', { income_kind: 'spot', vat_amount: 0 }), fat('s2', null, 500, '2026-10-11', { income_kind: 'elden', vat_amount: 0 }), fat('s3', null, 400, '2026-10-12', { income_kind: 'spot', vat_amount: 80 })];
+  const buyuk = [...faturalar, fat('big', 'f1', 100000)];   // vergiye tabi kâr oluşsun
+  const a = hesaplaKarlilik({ ...temel, faturalar: buyuk }); const b = hesaplaKarlilik({ ...temel, faturalar: [...buyuk, ...ek] });
+  assert.equal(b.isletme.gelir, a.isletme.gelir + 1900);
+  assert.equal(b.isletme.vergisizGelir, 1500);
+  assert.equal(b.isletme.vergiOncesiKar, a.isletme.vergiOncesiKar + 1900);
+  // vergi, yalnızca vergiye tabi 400 TL'lik artıştan hesaplanır (varsayılan %25)
+  assert.equal(Math.round((b.isletme.tahminiVergi - a.isletme.tahminiVergi) * 100) / 100, 100);
+  assert.equal(b.isletme.vergiSonrasiKar, Math.round((b.isletme.vergiOncesiKar - b.isletme.tahminiVergi) * 100) / 100);
+  assert.equal(b.firmalar.find((f) => f.id === null).ad, 'Firma dışı işler'); assert.equal(b.firmalar.find((f) => f.id === null).gelir, 1900);
 });

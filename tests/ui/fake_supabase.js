@@ -598,6 +598,18 @@ const rpcler = {
     if (!['spot', 'elden'].includes(a.p_tur)) return { error: hata('Gelir türü spot veya elden olmalıdır.', 'P0001') };
     if (!String(a.p_aciklama ?? '').trim()) return { error: hata('Gelir kaleminin ne olduğunu yazın.', 'P0001') };
     const elden = a.p_tur === 'elden';
+    if (!a.p_firma) {
+      if (!izinVar('invoices', 'can_create')) return { error: hata('Fatura ekleme yetkiniz yok.', 'P0001') };
+      if (!(a.p_tutar > 0)) return { error: hata('Tutar sıfırdan büyük olmalıdır.', 'P0001') };
+      const oran = elden ? 0 : a.p_kdv_orani; const kdv = Math.round(a.p_tutar * oran) / 100; const yil = a.p_tarih.slice(0, 4);
+      const haric = elden || a.p_kdv_modu !== 'kdv_dahil' ? a.p_tutar : Math.round((a.p_tutar / (1 + oran / 100)) * 100) / 100; const kdvT = elden || a.p_kdv_modu !== 'kdv_dahil' ? kdv : Math.round((a.p_tutar - haric) * 100) / 100;
+      const sayac = Math.max(0, ...tablo.invoices.map((x) => { const m = x.invoice_no.match(new RegExp(`^F-${yil}-(\\d+)$`)); return m ? Number(m[1]) : 0; })) + 1;
+      const i = { id: uid(), organization_id: ORG, company_id: null, contract_id: null, invoice_no: a.p_no || `F-${yil}-${String(sayac).padStart(4, '0')}`, invoice_date: a.p_tarih, due_date: a.p_tarih, service_period: `${a.p_tarih.slice(0, 7)}-01`,
+        amount_excl_vat: haric, vat_amount: kdvT, amount_incl_vat: haric + kdvT, flag: null, notes: a.p_aciklama.trim(), income_kind: a.p_tur, customer_name: a.p_musteri ?? null, created_at: new Date().toISOString(), archived_at: null };
+      tablo.invoices.push(i);
+      if (a.p_tahsil) tablo.payments.push({ id: uid(), organization_id: ORG, invoice_id: i.id, paid_at: a.p_tarih, amount: i.amount_incl_vat, method: elden ? 'Elden' : null, notes: 'Gelir girişi sırasında tahsil edildi', created_at: new Date().toISOString(), archived_at: null });
+      return { data: kopya(i) };
+    }
     const r = faturaYaz({ p_id: null, p_firma: a.p_firma, p_sozlesme: null, p_no: a.p_no, p_tarih: a.p_tarih, p_vade: a.p_tarih, p_donem: `${a.p_tarih.slice(0, 7)}-01`,
       p_tutar: a.p_tutar, p_kdv_modu: elden ? 'kdv_haric' : a.p_kdv_modu, p_kdv_orani: elden ? 0 : a.p_kdv_orani, p_aciklama: a.p_aciklama.trim(), p_not: null }, null);
     if (r.error) return r;

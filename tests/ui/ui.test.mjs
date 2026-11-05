@@ -2443,7 +2443,7 @@ await test('gider Excel: izinsiz rol yükleme alanı görmez', async (s) => {
 await test('gelir ekle: spot iş (KDV oranı) ve elden ödeme (KDV yok, tahsil edildi); fatura detayında ortalama KDV', async (s) => {
   await gelirKurulum(s); await git(s, '#/tahsilat'); await s.waitForSelector('[data-action="yeni-gelir"]');
   await s.click('[data-action="yeni-gelir"]'); const m = modal(s);
-  await m.locator('button[type=submit]').click(); const hata = await m.innerText(); if (!hata.includes('Firmayı seçin') || !hata.includes('ne olduğunu')) throw new Error(`doğrulama: ${hata.slice(0, 200)}`);
+  await m.locator('button[type=submit]').click(); const hata = await m.innerText(); if (hata.includes('Firmayı seçin') || !hata.includes('ne olduğunu')) throw new Error(`doğrulama: ${hata.slice(0, 200)}`);
   await m.locator('#f-company_id').selectOption({ label: 'Alfa Gıda' }); await m.locator('#f-aciklama').fill('Ek eğitim'); await m.locator('#f-tutar').fill('1000'); await m.locator('#f-vat_rate').fill('10');
   if (!(await m.locator('#gelir-bilgi').innerText()).includes('1.100')) throw new Error(`KDV bilgisi: ${await m.locator('#gelir-bilgi').innerText()}`);
   await m.locator('button[type=submit]').click(); await s.waitForSelector('.modal-overlay', { state: 'detached' });
@@ -2460,6 +2460,17 @@ await test('gelir ekle: spot iş (KDV oranı) ve elden ödeme (KDV yok, tahsil e
   const tur = await s.locator('#fatura-tur').innerText(); const ort = await s.locator('#fatura-ort-kdv').innerText();
   if (!/Spot|Elden/.test(tur) || !/%/.test(ort)) throw new Error(`detay: ${tur} / ${ort}`);
   await ekran(s, '63-gelir-detay');
+});
+
+await test('gelir ekle: firma dışı spot iş adıyla girilir (KDV 0 dahil); listede "firma dışı" görünür', async (s) => {
+  await gelirKurulum(s); await git(s, '#/tahsilat'); await s.waitForSelector('[data-action="yeni-gelir"]');
+  await s.click('[data-action="yeni-gelir"]'); const m = modal(s);
+  await m.locator('#f-musteri').fill('Ahmet Yılmaz'); await m.locator('#f-aciklama').fill('Sağlık raporu'); await m.locator('#f-tutar').fill('800'); await m.locator('#f-vat_rate').fill('0');
+  await m.locator('button[type=submit]').click(); await s.waitForSelector('.modal-overlay', { state: 'detached' });
+  const i = await s.evaluate(() => globalThis.__fake.tablo.invoices.find((x) => x.company_id === null));
+  esit(i.company_id, null, 'firmasız'); esit(Number(i.vat_amount), 0, 'KDV 0'); esit(i.customer_name, 'Ahmet Yılmaz', 'müşteri'); esit(i.income_kind, 'spot', 'tür');
+  await s.waitForSelector('tr:has-text("Sağlık raporu")'); const satir = await s.locator('tr:has-text("Sağlık raporu")').first().innerText();
+  if (!satir.includes('Ahmet Yılmaz') || !satir.includes('firma dışı')) throw new Error(`satır: ${satir}`);
 });
 
 // ---------------------------------------------------------------- Firmayı kalıcı sil, pasife al (Aşama 18)
