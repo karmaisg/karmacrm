@@ -18,11 +18,11 @@ export function takvimKaydiFormuAc(app, { kayit = null, gun = bugun(), firmalar 
   const firmaSec = [{ deger: '', etiket: 'Yok' }].concat(firmalar.filter((f) => !f.archived_at || f.id === kayit?.company_id).sort((a, b) => trSirala(a.name, b.name)).map((f) => ({ deger: f.id, etiket: f.name })));
   openFormModal({
     baslik: duzenle ? 'Takvim kaydını düzenle' : 'Yeni takvim kaydı', gonderEtiketi: duzenle ? 'Değişiklikleri kaydet' : 'Kaydet', boyut: 'lg',
-    altBaslik: 'Aylık tekrarda ilk tarihin günü her ay kullanılır; o gün olmayan aylarda (ör. 31) ayın son günü.',
+    altBaslik: 'Aylık tekrarda ilk tarihin günü her ay, yıllık tekrarda her yıl aynı gün ve ay kullanılır; o gün olmayan aylarda (ör. 31) ayın son günü.',
     govde: html`${field({ ad: 'title', etiket: 'Başlık', zorunlu: true, deger: v('title'), tam: true, maksUzunluk: 200, yerTutucu: 'Örn. SGK prim ödemesi' })}
       ${field({ ad: 'kind', etiket: 'Tür', deger: v('kind', 'hatirlatma'), secenekler: [{ deger: 'hatirlatma', etiket: 'Hatırlatma' }, { deger: 'odeme', etiket: 'Ödeme' }] })}
       ${field({ ad: 'start_date', etiket: 'Tarih (aylık ise ilk tarih)', tur: 'date', zorunlu: true, deger: v('start_date', gun) })}
-      ${field({ ad: 'recurrence', etiket: 'Tekrar', deger: v('recurrence', 'yok'), secenekler: [{ deger: 'yok', etiket: 'Tek seferlik' }, { deger: 'aylik', etiket: 'Her ay' }] })}
+      ${field({ ad: 'recurrence', etiket: 'Tekrar', deger: v('recurrence', 'yok'), secenekler: [{ deger: 'yok', etiket: 'Tek seferlik' }, { deger: 'aylik', etiket: 'Her ay' }, { deger: 'yillik', etiket: 'Her yıl' }] })}
       ${field({ ad: 'end_date', etiket: 'Tekrar bitişi (isteğe bağlı)', tur: 'date', deger: v('end_date') })}
       ${field({ ad: 'amount', etiket: 'Tutar (TL, isteğe bağlı)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: v('amount') })}
       ${app.can('companies', 'view') ? field({ ad: 'company_id', etiket: 'İlgili firma', deger: v('company_id'), secenekler: firmaSec }) : ''}
@@ -31,7 +31,7 @@ export function takvimKaydiFormuAc(app, { kayit = null, gun = bugun(), firmalar 
       const g = (k) => String(fd.get(k) ?? '').trim(); const h = {};
       if (!g('title')) h.title = 'Başlık zorunludur.';
       if (!g('start_date')) h.start_date = 'Tarihi seçin.';
-      if (g('end_date') && g('recurrence') !== 'aylik') h.end_date = 'Bitiş tarihi yalnızca aylık tekrarda kullanılır.';
+      if (g('end_date') && g('recurrence') === 'yok') h.end_date = 'Bitiş tarihi yalnızca tekrarlayan kayıtlarda kullanılır.';
       if (g('end_date') && g('start_date') && g('end_date') < g('start_date')) h.end_date = 'Bitiş, başlangıçtan önce olamaz.';
       if (g('amount') !== '' && !(Number(g('amount')) >= 0)) h.amount = 'Tutar 0 veya daha büyük olmalıdır.';
       if (Object.keys(h).length) return { errors: h };
@@ -84,7 +84,7 @@ export async function takvimSayfasi(app) {
         return html`<li class="${o.tamam ? 'takvim-yapildi' : ''}" data-olay="${o.ref}">
           ${o.kaynak === 'takvim' && duzenleyebilir ? html`<label class="check-inline"><input type="checkbox" data-tamam="${o.ref}" data-gun="${o.tarih}" ${o.tamam ? html`checked` : ''}> <span class="sr-only">Yapıldı</span></label>` : ''}
           <div class="takvim-metin"><strong>${o.baslik}</strong>
-            <small class="block muted">${[o.firma, o.tutar !== null && o.tutar !== undefined ? para(o.tutar) : null, o.tekrar ? 'her ay tekrarlanır' : null].filter(Boolean).join(' · ')}</small></div>
+            <small class="block muted">${[o.firma, o.tutar !== null && o.tutar !== undefined ? para(o.tutar) : null, o.tekrar ? 'tekrarlanır' : null].filter(Boolean).join(' · ')}</small></div>
           ${k ? pill(k[0], k[1]) : (t ? pill(t[0], t[1]) : '')}
           ${o.kaynak === 'takvim' ? (duzenleyebilir ? html`<button type="button" class="btn btn-secondary btn-sm" data-duzenle="${o.ref}">${icon('pencil', 14)} Düzenle</button><button type="button" class="btn btn-secondary btn-sm" data-arsiv="${o.ref}">${icon('archive', 14)} Sil</button>` : '')
             : html`<a class="btn btn-secondary btn-sm" href="#/gorevler">Göreve git</a>`}</li>`;
@@ -113,7 +113,7 @@ export async function takvimSayfasi(app) {
         const ar = e.target.closest('[data-arsiv]');
         if (ar) {
           const k = oge(ar.dataset.arsiv); if (!k) return;
-          if (!(await confirmDialog({ baslik: 'Kaydı sil', mesaj: `"${k.title}"${k.recurrence === 'aylik' ? ' ve tüm tekrarları' : ''} takvimden kaldırılacak.`, onayEtiketi: 'Sil', tehlikeli: true }))) return;
+          if (!(await confirmDialog({ baslik: 'Kaydı sil', mesaj: `"${k.title}"${k.recurrence !== 'yok' ? ' ve tüm tekrarları' : ''} takvimden kaldırılacak.`, onayEtiketi: 'Sil', tehlikeli: true }))) return;
           try { await app.api.archiveCalendarItem(k.id); toast('Kayıt silindi.'); await yenile(); } catch (err) { toast(humanError(err), 'hata'); }
         }
       });

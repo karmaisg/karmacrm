@@ -19,8 +19,17 @@ export function ayIzgarasi(ayIso) {
 
 export const kalanGunMetni = (n) => (n === 0 ? 'bugün' : n === 1 ? 'yarın' : n > 1 ? `${n} gün kaldı` : `${-n} gün önce`);
 
-/** Aylık tekrar: ilk tarihin günü her ay; ayda o gün yoksa ayın son günü. */
+/** Aylık tekrar: ilk tarihin günü her ay; ayda o gün yoksa ayın son günü. Yıllık tekrar: her yıl aynı gün ve ay (29 Şubat → olmayan yıllarda 28 Şubat). */
 export function ogeGunleri(oge, bas, bit) {
+  if (oge.recurrence === 'yillik') {
+    const ay = Number(oge.start_date.slice(5, 7)); const gun = Number(oge.start_date.slice(8, 10)); const l = [];
+    for (let y = Number(bas.slice(0, 4)); y <= Number(bit.slice(0, 4)); y++) {
+      const ayIlk = `${y}-${String(ay).padStart(2, '0')}-01`; const son = Number(ayinSonu(ayIlk).slice(8, 10));
+      const g = `${y}-${String(ay).padStart(2, '0')}-${String(Math.min(gun, son)).padStart(2, '0')}`;
+      if (g >= bas && g <= bit && g >= oge.start_date && (!oge.end_date || g <= oge.end_date)) l.push(g);
+    }
+    return l;
+  }
   if (oge.recurrence !== 'aylik') return oge.start_date >= bas && oge.start_date <= bit ? [oge.start_date] : [];
   const gun = Number(oge.start_date.slice(8, 10)); const l = [];
   for (let ay = ayBasi(bas); ay <= bit; ay = ayEkle(ay, 1)) {
@@ -38,7 +47,7 @@ export function olaylariUret({ ogeler = [], tamamlamalar = [], gorevler = [], fi
     if (o.archived_at) continue;
     for (const g of ogeGunleri(o, bas, bit)) {
       l.push({ tarih: g, kaynak: 'takvim', ref: o.id, baslik: o.title, firma: firmaAdi.get(o.company_id) ?? null, tutar: o.amount ?? null,
-        tamam: tamamlamalar.some((k) => k.item_id === o.id && k.occurrence_date === g), tekrar: o.recurrence === 'aylik', tur: o.kind, oncelik: null });
+        tamam: tamamlamalar.some((k) => k.item_id === o.id && k.occurrence_date === g), tekrar: o.recurrence === 'aylik' || o.recurrence === 'yillik', tur: o.kind, oncelik: null });
     }
   }
   for (const t of gorevler) {

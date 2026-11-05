@@ -406,3 +406,11 @@ li.takvim-yapildi .takvim-metin { text-decoration: line-through; opacity: .65; }
   .takvim-chip { display: none; }
   .takvim-nokta { top: 6px; right: 6px; }
 }
+
+/* Aşama 21: İdari işler */
+.belge-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.belge-liste li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.belge-liste .link-btn { padding: 2px 0; text-align: left; overflow-wrap: anywhere; }
+.pad-notice { margin: 12px 20px 0; display: flex; gap: 8px; align-items: center; }
+.row-on { background: var(--surface-2); }
+.field input[type="file"] { padding: 10px; min-height: 0; }

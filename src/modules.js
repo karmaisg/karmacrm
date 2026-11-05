@@ -24,6 +24,7 @@ export const MODUL_ADLARI = {
   import_export: 'Veri içe/dışa aktarma',
   users: 'Kullanıcılar ve yetkiler',
   settings: 'Sistem ayarları',
+  admin_affairs: 'İdari işler (özlük, izin, araç, şirket belgeleri)',
 };
 
 export const MODUL_SIRASI = Object.keys(MODUL_ADLARI);
@@ -88,6 +89,9 @@ export const MENU = [
     aciklama: 'Uzman ve hekim bazında gelir, maliyet ve katkı kârı.' },
   { id: 'firma-karlilik', grup: 'finans', modul: 'company_profit', ad: 'Firma kârlılığı', simge: 'bars', yapildi: true,
     aciklama: 'Firma bazında katkı kârı, ortak gider payı ve vergi öncesi kâr katkısı.' },
+
+  { id: 'idari', grup: 'finans', modul: 'admin_affairs', ad: 'İdari İşler', simge: 'folder', yapildi: true,
+    aciklama: 'Özlük belgeleri, personel izinleri, şirket araçları ve şirket belgeleri.' },
 
   { id: 'raporlar', grup: 'yonetim', modul: 'reports', ad: 'Raporlar', simge: 'bars', yapildi: true,
     aciklama: 'Aylık yönetici raporu ve Excel/CSV dışa aktarımları.' },

@@ -27,6 +27,7 @@ export function personelFormuAc(app, { kayit = null, tur = 'is_guvenligi_uzmani'
       ${field({ ad: 'qualifications', etiket: 'Belge ve nitelikler', deger: kayit?.qualifications ?? '', maksUzunluk: 300, tam: true, yerTutucu: 'Belge numarası, geçerlilik vb.' })}
       ${field({ ad: 'phone', etiket: 'Telefon', tur: 'tel', deger: kayit?.phone ?? '', maksUzunluk: 30, inputmode: 'tel' })}
       ${field({ ad: 'email', etiket: 'E-posta', tur: 'email', deger: kayit?.email ?? '', maksUzunluk: 120, inputmode: 'email' })}
+      ${field({ ad: 'birth_date', etiket: 'Doğum tarihi', tur: 'date', deger: kayit?.birth_date ?? '', ipucu: 'Yıllık izin hakkı için (18 yaş altı / 50 yaş üstü kuralı).' })}
       ${field({ ad: 'start_date', etiket: 'İşe başlama', tur: 'date', deger: kayit?.start_date ?? '' })}
       ${field({ ad: 'end_date', etiket: 'Ayrılış', tur: 'date', deger: kayit?.end_date ?? '' })}
       ${rolluMu ? '' : field({ ad: 'monthly_capacity_min', etiket: 'Aylık kapasite (dakika)', tur: 'number', min: 1, adim: 1, inputmode: 'numeric', zorunlu: true, deger: kayit?.monthly_capacity_min ?? kapVarsayilan, ipucu: `Varsayılan ${sayi(kapVarsayilan)} dk (tam zamanlı).` })}
@@ -42,11 +43,12 @@ export function personelFormuAc(app, { kayit = null, tur = 'is_guvenligi_uzmani'
       if (rolluMu && !g('role_kind')) h.role_kind = 'Görevi seçin.';
       if (rolluMu && g('role_kind') === 'diger' && !g('title')) h.title = '"Diğer" görevi için unvanı yazın.';
       if (!rolluMu && (!/^\d{1,6}$/.test(g('monthly_capacity_min')) || Number(g('monthly_capacity_min')) < 1)) h.monthly_capacity_min = 'Kapasite 1 veya daha büyük bir tam sayı olmalıdır.';
+      if (g('birth_date') && (g('birth_date') > bugun() || g('birth_date') < '1900-01-01')) h.birth_date = 'Geçerli bir doğum tarihi girin.';
       if (g('start_date') && g('end_date') && g('end_date') < g('start_date')) h.end_date = 'Ayrılış tarihi işe başlamadan önce olamaz.';
       if (Object.keys(h).length) return { errors: h };
       const degerler = {
         full_name: g('full_name'), title: bosIseNull(g('title')), qualifications: bosIseNull(g('qualifications')), phone: bosIseNull(g('phone')), email: bosIseNull(g('email')),
-        start_date: bosIseNull(g('start_date')), end_date: bosIseNull(g('end_date')),
+        birth_date: bosIseNull(g('birth_date')), start_date: bosIseNull(g('start_date')), end_date: bosIseNull(g('end_date')),
         is_active: fd.get('is_active') === '1', is_management: fd.get('is_management') === '1', notes: bosIseNull(g('notes')),
       };
       if (!rolluMu) degerler.monthly_capacity_min = Number(g('monthly_capacity_min'));

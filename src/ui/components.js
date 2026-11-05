@@ -125,7 +125,7 @@ const kimlikOf = (ad) => `f-${ad}`;
 /** Tek satırlık, seçimli veya çok satırlı form alanı. Değerler kaçışlanır. */
 export function field({
   ad, etiket, tur = 'text', deger = '', zorunlu = false, ipucu = '', yerTutucu = '', secenekler = null,
-  satir = 3, otomatik = 'off', inputmode = '', maksUzunluk = '', min = '', max = '', adim = '', tam = false, pasif = false,
+  satir = 3, otomatik = 'off', inputmode = '', maksUzunluk = '', min = '', max = '', adim = '', tam = false, pasif = false, kabul = '',
 }) {
   const id = kimlikOf(ad);
   const tarif = `${ipucu ? `h-${ad} ` : ''}e-${ad}`.trim();
@@ -140,7 +140,7 @@ export function field({
     kontrol = html`<input id="${id}" name="${ad}" type="${tur}" value="${deger ?? ''}" placeholder="${yerTutucu}" autocomplete="${otomatik}"
       ${zorunlu ? raw('required') : ''} ${pasif ? raw('disabled') : ''} ${inputmode ? html`inputmode="${inputmode}"` : ''}
       ${maksUzunluk ? html`maxlength="${maksUzunluk}"` : ''} ${min !== '' ? html`min="${min}"` : ''} ${max !== '' ? html`max="${max}"` : ''}
-      ${adim !== '' ? html`step="${adim}"` : ''} aria-describedby="${tarif}">`;
+      ${adim !== '' ? html`step="${adim}"` : ''} ${kabul ? html`accept="${kabul}"` : ''} aria-describedby="${tarif}">`;
   }
   return html`<div class="field ${tam ? 'field-full' : ''}" data-field="${ad}">
     <label for="${id}">${etiket}${zorunlu ? html` <span class="req" aria-hidden="true">*</span><span class="sr-only"> (zorunlu)</span>` : ''}</label>

@@ -49,3 +49,4 @@ Yetkiler veri tabanında `role_permissions` tablosunda durur ve ileride **Kullan
 - İşletme sahibi ve Sistem yöneticisi rollerini yalnızca bu iki roldeki kullanıcılar atayabilir/değiştirebilir.
 - Bu iki rolün yetki matrisi arayüzden veya API'den değiştirilemez; diğer dört rolün matrisi "Kullanıcılar ve yetkiler > Yetki matrisi"nden düzenlenir ve her değişiklik denetim kaydına yazılır.
 - Arşivleme ve arşivden çıkarma "arşivle" yetkisi gerektirir; arşiv alanları elle bozulamaz.
+- İdari işler (`admin_affairs`): özlük belgeleri, izinler, araçlar ve şirket belgeleri; varsayılan olarak yalnızca Sistem yöneticisi ve İşletme sahibi (görüntüle/oluştur/düzenle/arşivle). Belgeler kişisel veri içerdiğinden diğer roller yalnızca matristen açıkça yetkilendirilirse görür.

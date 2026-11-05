@@ -417,3 +417,14 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 5. **Geçerlilik:** Yeni başlangıç girilince kayıt o tarihten sonraki aylara, başka bir başlangıç girilene kadar aynı hesapla devam eder; önceki dönem bir gün öncesinde kapanır. Geçmişe araya dönem girilirse kapsayan dönem bölünür, sonraki dönemler korunur. Aynı başlangıç tarihi yeniden girilirse o dönem güncellenir.
 6. **Not:** Kârlılık, personel kartındaki bu toplamı kullanır. Excel'deki "Personel Giderleri" toplam gider satırı ayrıca gider olarak alınır ve firma kârlılığında çift sayılmaz. SGK oranları kodda sabittir; oranlar değişirse bildirin.
 
+
+## Aşama 21 kurulumu (İdari İşler ve yıllık takvim tekrarı)
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/23_asama21.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. Dosya; yeni tabloları (izinler, araçlar, araç kayıtları, belgeler), `idari-belgeler` adlı **özel** depolama kovasını ve takvimdeki "Her yıl" tekrarını kurar.
+2. **Depolama kontrolü:** Supabase > Storage içinde `idari-belgeler` kovasının göründüğünü doğrulayın (Private, en çok 10 MB; PDF/JPG/PNG/WEBP). Görünmüyorsa kovayı aynı adla elle oluşturup SQL'i yeniden çalıştırın. Ücretsiz planda toplam depolama 1 GB'dır.
+3. **Yetki:** İdari İşler menüsü (Finans altında) varsayılan olarak yalnızca Sistem yöneticisi ve İşletme sahibi tarafından görülür. Diğer roller için Kullanıcılar ve yetkiler > Yetki matrisi'nde "İdari işler" satırını açabilirsiniz.
+4. **Özlük belgeleri:** Personel seçilir; işe giriş bildirgesi, kimlik, nüfus kayıt örneği, ikametgâh, adli sicil, diploma, sertifika, İSG eğitimi, sağlık raporu için "Yükle" kullanılır. "Başka belge" ile adını kendiniz yazdığınız belge eklenir. Belgeler silinmez, arşivlenir.
+5. **Personel izinleri:** Hesap için personel kartında **İşe başlama** ve **Doğum tarihi** dolu olmalıdır. Hak, işe başlama tarihinin her yıldönümünde doğar (ilk hak 1 yıl sonra): 1–5 yıl (5 dahil) 14, 5–15 yıl 20, 15 yıl ve üzeri 26 iş günü; hak edildiği tarihte 18 yaşından küçük veya 50 yaşında/üzerinde olanlara en az 20 gün. Kullanılan izin en eski haktan düşülür. İzin eklerken gün sayısı hafta içi günlerden otomatik gelir; resmî tatil varsa elle düzeltin.
+6. **Şirket araçları:** Plaka ve marka ile araç tanımlanır; ruhsat, trafik sigortası, kasko, bakım, muayene ve "Diğer" (ekstra veri: ad + ek bilgi) kayıtları ile belgeleri girilir. Bitiş tarihi 30 günden az kalan kayıtlar sarı, geçenler kırmızı işaretlenir.
+7. **Şirket belgeleri:** Ad (zorunlu), tarih ve açıklama ile PDF veya resim yüklenir.
+8. **Takvim:** Kayıt girerken Tekrar > **Her yıl** seçilebilir (29 Şubat kayıtları artık olmayan yıllarda ayın son gününe düşer).

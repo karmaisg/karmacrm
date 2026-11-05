@@ -2,6 +2,9 @@
 // Tüm veri tabanı çağrıları burada toplanır. Yetki kontrolü sunucuda (RLS) yapılır; buradaki
 // kontroller yalnızca kullanıcıya anlaşılır mesaj göstermek içindir.
 
+import { depoYolu } from './idari.js';
+const IDARI_KOVA = 'idari-belgeler';
+
 // ---------------------------------------------------------------- hata çevirisi
 export class AppError extends Error {
   constructor(message, cause) {
@@ -25,6 +28,7 @@ export function humanError(e) {
     if (msg.includes('invoices_organization_id_invoice_no_key')) return 'Bu fatura numarası zaten kullanılıyor.';
     if (msg.includes('invoices_donem_uq')) return 'Bu sözleşme için bu hizmet dönemine zaten fatura kesilmiş.';
     if (msg.includes('expense_categories_organization_id_name_key')) return 'Bu isimde bir gider kategorisi zaten var.';
+    if (msg.includes('vehicles_plate_uq')) return 'Bu plakayla kayıtlı bir araç zaten var.';
     return 'Bu kayıt zaten mevcut.';
   }
   if (code === '42501' || /row-level security|permission denied/i.test(msg)) return 'Bu işlem için yetkiniz yok.';
@@ -386,6 +390,36 @@ export function createApi(db) {
     archiveExpense: (id) => bir(T('expenses').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
 
     // ----- kârlılık
+    // ----- İdari işler (Aşama 21)
+    listAdminDocuments: () => hepsiniOku(() => T('admin_documents').select('*').order('created_at', { ascending: false })),
+    /** Dosyayı özel kovaya yükler, ardından bilgi satırını ekler; satır eklenemezse dosya geri silinir. */
+    async uploadAdminDocument({ kurum, dosya, tur, alanlar }) {
+      const yol = depoYolu(kurum, alanlar.scope, globalThis.crypto.randomUUID(), tur);
+      const { error: ue } = await db.storage.from(IDARI_KOVA).upload(yol, dosya, { contentType: tur, upsert: false });
+      if (ue) throw wrap(ue);
+      const { data, error } = await T('admin_documents').insert({ ...alanlar, storage_path: yol, file_name: dosya.name, mime_type: tur, size_bytes: dosya.size }).select().single();
+      if (error) { await db.storage.from(IDARI_KOVA).remove([yol]).catch(() => {}); throw wrap(error); }
+      return data;
+    },
+    updateAdminDocument: (id, d) => bir(T('admin_documents').update(d).eq('id', id).select().single()),
+    archiveAdminDocument: (id) => bir(T('admin_documents').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    async adminDocumentUrl(yol) {
+      const { data, error } = await db.storage.from(IDARI_KOVA).createSignedUrl(yol, 120);
+      if (error) throw wrap(error);
+      return data.signedUrl;
+    },
+    listLeaves: () => hepsiniOku(() => T('employee_leaves').select('*').is('archived_at', null).order('start_date', { ascending: false })),
+    createLeave: (d) => bir(T('employee_leaves').insert(d).select().single()),
+    updateLeave: (id, d) => bir(T('employee_leaves').update(d).eq('id', id).select().single()),
+    archiveLeave: (id) => bir(T('employee_leaves').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    listVehicles: () => hepsiniOku(() => T('vehicles').select('*').is('archived_at', null).order('plate')),
+    createVehicle: (d) => bir(T('vehicles').insert(d).select().single()),
+    updateVehicle: (id, d) => bir(T('vehicles').update(d).eq('id', id).select().single()),
+    archiveVehicle: (id) => bir(T('vehicles').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    listVehicleRecords: () => hepsiniOku(() => T('vehicle_records').select('*').is('archived_at', null).order('expiry_date', { ascending: true, nullsFirst: false })),
+    createVehicleRecord: (d) => bir(T('vehicle_records').insert(d).select().single()),
+    updateVehicleRecord: (id, d) => bir(T('vehicle_records').update(d).eq('id', id).select().single()),
+    archiveVehicleRecord: (id) => bir(T('vehicle_records').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
     listAllEmployeeCosts: () => hepsiniOku(() => T('employee_costs').select('*').order('id')),
     listAllocationRules: () => bir(T('allocation_rules').select('*').order('valid_from')),
     listAllocations: (bas, bit) => hepsiniOku(() => T('overhead_allocations').select('*').gte('period', bas).lte('period', bit).order('id')),
