@@ -7,6 +7,13 @@ test('ızgara: pazartesi başlar, tam haftalar, ayı kapsar', () => {
   assert.equal(h[0][0], '2026-10-26'); assert.equal(h[0][6], '2026-11-01'); assert.ok(h.every((x) => x.length === 7));
   assert.ok(h.flat().includes('2026-11-30')); assert.equal(ayIzgarasi('2027-02-01').length, 4);
 });
+test('yıllık tekrar: her yıl aynı gün; 29 Şubat artık olmayan yılda 28 Şubat; başlangıçtan önce ve bitişten sonra yok', () => {
+  const o = { recurrence: 'yillik', start_date: '2024-02-29', end_date: '2027-12-31' };
+  assert.deepEqual(ogeGunleri(o, '2023-01-01', '2028-12-31'), ['2024-02-29', '2025-02-28', '2026-02-28', '2027-02-28']);
+  assert.deepEqual(ogeGunleri({ recurrence: 'yillik', start_date: '2025-11-10' }, '2026-11-01', '2026-11-30'), ['2026-11-10']);
+  assert.deepEqual(ogeGunleri({ recurrence: 'yillik', start_date: '2025-11-10' }, '2026-12-01', '2027-10-31'), []);
+  assert.deepEqual(ogeGunleri({ recurrence: 'yillik', start_date: '2025-11-10' }, '2025-01-01', '2026-12-31'), ['2025-11-10', '2026-11-10']);
+});
 test('ay yardımcıları', () => { assert.equal(ayEkle('2026-12-15', 1), '2027-01-01'); assert.equal(ayinSonu('2028-02-10'), '2028-02-29'); assert.equal(ayinSonu('2026-04-02'), '2026-04-30'); });
 test('aylık tekrar: 31. gün kısa aylarda ayın sonuna, bitiş tarihine uyar', () => {
   const o = { recurrence: 'aylik', start_date: '2026-01-31', end_date: '2026-04-15' };

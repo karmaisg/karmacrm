@@ -1,0 +1,263 @@
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+ seed_organization 
+-------------------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:69: NOTICE:  PASS | Yetki: işletme sahibi admin_affairs tam, satış ve finans yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:70: NOTICE:  PASS | Kova özel ve 10 MB sınırlı
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:71: NOTICE:  PASS | Depolama politikaları var (sel, ins, del)
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama22.sql:76: NOTICE:  PASS | Yıllık recurrence kabul edilir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:77: NOTICE:  PASS | Yıllık: 2024 29 Şubat, 2025 ve 2026 28 Şubat, bir yıl 1 kayıt
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:78: NOTICE:  PASS | Yıllık olay tekrar=true
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:79: NOTICE:  PASS | Başlangıçtan önce yıllık olay yok
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:80: NOTICE:  PASS | Geçersiz tekrar türü [new row for relation "calendar_items" violates check constraint "calendar_items_recurrence]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 11111111-1111-1111-1111-111111111111
+(1 row)
+
+psql:tests/db_tests_asama22.sql:85: NOTICE:  PASS | Araç eklenir
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:86: NOTICE:  PASS | Plaka büyük harf ve boşluksuz saklanır
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:87: NOTICE:  PASS | Aynı plaka ikinci kez eklenemez [duplicate key value violates unique constraint "vehicles_plate_uq"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:88: NOTICE:  PASS | Araç kaydı: kasko
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:89: NOTICE:  PASS | "diğer" kaydı adsız olamaz [new row for relation "vehicle_records" violates check constraint "vehicle_records_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:90: NOTICE:  PASS | "diğer" kaydı adla
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:91: NOTICE:  PASS | Bitiş başlangıçtan önce olamaz [new row for relation "vehicle_records" violates check constraint "vehicle_records_check1"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:94: NOTICE:  PASS | Özlük belgesi (kimlik)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:95: NOTICE:  PASS | Özlük belgesi (diğer, ad ile)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:96: NOTICE:  PASS | "diğer" belge adsız olamaz [new row for relation "admin_documents" violates check constraint "admin_documents_check1"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:97: NOTICE:  PASS | Personel belgesi personelsiz olamaz [new row for relation "admin_documents" violates check constraint "admin_documents_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:98: NOTICE:  PASS | Şirket belgesi adsız olamaz [new row for relation "admin_documents" violates check constraint "admin_documents_check1"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:99: NOTICE:  PASS | Şirket belgesi
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:100: NOTICE:  PASS | Araç belgesi (kayda bağlı)
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:101: NOTICE:  PASS | Başka kurumun klasörüne dosya yolu [Dosya yolu kuruma ait değil.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:102: NOTICE:  PASS | 10 MB üstü dosya [new row for relation "admin_documents" violates check constraint "admin_documents_size_byt]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:103: NOTICE:  PASS | İzinsiz dosya türü (exe) [new row for relation "admin_documents" violates check constraint "admin_documents_mime_typ]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:104: NOTICE:  PASS | Araç belgesi başka aracın kaydına bağlanamaz [Kayıt bu araca ait değil.]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:107: NOTICE:  PASS | İzin kaydı
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:108: NOTICE:  PASS | İzin günü sıfır olamaz [new row for relation "employee_leaves" violates check constraint "employee_leaves_days_che]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:109: NOTICE:  PASS | İzin bitişi başlangıçtan önce olamaz [new row for relation "employee_leaves" violates check constraint "employee_leaves_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:110: NOTICE:  PASS | Doğum tarihi yazılır
+ works 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:111: NOTICE:  PASS | Gelecekte doğum tarihi olamaz [new row for relation "employees" violates check constraint "employees_birth_date_check"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:114: NOTICE:  PASS | Belge arşivlenir (sahip)
+ works 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 22222222-2222-2222-2222-222222222222
+(1 row)
+
+psql:tests/db_tests_asama22.sql:119: NOTICE:  PASS | Satış rolü idari belgeleri göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:120: NOTICE:  PASS | Satış rolü belge ekleyemez [new row violates row-level security policy for table "admin_documents"]
+ fails 
+-------
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:121: NOTICE:  PASS | Satış rolü araç ekleyemez [new row violates row-level security policy for table "vehicles"]
+ fails 
+-------
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 33333333-3333-3333-3333-333333333333
+(1 row)
+
+psql:tests/db_tests_asama22.sql:123: NOTICE:  PASS | Finans rolü idari belgeleri göremez
+ ok 
+----
+ 
+(1 row)
+
+              set_config              
+--------------------------------------
+ 44444444-4444-4444-4444-444444444444
+(1 row)
+
+psql:tests/db_tests_asama22.sql:125: NOTICE:  PASS | Başka kurum hiçbir şey göremez
+ ok 
+----
+ 
+(1 row)
+
+psql:tests/db_tests_asama22.sql:127: NOTICE:  PASS | Denetim kaydı admin_affairs modülüne bağlı
+ ok 
+----
+ 
+(1 row)
+

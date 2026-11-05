@@ -2238,12 +2238,19 @@ await test('Takvim: aylık tekrarlayan ödeme, tek seferlik hatırlatma, görev 
   await modal(s).locator('button[type=submit]').click();
   await s.waitForSelector('.takvim-bugun .takvim-chip');
   const chip = await s.locator('.takvim-bugun').innerText(); if (!chip.includes('SGK prim')) throw new Error(`bugün hücresi: ${chip}`);
+  // yıllık tekrar: geçen yıl bugünün tarihinde başlayan kayıt bu yıl bugüne düşer
+  await s.locator('[data-action="takvim-yeni"]').first().click();
+  await modal(s).locator('#f-title').fill('Yıllık ruhsat yenileme');
+  await modal(s).locator('#f-start_date').fill(`${Number(bugunS.slice(0, 4)) - 1}${bugunS.slice(4)}`);
+  await modal(s).locator('#f-recurrence').selectOption('yillik');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelector('.takvim-bugun')?.textContent.includes('Yıllık ruhsat'));
   // görev son tarihi otomatik
   await s.evaluate((g) => { const t = globalThis.__fake.tablo; t.tasks.push({ id: crypto.randomUUID(), organization_id: t.organizations?.[0]?.id ?? 'o', title: 'Teklif takibi', status: 'acik', priority: 'orta', kind: 'diger', due_at: `${g}T09:00:00+03:00`, remind_at: null, archived_at: null }); }, bugunS);
   await git(s, '#/gorevler'); await git(s, '#/takvim'); await s.waitForSelector('.takvim-izgara');
   await s.click('.takvim-bugun');
   const panel = await s.locator('#takvim-gun-paneli').innerText();
-  if (!panel.includes('SGK prim ödemesi') || !panel.includes('15.000') || !panel.includes('her ay') || !panel.includes('Teklif takibi') || !panel.includes('Görev son tarihi')) throw new Error(`gün paneli: ${panel.replace(/\s+/g, ' ')} :: ${(await s.locator('#takvim-gun-paneli').innerHTML()).slice(0, 900)}`);
+  if (!panel.includes('SGK prim ödemesi') || !panel.includes('15.000') || !panel.includes('tekrarlanır') || !panel.includes('Teklif takibi') || !panel.includes('Görev son tarihi')) throw new Error(`gün paneli: ${panel.replace(/\s+/g, ' ')} :: ${(await s.locator('#takvim-gun-paneli').innerHTML()).slice(0, 900)}`);
   await ekran(s, '50-takvim');
   // yapıldı işareti
   await s.locator('#takvim-gun-paneli [data-tamam]').first().check(); await s.waitForTimeout(200);
@@ -2261,7 +2268,7 @@ await test('Takvim: aylık tekrarlayan ödeme, tek seferlik hatırlatma, görev 
   await s.waitForFunction(() => document.querySelector('#takvim-gun-paneli')?.textContent.includes('Kira hatırlat'));
   await s.locator('#takvim-gun-paneli li:has-text("Kira hatırlat") [data-arsiv]').click(); await s.click('[data-ok]');
   await s.waitForFunction(() => !document.querySelector('#takvim-gun-paneli')?.textContent.includes('Kira hatırlat'));
-  esit(await s.evaluate(() => globalThis.__fake.tablo.calendar_items.filter((x) => !x.archived_at).length), 1, 'yalnızca aylık kayıt kaldı');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.calendar_items.filter((x) => !x.archived_at).length), 2, 'aylık ve yıllık kayıt kaldı');
   // doğrulama
   await s.locator('[data-action="takvim-yeni"]').first().click(); await modal(s).locator('button[type=submit]').click();
   if (!(await modal(s).innerText()).includes('Başlık zorunludur')) throw new Error('başlık doğrulaması');
@@ -2510,6 +2517,186 @@ await test('firmayı kalıcı sil: finans rolü silme düğmesini görmez; sahip
   await cikisYapGir(s, 'finans@test.com'); await git(s, '#/firmalar'); await git(s, h); await s.waitForSelector('.company-head h1');
   esit(await s.locator('[data-action="firma-sil"]').count(), 0, 'finans silme düğmesini görmez');
 });
+
+// ---------------------------------------------------------------- Aşama 21: İdari İşler
+const calisanTohumu = (s, liste) => s.evaluate((l) => { const t = globalThis.__fake.tablo; const org = t.organizations[0].id; for (const x of l) t.employees.push({ id: crypto.randomUUID(), organization_id: org, staff_type: null, role_kind: 'sekreter', is_active: true, monthly_capacity_min: 11700, archived_at: null, ...x }); }, liste);
+const pdfDosya = (ad = 'belge.pdf', boyut = 2000) => ({ name: ad, mimeType: 'application/pdf', buffer: Buffer.alloc(boyut, 'a') });
+
+await test('İdari İşler: menü finans altında; yalnız yetkili roller görür', async (s) => {
+  await girisYap(s);
+  await var_(s.locator('.nav-item:has-text("İdari İşler")'), 'sahip menüyü görür');
+  await cikisYapGir(s, 'finans@test.com');
+  esit(await s.locator('.nav-item:has-text("İdari İşler")').count(), 0, 'finans rolü görmez');
+  await git(s, '#/idari'); await s.waitForSelector('#sayfa');
+  if (!(await s.locator('#sayfa').innerText()).toLowerCase().includes('yetki')) throw new Error('yetkisiz mesajı yok');
+});
+
+await test('İdari İşler: özlük belgesi yükle, eksik/yüklü, başka belge adı, geçersiz dosya, arşivle', async (s) => {
+  await girisYap(s); await calisanTohumu(s, [{ full_name: 'Ayşe Demir', start_date: '2020-03-15', birth_date: '1990-01-01' }]);
+  await git(s, '#/idari'); await s.waitForSelector('[data-belge-tur="kimlik"]');
+  esit(await s.locator('[data-belge-tur] .pill-warning:has-text("Eksik")').count(), 9, '9 belge eksik');
+  await s.locator('[data-yukle="kimlik"]').click();
+  await modal(s).locator('#f-file').setInputFiles({ name: 'x.exe', mimeType: 'application/x-msdownload', buffer: Buffer.alloc(100) });
+  await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('Yalnızca PDF')) throw new Error('exe reddedilmeli');
+  await modal(s).locator('#f-file').setInputFiles({ name: 'dev.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(10 * 1024 * 1024 + 1) });
+  await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('10 MB')) throw new Error('büyük dosya reddedilmeli');
+  await modal(s).locator('#f-file').setInputFiles(pdfDosya('kimlik.pdf'));
+  await modal(s).locator('#f-valid_until').fill('2030-01-01');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('[data-belge-tur="kimlik"] .pill-success');
+  esit(await s.locator('[data-belge-tur] .pill-warning:has-text("Eksik")').count(), 8, '8 belge eksik');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.admin_documents.length), 1, 'kayıt');
+  const kayit = await s.evaluate(() => globalThis.__fake.tablo.admin_documents[0]);
+  esit(kayit.scope, 'personel', 'kapsam'); esit(kayit.doc_type, 'kimlik', 'tür'); esit(kayit.mime_type, 'application/pdf', 'mime');
+  if (!kayit.storage_path.includes('/personel/') || !kayit.storage_path.endsWith('.pdf')) throw new Error(`yol: ${kayit.storage_path}`);
+  // başka belge: ad zorunlu
+  await s.locator('[data-yukle="diger"]').click();
+  await modal(s).locator('#f-file').setInputFiles(pdfDosya('x.pdf'));
+  await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('Belge adını yazın')) throw new Error('ad zorunlu');
+  await modal(s).locator('#f-title').fill('Askerlik durum belgesi');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('[data-belge-tur="diger"]:has-text("Askerlik durum belgesi")');
+  // indirme bağlantısı imzalı adres üretir
+  const urlP = s.evaluate(() => globalThis.__fake.tablo.admin_documents.length);
+  esit(await urlP, 2, 'iki belge');
+  await s.locator('[data-belge-tur="kimlik"] [data-belge-arsiv]').click();
+  await modal(s).locator('button:has-text("Arşivle")').click();
+  await s.waitForSelector('[data-belge-tur="kimlik"] .pill-warning:has-text("Eksik")');
+  await ekran(s, '70-idari-ozluk');
+});
+
+await test('İdari İşler: yükleme veri satırı eklenemezse dosya geri silinir', async (s) => {
+  await girisYap(s); await calisanTohumu(s, [{ full_name: 'Ayşe Demir', start_date: '2020-03-15' }]);
+  await git(s, '#/idari'); await s.waitForSelector('[data-yukle="kimlik"]');
+  await s.evaluate(() => { globalThis.__belgeKayitHata = true; });
+  await s.locator('[data-yukle="kimlik"]').click();
+  await modal(s).locator('#f-file').setInputFiles(pdfDosya());
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.form-error:not([hidden])');
+  esit(await s.evaluate(() => globalThis.__fake.depoSayisi()), 0, 'yetim dosya kalmamalı');
+});
+
+await test('İdari İşler: personel izinleri yıl yıl hesaplanır; izin eklenir, çakışma reddedilir, silinir', async (s) => {
+  await girisYap(s);
+  const bugunS = await s.evaluate(() => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' }));
+  const yil = Number(bugunS.slice(0, 4));
+  await calisanTohumu(s, [{ full_name: 'Ayşe Demir', start_date: `${yil - 6}-01-01`, birth_date: '1990-01-01' }, { full_name: 'Yeni Başlayan', start_date: `${yil}-01-01`, birth_date: '1995-01-01' }, { full_name: 'Tarihsiz Kişi' }]);
+  await git(s, '#/idari'); await s.waitForSelector('[data-sekme="izin"]'); await s.click('[data-sekme="izin"]');
+  await s.waitForSelector('#izin-yillik');
+  const satirlar = await s.locator('#izin-yillik tbody tr').allInnerTexts();
+  esit(satirlar.length, 6, '6 yıl hak edilmiş');
+  for (let i = 0; i < 5; i++) if (!satirlar[i].includes('14')) throw new Error(`yıl ${i + 1}: ${satirlar[i]}`);
+  if (!satirlar[5].includes('20')) throw new Error(`6. yıl 20 gün olmalı: ${satirlar[5]}`);
+  if (!(await s.locator('.kpi-grid').innerText()).includes('90')) throw new Error('toplam hak 90');
+  // izin ekle: Pzt-Cum = 5 gün otomatik
+  await s.locator('[data-izin-ekle]').click();
+  await modal(s).locator('#f-start_date').fill('2026-07-06'); await modal(s).locator('#f-end_date').fill('2026-07-10');
+  await s.waitForFunction(() => document.querySelector('.modal-overlay:last-of-type #f-days')?.value === '5');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#izin-yillik tbody tr:first-child:has-text("5")');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.employee_leaves.length), 1, 'izin kaydı');
+  // çakışma
+  await s.locator('[data-izin-ekle]').click();
+  await modal(s).locator('#f-start_date').fill('2026-07-08'); await modal(s).locator('#f-end_date').fill('2026-07-09');
+  await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('başka bir izin')) throw new Error('çakışma reddedilmeli');
+  await modal(s).locator('button:has-text("Vazgeç")').click();
+  // fazla kullanım uyarısı yok; kalan 85
+  if (!(await s.locator('.kpi-grid').innerText()).includes('85')) throw new Error('kalan 85');
+  // diğer personel: hak yok; tarihsiz: uyarı
+  await s.selectOption('#idari-kisi', { label: 'Yeni Başlayan' });
+  await s.waitForSelector('.empty:has-text("Henüz hak edilmiş")');
+  await s.selectOption('#idari-kisi', { label: 'Tarihsiz Kişi' });
+  await s.waitForSelector('.notice-warn:has-text("İşe başlama tarihi girilmemiş")');
+  await s.selectOption('#idari-kisi', { label: 'Ayşe Demir' });
+  await s.locator('[data-izin-arsiv]').click(); await modal(s).locator('button:has-text("Sil")').click();
+  await s.waitForSelector('.kpi-grid:has-text("90")');
+  await ekran(s, '71-idari-izin');
+});
+
+await test('İdari İşler: araç, ruhsat/sigorta/bakım kayıtları, ekstra veri, belge yükleme, plaka tekrarı', async (s) => {
+  await girisYap(s);
+  const bugunS = await s.evaluate(() => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' }));
+  await git(s, '#/idari'); await s.waitForSelector('[data-sekme="arac"]'); await s.click('[data-sekme="arac"]');
+  await s.locator('[data-arac-ekle]').first().click();
+  await modal(s).locator('#f-plate').fill('34 abc 123'); await modal(s).locator('#f-brand').fill('Renault'); await modal(s).locator('#f-model').fill('Clio'); await modal(s).locator('#f-model_year').fill('2022');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#arac-liste:has-text("34ABC123")');
+  // aynı plaka reddedilir
+  await s.locator('[data-arac-ekle]').first().click();
+  await modal(s).locator('#f-plate').fill('34ABC123'); await modal(s).locator('#f-brand').fill('Fiat');
+  await modal(s).locator('button[type=submit]').click();
+  await modal(s).locator('.field-error:has-text("zaten var"), .form-error:has-text("zaten var")').first().waitFor({ timeout: 5000 }).catch(() => { throw new Error('plaka tekrarı'); });
+  await modal(s).locator('button:has-text("Vazgeç")').click();
+  // kayıtlar
+  const ekle = async (tur, alanlar) => {
+    await s.locator('[data-kayit-ekle]').click(); await modal(s).locator('#f-kind').selectOption(tur);
+    for (const [k, v] of Object.entries(alanlar)) await modal(s).locator(`#f-${k}`).fill(v);
+    await modal(s).locator('button[type=submit]').click();
+  };
+  const gec = (g) => new Date(Date.now() + g * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
+  await ekle('trafik_sigortasi', { record_date: gec(-300), expiry_date: gec(10), amount: '4500', value_text: 'POL-123' });
+  await s.waitForSelector('#arac-detay:has-text("POL-123")');
+  await ekle('kasko', { expiry_date: gec(200) });
+  await ekle('muayene', { expiry_date: gec(-5) });
+  // diğer: ad zorunlu
+  await s.locator('[data-kayit-ekle]').click(); await modal(s).locator('#f-kind').selectOption('diger'); await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('ad yazın')) throw new Error('diğer için ad zorunlu');
+  await modal(s).locator('#f-label').fill('Lastik değişimi'); await modal(s).locator('#f-value_text').fill('Kış lastiği, 84.000 km'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#arac-detay:has-text("Lastik değişimi")');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.vehicle_records.length), 4, '4 kayıt');
+  const liste = await s.locator('#arac-liste').innerText();
+  if (!liste.includes('gün kaldı') || !liste.includes('süresi geçti')) throw new Error(`süre durumları: ${liste}`);
+  // kayda belge
+  await s.locator('tr[data-kayit]:has-text("Trafik sigortası") [data-kayit-belge]').click();
+  await modal(s).locator('#f-file').setInputFiles({ name: 'police.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(500) });
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#arac-detay .belge-liste');
+  const d = await s.evaluate(() => globalThis.__fake.tablo.admin_documents[0]);
+  esit(d.scope, 'arac', 'kapsam'); if (!d.vehicle_record_id || !d.vehicle_id) throw new Error('araç/kayıt bağı');
+  await ekran(s, '72-idari-arac');
+});
+
+await test('İdari İşler: şirket belgeleri adı/tarihi/açıklamasıyla yüklenir ve arşivlenir', async (s) => {
+  await girisYap(s);
+  await git(s, '#/idari'); await s.waitForSelector('[data-sekme="sirket"]'); await s.click('[data-sekme="sirket"]');
+  await s.locator('[data-sirket-belge]').first().click();
+  await modal(s).locator('#f-file').setInputFiles({ name: 'imza.png', mimeType: 'image/png', buffer: Buffer.alloc(800) });
+  await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('Belge adını yazın')) throw new Error('ad zorunlu');
+  await modal(s).locator('#f-title').fill('İmza sirküleri'); await modal(s).locator('#f-doc_date').fill('2026-02-03'); await modal(s).locator('#f-description').fill('Noter onaylı');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#sirket-liste:has-text("İmza sirküleri")');
+  const t = await s.locator('#sirket-liste').innerText(); if (!t.includes('03.02.2026') || !t.includes('Noter onaylı')) throw new Error(t);
+  const k = await s.evaluate(() => globalThis.__fake.tablo.admin_documents[0]); esit(k.scope, 'sirket', 'kapsam'); esit(k.employee_id ?? null, null, 'personel yok');
+  await s.locator('#sirket-liste [data-belge-arsiv]').click(); await modal(s).locator('button:has-text("Arşivle")').click();
+  await s.waitForSelector('.empty:has-text("Henüz şirket belgesi yok")');
+  await ekran(s, '73-idari-sirket');
+});
+
+await test('İdari İşler: personel formunda doğum tarihi kaydedilir', async (s) => {
+  await girisYap(s); await calisanTohumu(s, [{ full_name: 'Ayşe Demir', start_date: '2020-03-15' }]);
+  await git(s, '#/digerpersonel'); await s.waitForSelector('#sayfa table, #sayfa .empty');
+  await s.locator('#sayfa :text("Ayşe Demir")').first().click(); await s.waitForSelector('.company-head h1, #sayfa h1:has-text("Ayşe")');
+  await s.locator('[data-action="personel-duzenle"], [data-action="duzenle"]').first().click();
+  await modal(s).locator('#f-birth_date').fill('1980-05-20'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForTimeout(500);
+  const m = await s.evaluate(() => [globalThis.__fake.tablo.employees[0].birth_date, document.querySelector('.form-error')?.textContent, [...document.querySelectorAll('.field-error')].map((e) => e.textContent).join('|')]);
+  esit(m[0], '1980-05-20', `doğum tarihi (${m[1]} ${m[2]})`);
+});
+
+await test('mobil 375px: İdari İşler sekmelerinde yatay taşma yok', async (s) => {
+  await girisYap(s); await calisanTohumu(s, [{ full_name: 'Ayşe Demir', start_date: '2015-03-15', birth_date: '1980-01-01' }]);
+  await git(s, '#/idari'); await s.waitForSelector('[data-sekme="izin"]');
+  for (const id of ['ozluk', 'izin', 'arac', 'sirket']) {
+    await s.click(`[data-sekme="${id}"]`); await s.waitForTimeout(150);
+    const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (t > 1) throw new Error(`${id}: yatay taşma ${t}px`);
+  }
+}, { genislik: 375, yukseklik: 800 });
 
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);

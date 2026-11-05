@@ -5,7 +5,7 @@ const ORG = uid();
 const roleKeys = ['sistem_yoneticisi', 'isletme_sahibi', 'satis', 'operasyon', 'finans', 'uzman_hekim'];
 const roles = roleKeys.map((key) => ({ id: uid(), organization_id: ORG, key, name: key, is_system: true }));
 const rid = (k) => roles.find((r) => r.key === k).id;
-const MODULLER = ['dashboard', 'crm', 'companies', 'contacts', 'opportunities', 'offers', 'contracts', 'staff', 'assignments', 'time', 'invoices', 'expenses', 'payroll', 'staff_profit', 'company_profit', 'capacity', 'reports', 'tasks', 'import_export', 'users', 'settings'];
+const MODULLER = ['dashboard', 'crm', 'companies', 'contacts', 'opportunities', 'offers', 'contracts', 'staff', 'assignments', 'time', 'invoices', 'expenses', 'payroll', 'staff_profit', 'company_profit', 'capacity', 'reports', 'tasks', 'import_export', 'users', 'settings', 'admin_affairs'];
 const izin = (tablo) => (m) => { const d = tablo[m] ?? ''; return [d.includes('v'), d.includes('c'), d.includes('e'), d.includes('a')].map(Number); };
 // 01_sema.sql içindeki varsayılan matrisin aynısı (v,c,e,a)
 const matris = {
@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map']) tablo[ad] ??= [];
+for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -65,7 +65,7 @@ function paylasimBul(token) {
 const dinleyiciler = new Set();
 const gunluk = [];
 const ozetAyar = { varsa: true, sonuc: 'ok' }; // UI testleri: varsa=false → fonksiyon kurulu değil (404); sonuc: 'ok' | 'yapilandirma' | 'ag'
-globalThis.__fake = { tablo, gunluk, hesaplar, ozetAyar };
+globalThis.__fake = { tablo, gunluk, hesaplar, ozetAyar, depoSayisi: () => depo.size };
 
 const hata = (message, code) => ({ message, code });
 const bugun = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
@@ -130,6 +130,14 @@ function kurucu(ad) {
         if (tablo.expense_categories.some((k) => k.name === yeni.name)) return { data: null, error: hata('duplicate key value violates unique constraint "expense_categories_organization_id_name_key"', '23505') };
         yeni.is_payroll ??= false;
       }
+      if (['employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents'].includes(ad) && !izinVar('admin_affairs', 'can_create')) return { data: null, error: hata(`new row violates row-level security policy for table "${ad}"`, '42501') };
+      if (ad === 'admin_documents' && globalThis.__belgeKayitHata) return { data: null, error: hata('kayıt hatası', 'P0001') };
+      if (ad === 'vehicles') {
+        yeni.plate = String(yeni.plate ?? '').replace(/\s+/g, '').toUpperCase();
+        if (tablo.vehicles.some((v) => !v.archived_at && v.plate === yeni.plate)) return { data: null, error: hata('duplicate key value violates unique constraint "vehicles_plate_uq"', '23505') };
+      }
+      if (ad === 'employee_leaves' && yeni.end_date < yeni.start_date) return { data: null, error: hata('check constraint', '23514') };
+      if (ad === 'admin_documents' && !String(yeni.storage_path).startsWith(`${ORG}/`)) return { data: null, error: hata('Dosya yolu kuruma ait değil.', 'P0001') };
       satirlar.push(yeni);
       if (ad === 'payments') odemeSonrasi(yeni.invoice_id);
       return { data: kopya(yeni), error: null };
@@ -276,9 +284,10 @@ const rpcler = {
     const l = [];
     for (const o of tablo.calendar_items.filter((x) => !x.archived_at)) {
       const gunler = [];
-      if (o.recurrence !== 'aylik') { if (o.start_date >= p_bas && o.start_date <= p_bit) gunler.push(o.start_date); }
+      if (o.recurrence === 'yillik') { for (let y = Number(p_bas.slice(0, 4)); y <= Number(p_bit.slice(0, 4)); y++) { const ay = o.start_date.slice(5, 7); const son = new Date(Date.UTC(y, Number(ay), 0)).getUTCDate(); const g = `${y}-${ay}-${String(Math.min(Number(o.start_date.slice(8, 10)), son)).padStart(2, '0')}`; if (g >= p_bas && g <= p_bit && g >= o.start_date && (!o.end_date || g <= o.end_date)) gunler.push(g); } }
+      else if (o.recurrence !== 'aylik') { if (o.start_date >= p_bas && o.start_date <= p_bit) gunler.push(o.start_date); }
       else { const dn = Number(o.start_date.slice(8, 10)); for (let ay = `${p_bas.slice(0, 7)}-01`; ay <= p_bit; ay = ayEkle(ay, 1)) { const g = `${ay.slice(0, 8)}${String(Math.min(dn, Number(sonGun(ay).slice(8)))).padStart(2, '0')}`; if (g >= p_bas && g <= p_bit && g >= o.start_date && (!o.end_date || g <= o.end_date)) gunler.push(g); } }
-      for (const g of gunler) l.push({ tarih: g, kaynak: 'takvim', ref: o.id, baslik: o.title, firma: firma(o.company_id), tutar: o.amount ?? null, tamam: tablo.calendar_completions.some((k) => k.item_id === o.id && k.occurrence_date === g), tekrar: o.recurrence === 'aylik', tur: o.kind, oncelik: null });
+      for (const g of gunler) l.push({ tarih: g, kaynak: 'takvim', ref: o.id, baslik: o.title, firma: firma(o.company_id), tutar: o.amount ?? null, tamam: tablo.calendar_completions.some((k) => k.item_id === o.id && k.occurrence_date === g), tekrar: o.recurrence !== 'yok', tur: o.kind, oncelik: null });
     }
     const gun = (ts) => new Date(ts).toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
     for (const t of tablo.tasks.filter((x) => !x.archived_at && ['acik', 'devam_ediyor'].includes(x.status))) {
@@ -768,8 +777,19 @@ const rpcler = {
   },
 };
 
+export const depo = new Map();   // yol → { ad, tur, boyut }
 export function createClient() {
   return {
+    storage: { from: (kova) => ({
+      async upload(yol, dosya, secenek) {
+        if (globalThis.__depoHata) return { data: null, error: { message: 'Storage hatası', statusCode: '500' } };
+        if (kova !== 'idari-belgeler' || !izinVar('admin_affairs', 'can_create')) return { data: null, error: { message: 'new row violates row-level security policy', statusCode: '403' } };
+        if (depo.has(yol)) return { data: null, error: { message: 'The resource already exists', statusCode: '409' } };
+        depo.set(yol, { tur: secenek?.contentType, boyut: dosya.size }); return { data: { path: yol }, error: null };
+      },
+      async createSignedUrl(yol) { return depo.has(yol) ? { data: { signedUrl: `https://fake.supabase.test/storage/v1/object/sign/${kova}/${yol}?token=x` }, error: null } : { data: null, error: { message: 'Object not found' } }; },
+      async remove(yollar) { yollar.forEach((y) => depo.delete(y)); return { data: [], error: null }; },
+    }) },
     auth: {
       async getSession() { return { data: { session: oturum }, error: null }; },
       async signInWithPassword({ email, password }) {
