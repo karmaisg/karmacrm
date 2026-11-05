@@ -91,6 +91,9 @@ export function sureMetni(dk) {
   return [sa ? `${sa} sa` : '', dk2 ? `${dk2} dk` : ''].filter(Boolean).join(' ');
 }
 
+/** Dakikayı yalnızca dakika olarak gösterir: '1.050 dk'. */
+export const dakikaMetni = (dk) => `${new Intl.NumberFormat('tr-TR').format(Math.round(Number(dk) || 0))} dk`;
+
 /** Aynı personelin kayıtları arasında çakışma var mı? (istemci ön kontrolü; asıl denetim veri tabanında) */
 export function zamanCakisiyor(kayitlar, employeeId, baslangicIso, bitisIso, haricId = null) {
   const b1 = new Date(baslangicIso).getTime(); const b2 = new Date(bitisIso).getTime();

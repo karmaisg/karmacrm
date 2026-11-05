@@ -44,10 +44,12 @@ export function hesaplaKarlilik(g) {
   const katMap = new Map(kategoriler.map((k) => [k.id, k]));
 
   // ---- gelir
-  const gelir = new Map(); const faturaAdet = new Map();
+  const gelir = new Map(); const faturaAdet = new Map(); let vergisizGelirK = 0;
   for (const f of faturalar) {
     if (f.archived_at || faturaAyi(f) !== ayAnahtar) continue;
-    topla(gelir, f.company_id, kurus(f.amount_excl_vat)); topla(faturaAdet, f.company_id, 1);
+    topla(gelir, f.company_id ?? null, kurus(f.amount_excl_vat)); topla(faturaAdet, f.company_id ?? null, 1);
+    // KDV'si 0 girilen spot iş ve elden ödemeler faturasız paradır: vergi tahminine dahil edilmez
+    if (f.income_kind && f.income_kind !== 'fatura' && !(Number(f.vat_amount) > 0)) vergisizGelirK += kurus(f.amount_excl_vat);
   }
 
   // ---- zaman kayıtları (hizmet = saha + rapor)
@@ -79,6 +81,7 @@ export function hesaplaKarlilik(g) {
   const firmaPersonelK = new Map(); const personel = []; let yonetimPersonelK = 0;
   for (const e of personeller) {
     const atamaVar = atamalar.some((a) => a.employee_id === e.id && aktifMi(a, ayAnahtar + '-01'));
+    if (e.end_date && ay7(e.end_date) < ayAnahtar) continue;   // ayrılış ayından sonraki aylarda personel kârlılığında ve maliyette yer almaz
     const kayitVar = [...fiiliKisiFirma.keys()].some((k) => k.startsWith(`${e.id}|`));
     const maliyetKaydi = gecerliVeyaNull(maliyetler.filter((c) => c.employee_id === e.id), `${ayAnahtar}-01`);
     const dogrudanK = dogrudanKisi.get(e.id) ?? 0;
@@ -185,7 +188,7 @@ export function hesaplaKarlilik(g) {
   const firmaSatirlari = [...idler].map((id) => {
     const gK = gelir.get(id) ?? 0; const pK = firmaPersonelK.get(id) ?? 0; const dK = dogrudanFirma.get(id) ?? 0; const oK = firmaOrtakK.get(id) ?? 0;
     const katkiK = gK - pK - dK; const karK = katkiK - oK;
-    return { id, ad: firmaAdi.get(id) ?? 'Firma', faturaAdet: faturaAdet.get(id) ?? 0, gelir: tl(gK), personel: tl(pK), dogrudan: tl(dK), katki: tl(katkiK), ortak: tl(oK), kar: tl(karK), marj: gK > 0 ? Math.round((karK / gK) * 1000) / 10 : null, _k: { gK, pK, dK, oK, karK } };
+    return { id, ad: id === null ? 'Firma dışı işler' : (firmaAdi.get(id) ?? 'Firma'), faturaAdet: faturaAdet.get(id) ?? 0, gelir: tl(gK), personel: tl(pK), dogrudan: tl(dK), katki: tl(katkiK), ortak: tl(oK), kar: tl(karK), marj: gK > 0 ? Math.round((karK / gK) * 1000) / 10 : null, _k: { gK, pK, dK, oK, karK } };
   }).sort((a, b) => b.kar - a.kar || String(a.ad).localeCompare(String(b.ad), 'tr'));
 
   // ---- işletme toplamı
@@ -197,19 +200,20 @@ export function hesaplaKarlilik(g) {
   const ortakHavuzK = [...havuz.values()].reduce((t, x) => t + x, 0);
   const ortakDagitilanK = ortak.reduce((t, o) => t + Object.values(o.dagitimK).reduce((a, b) => a + b, 0), 0);
   const vergiOncesiK = gelirToplamK - personelToplamK - dogrudanToplamK - ortakHavuzK;
-  const vergi = vergiSonrasiKar({ gelir: tl(gelirToplamK), giderler: tl(personelToplamK + dogrudanToplamK + ortakHavuzK + vergiK), kurumlarVergisiOrani: vergiOrani, kayitliKurumlarVergisi: tl(vergiK) });
+  const vergi = vergiSonrasiKar({ gelir: tl(gelirToplamK - vergisizGelirK), giderler: tl(personelToplamK + dogrudanToplamK + ortakHavuzK + vergiK), kurumlarVergisiOrani: vergiOrani, kayitliKurumlarVergisi: tl(vergiK) });
 
   if (!gelirToplamK && !personelToplamK) uyarilar.push('Seçilen ay için gelir veya personel maliyeti verisi yok.');
   return {
     firmalar: firmaSatirlari,
-    personel: personel.map((p) => ({ ...p, maliyet: tl(p.maliyetK), dogrudan: tl(p.dogrudanK), toplam: tl(p.toplamK), bosta: tl(p.bostaK), gelirPayi: tl(p.gelirPayiK), katki: tl(p.gelirPayiK - p.toplamK),
+    yonetimPersonel: personel.filter((p) => p.yonetim).map((p) => ({ id: p.id, ad: p.ad, toplam: tl(p.toplamK) })),   // yalnızca yönetim giderine yansır; personel kârlılığında listelenmez
+    personel: personel.filter((p) => !p.yonetim).map((p) => ({ ...p, maliyet: tl(p.maliyetK), dogrudan: tl(p.dogrudanK), toplam: tl(p.toplamK), bosta: tl(p.bostaK), gelirPayi: tl(p.gelirPayiK), katki: tl(p.gelirPayiK - p.toplamK),
       marj: p.gelirPayiK > 0 ? Math.round(((p.gelirPayiK - p.toplamK) / p.gelirPayiK) * 1000) / 10 : null,
       firmaPay: p.firmaPay.map((f) => ({ ...f, maliyet: tl(f.maliyetK), ad: firmaAdi.get(f.companyId) ?? 'Firma' })),
       gelirKalemleri: p.gelirKalemleri.map((f) => ({ ...f, gelir: tl(f.gelirK), ad: firmaAdi.get(f.companyId) ?? 'Firma' })) }))
       .sort((a, b) => b.katki - a.katki || String(a.ad).localeCompare(String(b.ad), 'tr')),
     ortak: ortak.map((o) => ({ ...o, havuz: tl(o.havuzK), dagitilmayan: tl(o.dagitilmayanK), dagitim: Object.fromEntries(Object.entries(o.dagitimK).map(([k, v]) => [k, tl(v)])) })),
     isletme: { gelir: tl(gelirToplamK), personel: tl(personelToplamK), personelFirmalara: tl(personelToplamK - bostaK), bosta: tl(bostaK), dogrudan: tl(dogrudanToplamK), ortakHavuz: tl(ortakHavuzK), yonetimPersonel: tl(yonetimK),
-      ortakDagitilan: tl(ortakDagitilanK), ortakDagitilmayan: tl(ortakHavuzK - ortakDagitilanK), vergiOncesiKar: tl(vergiOncesiK), tahminiVergi: vergi.tahminiVergi, vergiSonrasiKar: vergi.vergiSonrasiKar,
+      ortakDagitilan: tl(ortakDagitilanK), ortakDagitilmayan: tl(ortakHavuzK - ortakDagitilanK), vergiOncesiKar: tl(vergiOncesiK), tahminiVergi: vergi.tahminiVergi, vergiSonrasiKar: tl(vergiOncesiK - kurus(vergi.tahminiVergi)), vergisizGelir: tl(vergisizGelirK),
       kayitliVergi: tl(vergiK), marj: gelirToplamK > 0 ? Math.round((vergiOncesiK / gelirToplamK) * 1000) / 10 : null },
     uyarilar: [...new Set(uyarilar)],
   };

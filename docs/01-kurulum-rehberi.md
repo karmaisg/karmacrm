@@ -428,3 +428,11 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 6. **Şirket araçları:** Plaka ve marka ile araç tanımlanır; ruhsat, trafik sigortası, kasko, bakım, muayene ve "Diğer" (ekstra veri: ad + ek bilgi) kayıtları ile belgeleri girilir. Bitiş tarihi 30 günden az kalan kayıtlar sarı, geçenler kırmızı işaretlenir.
 7. **Şirket belgeleri:** Ad (zorunlu), tarih ve açıklama ile PDF veya resim yüklenir.
 8. **Takvim:** Kayıt girerken Tekrar > **Her yıl** seçilebilir (29 Şubat kayıtları artık olmayan yıllarda ayın son gününe düşer).
+
+## Aşama 22 kurulumu (firma dışı spot işler, kârlılık düzeltmeleri)
+
+1. **SQL:** Supabase > SQL Editor'de `supabase/24_asama22.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. Faturalar tablosunda firma alanı boş bırakılabilir hale gelir ve `gelir_kalemi_ekle` fonksiyonu yenilenir.
+2. **Firma dışı spot iş:** Gelirler ve tahsilatlar > Gelir ekle'de Firma alanını "Firma dışı iş" bırakın; işin adını (sağlık raporu, risk analizi, sözleşme, eğitim vb.) ve isterseniz müşteri adını yazın. Listede "(firma dışı)" ibaresiyle görünür.
+3. **KDV 0 kuralı:** KDV oranı 0 girilen spot işler ve elden ödemeler faturasız paradır; gelire ve vergi öncesi kâra dahildir ama **tahmini kurumlar vergisi hesabına dahil edilmez**. Kârlılık sayfasında "KDV 0 gelir ... vergiye dahil değil" notu görünür.
+4. **Personel kârlılığı:** Yönetim olarak işaretli personel listede görünmez (maliyeti yönetim giderine yansımaya devam eder). Ayrılış tarihinden sonraki aylarda personel hiç gösterilmez; ayrılış ayı dahildir.
+5. **Uzman ve Hekimler:** Aya ait teorik yük dakika olarak gösterilir (örn. 1.050 dk).

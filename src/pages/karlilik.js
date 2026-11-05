@@ -55,13 +55,13 @@ export async function firmaKarlilikSayfasi(app) {
 
   const kpiler = () => { const i = r.isletme; const gider = i.personel + i.dogrudan + i.ortakHavuz; return html`<div class="kpi-grid">
     ${kutu('Gelir (KDV hariç)', para(i.gelir), `${ayAdi(durum.ay)} faturaları`, 'wallet')}${kutu('Toplam maliyet', para(gider), `personel ${para(i.personel)} · doğrudan ${para(i.dogrudan)} · ortak ${para(i.ortakHavuz)}`, 'receipt')}
-    ${kutu('Vergi öncesi kâr', para(i.vergiOncesiKar), i.marj === null ? 'gelir yok' : `marj %${ondalik(i.marj)}`, 'trend')}${kutu('Vergi sonrası (tahmini)', para(i.vergiSonrasiKar), `tahmini vergi ${para(i.tahminiVergi)}`, 'bars')}</div>`; };
+    ${kutu('Vergi öncesi kâr', para(i.vergiOncesiKar), i.marj === null ? 'gelir yok' : `marj %${ondalik(i.marj)}`, 'trend')}${kutu('Vergi sonrası (tahmini)', para(i.vergiSonrasiKar), `tahmini vergi ${para(i.tahminiVergi)}${i.vergisizGelir > 0 ? ` · KDV 0 gelir ${para(i.vergisizGelir)} vergiye dahil değil` : ''}`, 'bars')}</div>`; };
   const tablo = () => {
     if (!r.firmalar.length) return emptyState({ simge: 'bars', baslik: `${ayAdi(durum.ay)} için firma verisi yok`, metin: 'Fatura, görevlendirme veya gider girildikçe firma bazında kârlılık burada hesaplanır.' });
     const t = r.firmalar.reduce((a, f) => ({ gelir: a.gelir + f.gelir, personel: a.personel + f.personel, dogrudan: a.dogrudan + f.dogrudan, katki: a.katki + f.katki, ortak: a.ortak + f.ortak, kar: a.kar + f.kar }), { gelir: 0, personel: 0, dogrudan: 0, katki: 0, ortak: 0, kar: 0 });
     return html`<div class="table-wrap"><table class="table" id="kar-firma-tablo"><thead><tr><th scope="col">Firma</th><th scope="col" class="num">Gelir</th><th scope="col" class="num hide-sm">Personel</th><th scope="col" class="num hide-md">Doğrudan gider</th>
       <th scope="col" class="num">Katkı kârı</th><th scope="col" class="num hide-sm">Ortak gider payı</th><th scope="col" class="num">Kâr katkısı</th><th scope="col" class="num hide-sm">Marj</th></tr></thead><tbody>
-      ${r.firmalar.map((f) => html`<tr><td><a class="link" href="#/firmalar/${f.id}">${f.ad}</a></td><td class="num">${para2(f.gelir)}</td><td class="num hide-sm">${para2(f.personel)}</td><td class="num hide-md">${para2(f.dogrudan)}</td>
+      ${r.firmalar.map((f) => html`<tr><td>${f.id ? html`<a class="link" href="#/firmalar/${f.id}">${f.ad}</a>` : f.ad}</td><td class="num">${para2(f.gelir)}</td><td class="num hide-sm">${para2(f.personel)}</td><td class="num hide-md">${para2(f.dogrudan)}</td>
         <td class="num">${tutar(f.katki)}</td><td class="num hide-sm">${para2(f.ortak)}</td><td class="num"><strong>${tutar(f.kar)}</strong></td><td class="num hide-sm">${f.marj === null ? '—' : `%${ondalik(f.marj)}`}</td></tr>`)}
       </tbody><tfoot><tr><th scope="row">Firmalar toplamı</th><td class="num">${para2(t.gelir)}</td><td class="num hide-sm">${para2(t.personel)}</td><td class="num hide-md">${para2(t.dogrudan)}</td><td class="num">${tutar(t.katki)}</td><td class="num hide-sm">${para2(t.ortak)}</td><td class="num">${tutar(t.kar)}</td><td class="hide-sm"></td></tr></tfoot></table></div>`;
   };

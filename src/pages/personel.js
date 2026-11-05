@@ -2,7 +2,7 @@
 import { html, bugun, tarih, para, para2, sayi, icerir, trSirala, ayBasi, ayAdi } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { avatar, pill, emptyState, field, checkbox, openFormModal, confirmDialog, toast } from '../ui/components.js';
-import { PERSONEL_TURU, ROL_TURU, personelEtiketi, aktifMi, ayBitisi, aktifFirmaAtamalari, personelAyYuku, zamanOzeti, sureMetni, dolulukSeviyesi } from '../lib/operasyon.js';
+import { PERSONEL_TURU, ROL_TURU, personelEtiketi, aktifMi, ayBitisi, aktifFirmaAtamalari, personelAyYuku, zamanOzeti, sureMetni, dakikaMetni, dolulukSeviyesi } from '../lib/operasyon.js';
 import { bosIseNull, kapasiteDakika, profilleriGrupla, epostaGecerli, telefonGecerli } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
 import { maliyetHesapla } from '../lib/maliyet.js';
@@ -97,7 +97,7 @@ export async function personelListeSayfasi(app, tur) {
       <td><a class="cell-main" href="#/personel/${p.id}">${avatar(p.full_name)}<span><strong>${p.full_name}</strong><small>${p.title || PERSONEL_TURU[p.staff_type]}</small></span></a></td>
       <td class="num hide-sm">${sayi(p.monthly_capacity_min)} dk</td>
       <td class="num hide-md">${gorevlendirmeGorur ? sayi(benim.length) : '—'}</td>
-      <td class="hide-md">${yuk ? (yuk.dakika ? html`${sureMetni(yuk.dakika)} <small class="muted">${oran !== null ? `%${Math.round(oran * 100)}` : 'eksik veri'}</small>` : html`<span class="muted">—</span>`) : '—'}</td>
+      <td class="hide-md">${yuk ? (yuk.dakika ? html`${dakikaMetni(yuk.dakika)} <small class="muted">${oran !== null ? `%${Math.round(oran * 100)}` : 'eksik veri'}</small>` : html`<span class="muted">—</span>`) : '—'}</td>
       <td>${p.archived_at ? pill('Arşivde', 'neutral') : p.is_active ? (oran !== null && benim.length ? dolulukPill(dolulukSeviyesi(oran)) : pill('Aktif', 'success')) : pill('Pasif', 'neutral')}</td></tr>`;
   };
   const tablo = () => {
@@ -181,7 +181,7 @@ export async function personelSayfasi(app, id) {
         ${p.notes ? html`<div class="kv"><dt>Notlar</dt><dd class="prewrap">${p.notes}</dd></div>` : ''}
       </dl></section>
       ${rolluMu ? '' : html`<section class="card"><h2 class="card-title">${ayAdi(ay)} özeti</h2>
-        ${yuk ? html`<dl class="kv-list"><div class="kv"><dt>Teorik yük</dt><dd>${sureMetni(yuk.dakika)} ${oran !== null ? html`<small class="muted">%${Math.round(oran * 100)}</small> ${dolulukPill(dolulukSeviyesi(oran))}` : html`<small class="muted">bazı firmalarda veri eksik</small>`}</dd></div>
+        ${yuk ? html`<dl class="kv-list"><div class="kv"><dt>Teorik yük</dt><dd>${dakikaMetni(yuk.dakika)} ${oran !== null ? html`<small class="muted">%${Math.round(oran * 100)}</small> ${dolulukPill(dolulukSeviyesi(oran))}` : html`<small class="muted">bazı firmalarda veri eksik</small>`}</dd></div>
           <div class="kv"><dt>Fiilî toplam süre</dt><dd>${sureMetni(zamanOz.toplam)} <small class="muted">${sayi(zamanOz.adet)} kayıt</small></dd></div>
           <div class="kv"><dt>Firmaya hizmet (saha + rapor)</dt><dd>${sureMetni(zamanOz.hizmet)}</dd></div>
           <div class="kv"><dt>Yol / bekleme</dt><dd>${sureMetni(zamanOz.yol)} / ${sureMetni(zamanOz.bekleme)}</dd></div></dl>` : html`<p class="muted">Görevlendirme bilgisini görme izniniz yok.</p>`}

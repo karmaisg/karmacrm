@@ -94,10 +94,11 @@ export async function gelirKalemiFormuAc(app, { onDone = null } = {}) {
   try { firmalar = await app.api.listCompanies(); } catch (e) { toast(humanError(e), 'hata'); return; }
   const firmaListesi = firmalar.filter((f) => !f.archived_at).sort((a, b) => trSirala(a.name, b.name));
   const m = openFormModal({
-    baslik: 'Gelir ekle', altBaslik: 'Aylık Excel dışındaki gelirler: spot işler ve elden alınan ödemeler.', boyut: 'lg', gonderEtiketi: 'Geliri kaydet',
-    govde: html`${field({ ad: 'company_id', etiket: 'Firma', zorunlu: true, secenekler: [{ deger: '', etiket: 'Seçiniz' }].concat(firmaListesi.map((f) => ({ deger: f.id, etiket: f.name }))) })}
+    baslik: 'Gelir ekle', altBaslik: 'Aylık Excel dışındaki gelirler: spot işler ve elden alınan ödemeler. Firma dışı işler (sağlık raporu, risk analizi vb.) firma seçmeden girilir. KDV oranı 0 olan işler vergi tahminine dahil edilmez.', boyut: 'lg', gonderEtiketi: 'Geliri kaydet',
+    govde: html`${field({ ad: 'company_id', etiket: 'Firma', secenekler: [{ deger: '', etiket: 'Firma dışı iş (adıyla gir)' }].concat(firmaListesi.map((f) => ({ deger: f.id, etiket: f.name }))) })}
+      ${field({ ad: 'musteri', etiket: 'Müşteri / kişi adı (isteğe bağlı)', maksUzunluk: 200, ipucu: 'Firma seçmediyseniz işin adı aşağıya yazılır; müşteri adı isteğe bağlıdır.' })}
       ${field({ ad: 'tur', etiket: 'Gelir türü', deger: 'spot', secenekler: Object.entries(GELIR_TURLERI).map(([deger, etiket]) => ({ deger, etiket })) })}
-      ${field({ ad: 'aciklama', etiket: 'Gelir kalemi nedir?', zorunlu: true, tam: true, maksUzunluk: 200, yerTutucu: 'Örn. Ek eğitim, acil durum planı, sağlık taraması' })}
+      ${field({ ad: 'aciklama', etiket: 'İşin adı (gelir kalemi)', zorunlu: true, tam: true, maksUzunluk: 200, yerTutucu: 'Örn. Ek eğitim, acil durum planı, sağlık taraması' })}
       ${field({ ad: 'tarih', etiket: 'Tarih', tur: 'date', zorunlu: true, deger: bugun() })}
       ${field({ ad: 'tutar', etiket: 'Tutar (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', zorunlu: true })}
       ${field({ ad: 'vat_mode', etiket: 'Tutar KDV', deger: 'kdv_haric', secenekler: Object.entries(KDV_MODU).map(([deger, etiket]) => ({ deger, etiket })) })}
@@ -107,7 +108,6 @@ export async function gelirKalemiFormuAc(app, { onDone = null } = {}) {
       <div class="field field-full" id="gelir-bilgi" aria-live="polite"></div>`,
     async onSubmit(fd, form) {
       const g = (k) => String(fd.get(k) ?? '').trim(); const elden = g('tur') === 'elden'; const h = {};
-      if (!g('company_id')) h.company_id = 'Firmayı seçin.';
       if (!g('aciklama')) h.aciklama = 'Gelir kaleminin ne olduğunu yazın.';
       if (!g('tarih')) h.tarih = 'Tarihi seçin.';
       else if (g('tahsil') && g('tarih') > bugun()) h.tarih = 'Tahsil edilen gelirin tarihi gelecekte olamaz.';
@@ -115,7 +115,7 @@ export async function gelirKalemiFormuAc(app, { onDone = null } = {}) {
       const kdv = Number(form.elements.vat_rate.value);
       if (!elden && (form.elements.vat_rate.value === '' || !(kdv >= 0 && kdv <= 100))) h.vat_rate = 'KDV oranı 0 ile 100 arasında olmalıdır.';
       if (Object.keys(h).length) return { errors: h };
-      await app.api.addIncomeItem({ firma: g('company_id'), tur: g('tur'), tarih: g('tarih'), aciklama: g('aciklama'), tutar: Number(g('tutar')), kdvModu: elden ? 'kdv_haric' : (g('vat_mode') || 'kdv_haric'), kdvOrani: elden ? 0 : kdv, tahsil: !!g('tahsil'), no: bosIseNull(g('invoice_no')) });
+      await app.api.addIncomeItem({ firma: g('company_id') || null, musteri: bosIseNull(g('musteri')), tur: g('tur'), tarih: g('tarih'), aciklama: g('aciklama'), tutar: Number(g('tutar')), kdvModu: elden ? 'kdv_haric' : (g('vat_mode') || 'kdv_haric'), kdvOrani: elden ? 0 : kdv, tahsil: !!g('tahsil'), no: bosIseNull(g('invoice_no')) });
       toast(elden ? 'Elden gelir kaydedildi (KDV yok).' : 'Spot gelir kaydedildi.');
     },
     onDone: () => (onDone ? onDone() : app.yenile()),
@@ -286,6 +286,7 @@ export async function tahsilatSayfasi(app) {
   const bugunStr = bugun();
   const [faturalar, tahsilatlar, firmalar] = await Promise.all([app.api.listInvoices(), app.api.listPayments(), app.can('companies', 'view') ? app.api.listCompanies() : []]);
   const firmaAdi = new Map(firmalar.map((f) => [f.id, f.name]));
+  const musteriAdi = (f) => (f.company_id ? (firmaAdi.get(f.company_id) ?? 'Firma') : ([f.customer_name, f.notes].filter(Boolean).join(' · ') || 'Firma dışı iş'));
   const harita = tahsilatHaritasi(tahsilatlar);
   const durum = { durum: 'acik', firma: '', ara: '', sayfa: 1 };
   const olusturabilir = app.can('invoices', 'create');
@@ -294,7 +295,7 @@ export async function tahsilatSayfasi(app) {
   const satirlar = () => faturalar.filter((f) => !f.archived_at).map((f) => ({ f, d: faturaDurumu(f, harita.get(f.id) ?? [], bugunStr) }))
     .filter(({ f, d }) => {
       if (durum.firma && f.company_id !== durum.firma) return false;
-      if (durum.ara && !icerir(`${f.invoice_no} ${firmaAdi.get(f.company_id) ?? ''}`, durum.ara)) return false;
+      if (durum.ara && !icerir(`${f.invoice_no} ${musteriAdi(f)}`, durum.ara)) return false;
       if (durum.durum === 'acik') return d.kalan > 0;
       if (durum.durum === 'gecikmis') return d.gecikmis;
       if (durum.durum) return d.durum === durum.durum;
@@ -315,11 +316,11 @@ export async function tahsilatSayfasi(app) {
     <li><span>31–60 gün</span><strong>${para(yas.g60)}</strong></li><li><span>61–90 gün</span><strong>${para(yas.g90)}</strong></li><li><span>90 günden fazla</span><strong>${para(yas.g90p)}</strong></li></ul></section>`;
   const borcluKarti = () => {
     const en = Object.entries(ozet.firmaKalan).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    return html`<section class="card"><h2 class="card-title">En yüksek açık alacak</h2>${en.length ? html`<ul class="list">${en.map(([id, t]) => html`<li>${firmaAdi.get(id) ? html`<a class="link" href="#/firmalar/${id}">${firmaAdi.get(id)}</a>` : 'Firma'}<strong>${para(t)}</strong></li>`)}</ul>` : html`<p class="muted">Açık alacak yok.</p>`}</section>`;
+    return html`<section class="card"><h2 class="card-title">En yüksek açık alacak</h2>${en.length ? html`<ul class="list">${en.map(([id, t]) => html`<li>${firmaAdi.get(id) ? html`<a class="link" href="#/firmalar/${id}">${firmaAdi.get(id)}</a>` : id === 'null' ? 'Firma dışı işler' : 'Firma'}<strong>${para(t)}</strong></li>`)}</ul>` : html`<p class="muted">Açık alacak yok.</p>`}</section>`;
   };
 
   const satir = ({ f, d }) => html`<tr><td><strong>${f.invoice_no}</strong><small class="block muted">${tarih(f.invoice_date)}${f.service_period ? ` · ${ayAdi(f.service_period)}` : ''}</small></td>
-    <td>${firmaAdi.get(f.company_id) ? html`<a class="link" href="#/firmalar/${f.company_id}">${firmaAdi.get(f.company_id)}</a>` : 'Firma'}</td>
+    <td>${f.company_id && firmaAdi.get(f.company_id) ? html`<a class="link" href="#/firmalar/${f.company_id}">${firmaAdi.get(f.company_id)}</a>` : f.company_id ? 'Firma' : html`${musteriAdi(f)} <small class="muted">(firma dışı)</small>`}</td>
     <td class="hide-sm">${tarih(f.due_date)}</td><td class="num">${para2(d.faturaTutari)}</td><td class="num hide-md">${para2(d.tahsilEdilen)}</td><td class="num">${para2(Math.max(d.kalan, 0))}</td>
     <td>${faturaRozetleri(d)}</td>
     <td class="actions">${olusturabilir && d.kalan > 0 ? html`<button type="button" class="icon-btn" data-fatura-tahsilat="${f.id}" aria-label="Fatura ${f.invoice_no} için tahsilat ekle" title="Tahsilat ekle">${icon('plus', 16)}</button>` : ''}
@@ -359,9 +360,9 @@ export async function tahsilatSayfasi(app) {
         if (a?.dataset.action === 'toplu-fatura') { topluFaturaFormuAc(app); return; }
         const sf = e.target.closest('[data-sayfa]'); if (sf && !sf.disabled) { durum.sayfa = Number(sf.dataset.sayfa); ciz(); return; }
         const tb = e.target.closest('[data-fatura-tahsilat]');
-        if (tb) { const x = satirlar0().find((s) => s.f.id === tb.dataset.faturaTahsilat); if (x) tahsilatFormuAc(app, { fatura: x.f, durum: x.d, firmaAdi: firmaAdi.get(x.f.company_id) ?? '' }); return; }
+        if (tb) { const x = satirlar0().find((s) => s.f.id === tb.dataset.faturaTahsilat); if (x) tahsilatFormuAc(app, { fatura: x.f, durum: x.d, firmaAdi: musteriAdi(x.f) }); return; }
         const db = e.target.closest('[data-fatura-detay]');
-        if (db) { const f = faturalar.find((s) => s.id === db.dataset.faturaDetay); if (f) faturaDetayAc(app, f, { firmaAdi: firmaAdi.get(f.company_id) ?? '' }); }
+        if (db) { const f = faturalar.find((s) => s.id === db.dataset.faturaDetay); if (f) faturaDetayAc(app, f, { firmaAdi: musteriAdi(f) }); }
       });
     },
   };

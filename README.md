@@ -47,6 +47,7 @@ karmacrm/
 │  ├─ 11_asama11.sql         Aşama 11: denetim kaydı okuma izni, tam yetki, yedek kaydı (bir kez)
 │  ├─ 12_asama12.sql         Aşama 12: müşteri teklif bağlantısı (offer_shares, girişsiz müşteri fonksiyonları) (bir kez)
 │  ├─ 14_asama13_katip.sql   Aşama 13: İSG-Katip aktarımı (company_sites, katip_imports/rows/people, katip_uygula) (bir kez)
+│  ├─ 24_asama22.sql         Aşama 22: firma dışı spot işler (firmasız gelir kalemi)
 │  ├─ 23_asama21.sql         Aşama 21: İdari İşler (izin, araç, belgeler, depolama kovası), yıllık takvim tekrarı (bir kez)
 │  ├─ 22_asama20.sql         Aşama 20: personel bazlı maliyet (net/brüt/emekli/SGK/elden, dönemler) (bir kez)
 │  ├─ 21_toplu_tahsilat_tek_sefer.sql  Tek seferlik: listedekiler dışındaki EAR-/EFT- faturaları tahsil edildi işaretler (bir kez)
