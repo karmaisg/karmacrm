@@ -414,3 +414,8 @@ li.takvim-yapildi .takvim-metin { text-decoration: line-through; opacity: .65; }
 .pad-notice { margin: 12px 20px 0; display: flex; gap: 8px; align-items: center; }
 .row-on { background: var(--surface-2); }
 .field input[type="file"] { padding: 10px; min-height: 0; }
+
+/* Hesap detayı açan KPI kutuları */
+.kpi-btn { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; border: 1px solid var(--border, transparent); }
+.kpi-btn:hover, .kpi-btn:focus-visible { box-shadow: var(--shadow-md, 0 4px 14px rgba(0,0,0,.12)); outline: 2px solid var(--primary); outline-offset: 2px; }
+.kpi-ipucu { color: var(--primary); font-size: var(--fs-xs); margin-top: 4px; font-weight: 600; }

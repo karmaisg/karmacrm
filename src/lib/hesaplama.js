@@ -56,9 +56,11 @@ export function teorikDakika({ calisanSayisi, tehlikeSinifi, personelTuru, kural
  * aylardaki değişiklikler geçmiş ayları etkilemez. (Ay ortasında değişim: bir sonraki ay yansır.)
  * Bu değer firmanın TOPLAM ihtiyacıdır; kişilere dağıtım ayrıca yapılır (dagitPaylar).
  */
+const sonGun = (ayBasi) => { const [y, m] = ayBasi.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
 export function firmaAylikIhtiyac({ profiller, kurallar, ay }) {
   const ayBasi = gunDizgesi(ay).slice(0, 7) + '-01';
-  const profil = gecerliKayit(profiller, ayBasi);
+  // ay içinde başlayan profil de o aya dahildir (ayın 1'inde yoksa ayın son gününe bakılır)
+  const profil = gecerliKayit(profiller, ayBasi) ?? gecerliKayit(profiller, sonGun(ayBasi));
   if (!profil) return { uzmanDakika: null, hekimDakika: null, profil: null, eksik: `${ayBasi} için firma profili yok.` };
   // Karma tehlike sınıflı çok işyerli firma (İSG-Katip aktarımı): her tehlike sınıfı kendi dakikasıyla hesaplanır ve toplanır.
   const dokum = Array.isArray(profil.site_breakdown) && profil.site_breakdown.length > 1 ? profil.site_breakdown : null;

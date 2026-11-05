@@ -436,3 +436,9 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 3. **KDV 0 kuralı:** KDV oranı 0 girilen spot işler ve elden ödemeler faturasız paradır; gelire ve vergi öncesi kâra dahildir ama **tahmini kurumlar vergisi hesabına dahil edilmez**. Kârlılık sayfasında "KDV 0 gelir ... vergiye dahil değil" notu görünür.
 4. **Personel kârlılığı:** Yönetim olarak işaretli personel listede görünmez (maliyeti yönetim giderine yansımaya devam eder). Ayrılış tarihinden sonraki aylarda personel hiç gösterilmez; ayrılış ayı dahildir.
 5. **Uzman ve Hekimler:** Aya ait teorik yük dakika olarak gösterilir (örn. 1.050 dk).
+
+## Aşama 23 (kârlılık hesap detayları ve ay içi başlangıç) — SQL gerekmez
+
+- **Hesap detayı:** Firma kârlılığında "Toplam maliyet", "Vergi öncesi kâr" ve "Vergi sonrası (tahmini)" kutucuklarına, Personel kârlılığında "Boşta kapasite maliyeti" kutucuğuna tıklayınca hesabın adım adım dökümü açılır.
+- **Ay içinde başlayan:** Bir firma, görevlendirme, firma profili veya personel maliyet dönemi ayın herhangi bir gününde başlarsa o aya tam ay olarak dahil edilir (daha önce yalnızca ayın 1'inde başlayanlar giriyordu). Bu kural Uzmanlar/Hekimler sayfasındaki teorik yükü ve Kapasite sayfasını da etkiler.
+- **Pasif personel:** Ayrılış tarihi girilmemiş pasif personel Personel kârlılığında hiç listelenmez; ayrılış tarihi girilmişse ayrılış ayına kadar görünür.

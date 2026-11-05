@@ -15,6 +15,9 @@ export const FAALIYET = {
 /** Görevlendirme verilen günde yürürlükte mi (arşivdekiler sayılmaz). */
 export const aktifMi = (a, tarih) => !a.archived_at && a.valid_from <= tarih && (!a.valid_to || a.valid_to >= tarih);
 
+/** Görevlendirme ayın herhangi bir gününde yürürlükte mi (ay içinde başlayan da o aya dahildir). ay: 'YYYY-MM-DD' (ayın 1'i) */
+export const aktifAyda = (a, ayBasi) => !a.archived_at && a.valid_from <= ayBitisi(ayBasi) && (!a.valid_to || a.valid_to >= ayBasi);
+
 export const ayBasiDizge = (iso) => `${String(iso).slice(0, 7)}-01`;
 /** Ayın son günü ('2026-10-01' -> '2026-10-31'). */
 export function ayBitisi(ay) {
@@ -38,20 +41,20 @@ export function kapsamPayi(atamalar, companyId, staffType, tarih) {
 }
 
 /**
- * Bir personelin belirli ay için teorik yükü: ayın 1'inde yürürlükte olan görevlendirmelerinin payı kadar,
+ * Bir personelin belirli ay için teorik yükü: ayın herhangi bir gününde yürürlükte olan görevlendirmelerinin payı kadar,
  * firmaların teorik hizmet ihtiyacından düşen dakika. Firma payları dagitPaylar ile bölünür (toplam ihtiyacı aşmaz).
- * Ay içinde başlayan görevlendirme bir sonraki ay yansır (firma profili kuralıyla aynı).
+ * Ay içinde başlayan görevlendirme ve firma profili o aya dahil edilir (tam ay sayılır).
  */
 export function personelAyYuku({ atamalar, employeeId, profilHaritasi, kurallar, ay }) {
   const gun = ayBasiDizge(ay);
-  const benimkiler = atamalar.filter((a) => a.employee_id === employeeId && aktifMi(a, gun));
+  const benimkiler = atamalar.filter((a) => a.employee_id === employeeId && aktifAyda(a, gun));
   const kalemler = [];
   let toplam = 0;
   for (const a of benimkiler) {
     const ihtiyac = firmaAylikIhtiyac({ profiller: profilHaritasi.get(a.company_id) ?? [], kurallar, ay: gun });
     const toplamIhtiyac = a.staff_type === 'is_guvenligi_uzmani' ? ihtiyac.uzmanDakika : ihtiyac.hekimDakika;
     if (toplamIhtiyac === null || toplamIhtiyac === undefined) { kalemler.push({ atama: a, dakika: null, eksik: ihtiyac.eksik || 'Hizmet süresi hesaplanamadı.' }); continue; }
-    const ayniFirma = atamalar.filter((x) => x.company_id === a.company_id && x.staff_type === a.staff_type && aktifMi(x, gun));
+    const ayniFirma = atamalar.filter((x) => x.company_id === a.company_id && x.staff_type === a.staff_type && aktifAyda(x, gun));
     const dagilim = dagitPaylar(toplamIhtiyac, ayniFirma);
     const benim = dagilim.kisiler.find((k) => k.id === a.id);
     kalemler.push({ atama: a, dakika: benim.dakika, eksik: null });

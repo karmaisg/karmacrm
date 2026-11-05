@@ -12,7 +12,7 @@
 //  Çift sayım yok : maaş kategorisindeki giderler dahil edilmez (maliyet personel kartından gelir),
 //                   kurumlar vergisi kategorisi gider sayılmaz (vergi tahmininde ayrıca ele alınır).
 import { gecerliKayit, enBuyukKalanDagit, vergiSonrasiKar, kurus, tl } from './hesaplama.js';
-import { aktifMi, personelAyYuku } from './operasyon.js';
+import { aktifMi, aktifAyda, ayBitisi, personelAyYuku } from './operasyon.js';
 import { profilleriGrupla } from './veri.js';
 
 export const DAGITIM_OLCUTLERI = {
@@ -24,7 +24,8 @@ export const MALIYET_YONTEMLERI = { teorik: 'Kapasiteye göre (teorik süre)', f
 
 const ay7 = (d) => String(d).slice(0, 7);
 export const faturaAyi = (f) => ay7(f.service_period ?? f.invoice_date);
-const gecerliVeyaNull = (liste, tarih) => { try { return gecerliKayit(liste, tarih); } catch { return null; } };
+// Ayın 1'inde geçerli kayıt yoksa ayın son gününde geçerli olan (ay içinde başlayan) kayıt kullanılır: ay içinde başlayan firma/görevlendirme/maliyet o aya dahil edilir.
+const gecerliVeyaNull = (liste, tarih) => { try { return gecerliKayit(liste, tarih) ?? gecerliKayit(liste, ayBitisi(tarih)); } catch { return null; } };
 export const YONETIM_KATEGORI = '__yonetim_personel';
 const topla = (m, k, v) => { m.set(k, (m.get(k) ?? 0) + v); };
 
@@ -80,8 +81,9 @@ export function hesaplaKarlilik(g) {
   // ---- personel maliyeti dağıtımı
   const firmaPersonelK = new Map(); const personel = []; let yonetimPersonelK = 0;
   for (const e of personeller) {
-    const atamaVar = atamalar.some((a) => a.employee_id === e.id && aktifMi(a, ayAnahtar + '-01'));
+    const atamaVar = atamalar.some((a) => a.employee_id === e.id && aktifAyda(a, ayAnahtar + '-01'));
     if (e.end_date && ay7(e.end_date) < ayAnahtar) continue;   // ayrılış ayından sonraki aylarda personel kârlılığında ve maliyette yer almaz
+    if ((e.archived_at || e.is_active === false) && !e.end_date) continue;   // ayrılış tarihi girilmemiş pasif personel hiçbir ayda listelenmez
     const kayitVar = [...fiiliKisiFirma.keys()].some((k) => k.startsWith(`${e.id}|`));
     const maliyetKaydi = gecerliVeyaNull(maliyetler.filter((c) => c.employee_id === e.id), `${ayAnahtar}-01`);
     const dogrudanK = dogrudanKisi.get(e.id) ?? 0;
@@ -131,7 +133,7 @@ export function hesaplaKarlilik(g) {
   const ayBasi = `${ayAnahtar}-01`;
   for (const [firmaId, gelirK] of gelir) {
     if (!(gelirK > 0)) continue;
-    const aktifler = atamalar.filter((a) => a.company_id === firmaId && aktifMi(a, ayBasi) && personelMap.has(a.employee_id));
+    const aktifler = atamalar.filter((a) => a.company_id === firmaId && aktifAyda(a, ayBasi) && personelMap.has(a.employee_id));
     const turler = [...new Set(aktifler.map((a) => a.staff_type))];
     if (!turler.length) continue;
     const uzmanAgirlik = turler.length === 2 ? uzmanGelirPayi / 100 : 1;

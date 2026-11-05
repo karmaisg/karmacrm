@@ -41,8 +41,58 @@ function ustCubuk(durum) {
     <label class="select-inline"><span class="sr-only">Personel maliyeti yöntemi</span><select id="kar-yontem">${Object.entries(MALIYET_YONTEMLERI).map(([k, e]) => html`<option value="${k}" ${k === durum.yontem ? html`selected` : ''}>${e}</option>`)}</select></label>
   </div>`;
 }
-const kutu = (e, d, a, s) => html`<section class="card kpi"><span class="kpi-ic">${icon(s, 22)}</span><div><div class="kpi-l">${e}</div><div class="kpi-v">${d}</div><div class="kpi-s">${a}</div></div></section>`;
+const kutu = (e, d, a, s, anahtar = '') => (anahtar ? html`<button type="button" class="card kpi kpi-btn" data-kpi="${anahtar}" aria-label="${e}: hesap detayını göster"><span class="kpi-ic">${icon(s, 22)}</span><div><div class="kpi-l">${e}</div><div class="kpi-v">${d}</div><div class="kpi-s">${a}</div><div class="kpi-ipucu">Hesap detayı için tıklayın</div></div></button>` : html`<section class="card kpi"><span class="kpi-ic">${icon(s, 22)}</span><div><div class="kpi-l">${e}</div><div class="kpi-v">${d}</div><div class="kpi-s">${a}</div></div></section>`);
 const uyariKarti = (u) => (u.length ? html`<section class="card"><h2 class="card-title">Dikkat edilecekler <span class="chip-n">${u.length}</span></h2><ul class="list">${u.map((x) => html`<li><span class="muted">${x}</span></li>`)}</ul></section>` : '');
+
+
+// ---------------------------------------------------------------- hesap detayı pencereleri
+const satirKv = (ad, deger, vurgu = false, not = '') => html`<li><span>${vurgu ? html`<strong>${ad}</strong>` : ad}${not ? html`<small class="block muted">${not}</small>` : ''}</span>${vurgu ? html`<strong>${deger}</strong>` : html`<span>${deger}</span>`}</li>`;
+const hesapPenceresi = (baslik, altBaslik, icerik) => openModal({ baslik, altBaslik, boyut: 'lg', govde: html`${icerik}<div class="modal-actions"><button type="button" class="btn btn-primary" data-close>Kapat</button></div>` });
+
+function firmaKpiDetayi(anahtar, r, durum, vergiOrani) {
+  const i = r.isletme; const gider = i.personel + i.dogrudan + i.ortakHavuz; const ay = ayAdi(durum.ay); const yontem = MALIYET_YONTEMLERI[durum.yontem];
+  if (anahtar === 'maliyet') {
+    return hesapPenceresi('Toplam maliyet nasıl hesaplandı?', `${ay} · personel maliyeti yöntemi: ${yontem}`, html`<ul class="list">
+      ${satirKv('Personel maliyeti (tümü)', para2(i.personel), false, 'Personel kartındaki maliyet dönemlerinden (net maaş + SGK + elden). Maaş kategorisindeki gider kayıtları çift sayımı önlemek için eklenmez.')}
+      ${satirKv('firmalara yazılan', para2(i.personelFirmalara), false, durum.yontem === 'fiili' ? 'Fiilî çalışma süresi oranında.' : 'Görevlendirme payına göre teorik süre oranında.')}
+      ${satirKv('boşta kapasite (hiçbir firmaya yazılmadı)', para2(i.bosta), false, 'Kapasiteden teorik yükü çıkan kısmın maliyeti.')}
+      ${satirKv('Doğrudan giderler', para2(i.dogrudan), false, 'Bir firmaya veya personele bağlı girilen giderler.')}
+      ${satirKv('Ortak giderler', para2(i.ortakHavuz), false, `Kategori havuzları${i.yonetimPersonel > 0 ? `; içinde yönetim personeli maliyeti ${para2(i.yonetimPersonel)}` : ''}. Firmalara dağıtım ölçütüne göre paylaştırılır.`)}
+      ${satirKv('Toplam maliyet', para2(gider), true, 'Personel + doğrudan + ortak. Kayıtlı kurumlar vergisi gideri ve KDV maliyete dahil değildir.')}</ul>`);
+  }
+  if (anahtar === 'oncesi') {
+    return hesapPenceresi('Vergi öncesi kâr nasıl hesaplandı?', `${ay} · ${yontem}`, html`<ul class="list">
+      ${satirKv('Gelir (KDV hariç)', para2(i.gelir), false, `${ay} hizmet dönemine ait faturalar, spot işler ve elden ödemeler.`)}
+      ${satirKv('− Toplam maliyet', para2(gider), false, `personel ${para2(i.personel)} + doğrudan ${para2(i.dogrudan)} + ortak ${para2(i.ortakHavuz)}`)}
+      ${satirKv('Vergi öncesi kâr', para2(i.vergiOncesiKar), true, i.marj === null ? 'Gelir olmadığı için marj yok.' : `Marj = vergi öncesi kâr ÷ gelir = %${ondalik(i.marj)}`)}</ul>
+      <p class="fine pad">Boşta kapasite ve dağıtılmayan ortak gider firma kârlarına yazılmaz ama bu sonuca dahildir; bu yüzden firma kârlarının toplamı işletme kârından yüksek olabilir.</p>`);
+  }
+  const vergiliGelir = i.gelir - (i.vergisizGelir ?? 0); const matrah = vergiliGelir - gider;
+  return hesapPenceresi('Vergi sonrası kâr (tahmini) nasıl hesaplandı?', `${ay} · basitleştirilmiş yönetim tahmini`, html`<ul class="list">
+    ${satirKv('Gelir (KDV hariç)', para2(i.gelir))}
+    ${(i.vergisizGelir ?? 0) > 0 ? satirKv('− KDV 0 gelir (faturasız spot iş / elden ödeme)', para2(i.vergisizGelir), false, 'Vergisi olmadığı için vergi matrahına dahil edilmez.') : ''}
+    ${satirKv('Vergiye tabi gelir', para2(vergiliGelir), true)}
+    ${satirKv('− Toplam maliyet', para2(gider))}
+    ${satirKv('Vergi matrahı (tahmini)', para2(matrah), true, matrah > 0 ? '' : 'Matrah sıfır veya negatif olduğu için vergi hesaplanmaz.')}
+    ${satirKv(`Tahmini kurumlar vergisi (%${ondalik(vergiOrani)})`, para2(i.tahminiVergi), false, 'Oran Sistem ayarlarındaki "kurumlar_vergisi_orani" değerinden gelir. Kayıtlı kurumlar vergisi gideri varsa tekrar sayılmaz.')}
+    ${satirKv('Vergi öncesi kâr', para2(i.vergiOncesiKar), false, 'Gelirin tamamı − toplam maliyet')}
+    ${satirKv('Vergi sonrası kâr (tahmini)', para2(i.vergiSonrasiKar), true, 'Vergi öncesi kâr − tahmini vergi')}</ul>
+    <p class="fine pad">${NOT_VERGI}</p>`);
+}
+const NOT_VERGI = 'Basitleştirilmiş yönetim tahminidir; vergiye esas kazanç (indirim, istisna, geçmiş zarar vb.) farklı olabilir.';
+
+function bostaDetayi(r, durum) {
+  const liste = r.personel.filter((p) => p.bosta > 0.004).sort((a, b) => b.bosta - a.bosta); const top = liste.reduce((t, p) => t + p.bosta, 0);
+  const yontem = durum.yontem === 'fiili'
+    ? 'Fiilî yöntem: maliyet, personelin o ay zaman kaydı girdiği firmalara girilen süre oranında dağıtılır. Hiç zaman kaydı olmayan personelin maliyetinin tamamı boşta sayılır.'
+    : 'Teorik yöntem: personelin aylık maliyeti, görevlendirildiği firmaların teorik süreleri ve kapasitesi arasında paylaştırılır. Kapasiteden teorik yükün çıkan kısmı "boşta" kalır: boşta maliyet = aylık maliyet × (kapasite − teorik yük) ÷ kapasite.';
+  hesapPenceresi('Boşta kapasite maliyeti nasıl hesaplandı?', `${ayAdi(durum.ay)} · ${MALIYET_YONTEMLERI[durum.yontem]}`, html`<p class="fine">${yontem}</p>
+    ${liste.length ? html`<div class="table-wrap"><table class="table" id="bosta-detay"><thead><tr><th scope="col">Personel</th><th scope="col" class="num">Aylık maliyet</th><th scope="col" class="num hide-sm">Kapasite</th><th scope="col" class="num hide-sm">Teorik yük</th><th scope="col" class="num">Boşta maliyet</th></tr></thead><tbody>
+      ${liste.map((p) => html`<tr><td>${p.ad}</td><td class="num">${para2(p.toplam)}</td><td class="num hide-sm">${sureMetni(p.kapasite)}</td><td class="num hide-sm">${sureMetni(p.teorikDk)}</td><td class="num"><strong>${para2(p.bosta)}</strong></td></tr>`)}</tbody>
+      <tfoot><tr><th scope="row">Toplam boşta kapasite maliyeti</th><td></td><td class="hide-sm"></td><td class="hide-sm"></td><td class="num"><strong>${para2(top)}</strong></td></tr></tfoot></table></div>`
+      : html`<p class="muted">Bu ay boşta kapasite maliyeti yok.</p>`}
+    <p class="fine pad">Bu tutar firmalara yazılmaz; işletme sonucuna gider olarak dahildir.</p>`);
+}
 
 // ---------------------------------------------------------------- firma kârlılığı
 export async function firmaKarlilikSayfasi(app) {
@@ -54,8 +104,8 @@ export async function firmaKarlilikSayfasi(app) {
   let r = hesapla();
 
   const kpiler = () => { const i = r.isletme; const gider = i.personel + i.dogrudan + i.ortakHavuz; return html`<div class="kpi-grid">
-    ${kutu('Gelir (KDV hariç)', para(i.gelir), `${ayAdi(durum.ay)} faturaları`, 'wallet')}${kutu('Toplam maliyet', para(gider), `personel ${para(i.personel)} · doğrudan ${para(i.dogrudan)} · ortak ${para(i.ortakHavuz)}`, 'receipt')}
-    ${kutu('Vergi öncesi kâr', para(i.vergiOncesiKar), i.marj === null ? 'gelir yok' : `marj %${ondalik(i.marj)}`, 'trend')}${kutu('Vergi sonrası (tahmini)', para(i.vergiSonrasiKar), `tahmini vergi ${para(i.tahminiVergi)}${i.vergisizGelir > 0 ? ` · KDV 0 gelir ${para(i.vergisizGelir)} vergiye dahil değil` : ''}`, 'bars')}</div>`; };
+    ${kutu('Gelir (KDV hariç)', para(i.gelir), `${ayAdi(durum.ay)} faturaları`, 'wallet')}${kutu('Toplam maliyet', para(gider), `personel ${para(i.personel)} · doğrudan ${para(i.dogrudan)} · ortak ${para(i.ortakHavuz)}`, 'receipt', 'maliyet')}
+    ${kutu('Vergi öncesi kâr', para(i.vergiOncesiKar), i.marj === null ? 'gelir yok' : `marj %${ondalik(i.marj)}`, 'trend', 'oncesi')}${kutu('Vergi sonrası (tahmini)', para(i.vergiSonrasiKar), `tahmini vergi ${para(i.tahminiVergi)}${i.vergisizGelir > 0 ? ` · KDV 0 gelir ${para(i.vergisizGelir)} vergiye dahil değil` : ''}`, 'bars', 'sonrasi')}</div>`; };
   const tablo = () => {
     if (!r.firmalar.length) return emptyState({ simge: 'bars', baslik: `${ayAdi(durum.ay)} için firma verisi yok`, metin: 'Fatura, görevlendirme veya gider girildikçe firma bazında kârlılık burada hesaplanır.' });
     const t = r.firmalar.reduce((a, f) => ({ gelir: a.gelir + f.gelir, personel: a.personel + f.personel, dogrudan: a.dogrudan + f.dogrudan, katki: a.katki + f.katki, ortak: a.ortak + f.ortak, kar: a.kar + f.kar }), { gelir: 0, personel: 0, dogrudan: 0, katki: 0, ortak: 0, kar: 0 });
@@ -116,6 +166,7 @@ export async function firmaKarlilikSayfasi(app) {
           veri = await girdiYukle(app, durum.ay); yenidenHesapla(); toast('Dağıtım ölçütü güncellendi.');
         } catch (err) { toast(humanError(err), 'hata'); veri = await girdiYukle(app, durum.ay).catch(() => veri); yenidenHesapla(); }
       });
+      kok.addEventListener('click', (e) => { const k = e.target.closest('[data-kpi]'); if (k) firmaKpiDetayi(k.dataset.kpi, r, durum, veri.vergiOrani); });
       kok.addEventListener('click', async (e) => {
         if (!e.target.closest('[data-action="dagitim-kaydet"]')) return;
         try {
@@ -139,7 +190,7 @@ export async function personelKarlilikSayfasi(app) {
     const p = r.personel; const maliyet = p.reduce((t, x) => t + x.toplam, 0); const gelir = p.reduce((t, x) => t + x.gelirPayi, 0); const bosta = p.reduce((t, x) => t + x.bosta, 0);
     const dolu = p.filter((x) => x.doluluk !== null); const ort = dolu.length ? dolu.reduce((t, x) => t + x.doluluk, 0) / dolu.length : null;
     return html`<div class="kpi-grid">${kutu('Personel maliyeti', para(maliyet), `${sayi(p.length)} personel`, 'users')}${kutu('Personele düşen gelir', para(gelir), 'görevlendirme payına göre, yaklaşık', 'wallet')}
-      ${kutu('Boşta kapasite maliyeti', para(bosta), 'firmalara yazılmayan', 'gauge')}${kutu('Ortalama doluluk', ort === null ? '—' : `%${ondalik(ort * 100)}`, 'teorik süre / kapasite', 'pulse')}</div>`;
+      ${kutu('Boşta kapasite maliyeti', para(bosta), 'firmalara yazılmayan', 'gauge', 'bosta')}${kutu('Ortalama doluluk', ort === null ? '—' : `%${ondalik(ort * 100)}`, 'teorik süre / kapasite', 'pulse')}</div>`;
   };
   const tablo = () => {
     if (!r.personel.length) return emptyState({ simge: 'users', baslik: 'Personel verisi yok', metin: 'Uzman ve hekim kaydı, maliyet dönemi ve görevlendirme girildikçe burada hesaplanır.' });
@@ -166,6 +217,7 @@ export async function personelKarlilikSayfasi(app) {
       });
       kok.querySelector('#kar-yontem').addEventListener('change', (e) => { durum.yontem = e.target.value; yenidenHesapla(); });
       kok.addEventListener('click', (e) => {
+        if (e.target.closest('[data-kpi="bosta"]')) { bostaDetayi(r, durum); return; }
         const b = e.target.closest('[data-kar-detay]'); if (!b) return;
         const p = r.personel.find((x) => x.id === b.dataset.karDetay); if (!p) return;
         openModal({ baslik: p.ad, altBaslik: `${ayAdi(durum.ay)} · ${MALIYET_YONTEMLERI[durum.yontem]}`, boyut: 'lg',
