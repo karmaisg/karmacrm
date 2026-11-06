@@ -358,6 +358,7 @@ export function createApi(db) {
 
     // ----- faturalar ve tahsilatlar
     listInvoices: () => hepsiniOku(() => T('invoices').select('*').order('id')),
+    listAllInvoiceItems: () => hepsiniOku(() => T('invoice_items').select('*').is('archived_at', null).order('id')),
     listInvoiceItems: (invoiceId) => bir(T('invoice_items').select('*').eq('invoice_id', invoiceId).is('archived_at', null).order('created_at')),
     listPayments: () => hepsiniOku(() => T('payments').select('*').order('id')),
     saveInvoice: (k) => bir(db.rpc('fatura_kaydet', {
@@ -368,6 +369,7 @@ export function createApi(db) {
     setInvoiceFlag: (id, flag) => bir(T('invoices').update({ flag: flag ?? null }).eq('id', id).select().single()),
     archiveInvoice: (id) => bir(T('invoices').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
     addPayment: (degerler) => bir(T('payments').insert(degerler).select().single()),
+    updatePayment: (id, degerler) => bir(T('payments').update(degerler).eq('id', id).select().single()),
     archivePayment: (id) => bir(T('payments').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
     createOverdueTasks: () => bir(db.rpc('tahsilat_gecikme_gorevleri')),
     listInvoiceAliases: () => hepsiniOku(() => T('invoice_aliases').select('*').order('id')),

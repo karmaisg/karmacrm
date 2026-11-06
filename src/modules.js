@@ -83,6 +83,8 @@ export const MENU = [
 
   { id: 'tahsilat', grup: 'finans', modul: 'invoices', ad: 'Gelirler ve tahsilatlar', simge: 'wallet', yapildi: true,
     aciklama: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi.' },
+  { id: 'cari', grup: 'finans', modul: 'invoices', ad: 'Cari hesap', simge: 'contract', yapildi: true,
+    aciklama: 'Firma bazında cari hesap ekstresi; yıl veya tarih aralığı seçimi ve Excel çıktısı.' },
   { id: 'giderler', grup: 'finans', modul: 'expenses', ad: 'Giderler', simge: 'receipt', yapildi: true,
     aciklama: 'Doğrudan ve ortak giderler; KDV hariç ve dahil tutarlar.' },
   { id: 'personel-karlilik', grup: 'finans', modul: 'staff_profit', ad: 'Personel kârlılığı', simge: 'trend', yapildi: true,

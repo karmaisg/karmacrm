@@ -82,6 +82,7 @@ export async function firmaSayfasi(app, id) {
   const genel = () => html`<div class="grid-2">
     <section class="card"><h2 class="card-title">Firma bilgileri</h2><dl class="kv-list">
       ${bilgi('Vergi no / tanımlayıcı', firma.tax_no)}
+      ${bilgi('Vergi dairesi', firma.tax_office)}
       ${bilgi('Sektör', firma.sector)}
       ${bilgi('Konum', [firma.city, firma.district].filter(Boolean).join(' / '))}
       ${bilgi('Adres', firma.address)}

@@ -21,6 +21,7 @@ import { gorevlerSayfasi } from './pages/gorevler.js';
 import { tekliflerSayfasi, teklifSayfasi } from './pages/teklifler.js';
 import { sozlesmelerSayfasi, sozlesmeSayfasi } from './pages/sozlesmeler.js';
 import { tahsilatSayfasi } from './pages/faturalar.js';
+import { cariSayfasi } from './pages/cari.js';
 import { giderlerSayfasi } from './pages/giderler.js';
 import { idariSayfasi } from './pages/idari.js';
 import { firmaKarlilikSayfasi, personelKarlilikSayfasi } from './pages/karlilik.js';
@@ -81,6 +82,7 @@ function rotaCoz(parcalar) {
   if (ilk === 'zaman') return { menu: 'zaman', modul: 'time', yukle: () => zamanSayfasi(app) };
   if (ilk === 'kapasite') return { menu: 'kapasite', modul: 'capacity', yukle: () => kapasiteSayfasi(app) };
   if (ilk === 'tahsilat') return { menu: 'tahsilat', modul: 'invoices', yukle: () => tahsilatSayfasi(app) };
+  if (ilk === 'cari') return { menu: 'cari', modul: 'invoices', yukle: () => cariSayfasi(app) };
   if (ilk === 'giderler') return { menu: 'giderler', modul: 'expenses', yukle: () => giderlerSayfasi(app) };
   if (ilk === 'firma-karlilik') return { menu: 'firma-karlilik', modul: 'company_profit', yukle: () => firmaKarlilikSayfasi(app) };
   if (ilk === 'idari') return { menu: 'idari', modul: 'admin_affairs', yukle: () => idariSayfasi(app) };

@@ -448,3 +448,16 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 - **Yönetici paneli** üstünde "Aylık finans özeti" bölümü: ay seçicisi (son 24 ay, varsayılan içinde bulunulan ay), gelir/tahsilat/alacak/gider/vergi öncesi–sonrası kâr/aktif firma/uzman-hekim/dakika kutucukları, "Dikkat" uyarıları, son 12 ay gelir-gider ve kâr grafikleri, en kârlı/en düşük kârlı müşteriler, kapasite kullanımı ve tehlike sınıfı tablosu.
 - Rakamlar Firma/Personel kârlılığı sayfalarıyla aynı hesaptan gelir; geçmiş ay grafikleri teorik yöntemle hesaplanır.
 - Bölüm yalnızca kârlılık, bordro, gider ve fatura görüntüleme yetkisi olanlara görünür; diğer roller eski portföy panelini görür.
+
+## Aşama 24.1 (tahsilat düzenleme) — SQL gerekmez
+
+- Fatura detayındaki Tahsilatlar listesinde her satırda kalem (düzenle) düğmesi vardır; tahsilat **tarihi ve tutarı** (ayrıca yöntem ve not) değiştirilebilir. Fatura düzenleme yetkisi gerekir; değişiklik denetim kaydına işlenir.
+- Tarih gelecekte olamaz; tutar sıfırdan büyük olmalıdır. Önizleme, kaydın kendi eski tutarını kalana geri ekleyerek hesaplar. İptal edilmiş tahsilat düzenlenemez; tahsilatın bağlı olduğu fatura değiştirilemez.
+
+## Aşama 25 (Cari hesap) — `supabase/25_asama25.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `25_asama25.sql` dosyasını çalıştırın (firmalara isteğe bağlı "vergi dairesi" alanı ekler; tekrar çalıştırılabilir).
+2. **Finans → Cari hesap:** firma ve dönem (yıl / tüm dönem / tarih aralığı) seçilir. Faturalar **alacak**, tahsilatlar **borç** hanesine yazılır (KDV dahil); bakiye birikimli hesaplanır, bakiye pozitifse "ALACAKLI" görünür. Dönem başından önceki hareketler "Önceki dönemden devir" satırıyla özetlenir.
+3. **Excel olarak indir:** ekteki örnek biçimde (firma bilgileri bloğu, Karma logosu, Tarih/Borç/Alacak/Bakiye/Açıklama tablosu, toplam satırı, banka bilgileri) `.xlsx` üretir. Banka bilgisi `src/lib/cari.js` içindeki `BANKA_BILGISI` listesindedir; değişirse oradan güncellenir.
+4. **Tahsilat tarihi düzeltme:** Cari ekstresinde tahsilat satırındaki kalem simgesi (veya fatura detayından) tarih/tutarı değiştirir; ekstre, Gelirler ve tahsilatlar ("son tahsilat" bilgisi) ve tüm raporlar yeni tarihi kullanır. Toplu işaretlemeyle (tarihi bilinmeden, fatura tarihiyle) girilmiş tahsilatlar "Tarih tahmini" etiketiyle gösterilir; gerçek tarihi girilince etiket kalkar.
+5. Firma formuna **Vergi dairesi** alanı eklendi (Excel başlığında kullanılır). Yetkili kişi, firmanın ilk kişisinden alınır.

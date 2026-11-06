@@ -135,16 +135,18 @@ export async function gelirKalemiFormuAc(app, { onDone = null } = {}) {
 }
 
 // ---------------------------------------------------------------- tahsilat formu
-export function tahsilatFormuAc(app, { fatura, durum, firmaAdi = '', onDone = null }) {
+export function tahsilatFormuAc(app, { fatura, durum, firmaAdi = '', onDone = null, tahsilat = null }) {
   const bugunStr = bugun();
+  // düzenlemede bu kaydın kendi tutarı kalana geri eklenir
+  const kalanAcilis = tahsilat ? Math.round((durum.kalan + Number(tahsilat.amount)) * 100) / 100 : durum.kalan;
   const m = openFormModal({
-    baslik: 'Tahsilat ekle', altBaslik: `${fatura.invoice_no}${firmaAdi ? ` · ${firmaAdi}` : ''} · kalan ${para2(Math.max(durum.kalan, 0))}`,
-    gonderEtiketi: 'Tahsilatı kaydet',
-    govde: html`${field({ ad: 'paid_at', etiket: 'Tahsilat tarihi', tur: 'date', zorunlu: true, deger: bugunStr, max: bugunStr })}
-      ${field({ ad: 'amount', etiket: 'Tutar (KDV dahil, TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', zorunlu: true, deger: durum.kalan > 0 ? durum.kalan : '' })}
-      ${field({ ad: 'method', etiket: 'Ödeme yöntemi', deger: ODEME_YONTEMLERI[0], secenekler: ODEME_YONTEMLERI.map((y) => ({ deger: y, etiket: y })) })}
+    baslik: tahsilat ? 'Tahsilatı düzenle' : 'Tahsilat ekle', altBaslik: `${fatura.invoice_no}${firmaAdi ? ` · ${firmaAdi}` : ''} · kalan ${para2(Math.max(kalanAcilis, 0))}`,
+    gonderEtiketi: tahsilat ? 'Değişiklikleri kaydet' : 'Tahsilatı kaydet',
+    govde: html`${field({ ad: 'paid_at', etiket: 'Tahsilat tarihi', tur: 'date', zorunlu: true, deger: tahsilat ? tahsilat.paid_at : bugunStr, max: bugunStr })}
+      ${field({ ad: 'amount', etiket: 'Tutar (KDV dahil, TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', zorunlu: true, deger: tahsilat ? tahsilat.amount : (durum.kalan > 0 ? durum.kalan : '') })}
+      ${field({ ad: 'method', etiket: 'Ödeme yöntemi', deger: tahsilat ? (tahsilat.method ?? ODEME_YONTEMLERI[0]) : ODEME_YONTEMLERI[0], secenekler: ODEME_YONTEMLERI.map((y) => ({ deger: y, etiket: y })) })}
       <div class="field field-full" id="tahsilat-bilgi" aria-live="polite"></div>
-      ${field({ ad: 'notes', etiket: 'Not', tam: true, maksUzunluk: 300, yerTutucu: 'Örn. dekont no' })}`,
+      ${field({ ad: 'notes', etiket: 'Not', tam: true, maksUzunluk: 300, yerTutucu: 'Örn. dekont no', deger: tahsilat?.notes ?? '' })}`,
     async onSubmit(fd) {
       const g = (k) => String(fd.get(k) ?? '').trim();
       const h = {};
@@ -152,8 +154,9 @@ export function tahsilatFormuAc(app, { fatura, durum, firmaAdi = '', onDone = nu
       else if (g('paid_at') > bugun()) h.paid_at = 'Tahsilat tarihi gelecekte olamaz.';
       if (!(Number(g('amount')) > 0)) h.amount = 'Tutar sıfırdan büyük olmalıdır.';
       if (Object.keys(h).length) return { errors: h };
-      await app.api.addPayment({ invoice_id: fatura.id, paid_at: g('paid_at'), amount: Number(g('amount')), method: bosIseNull(g('method')), notes: bosIseNull(g('notes')) });
-      toast('Tahsilat kaydedildi.');
+      const degerler = { paid_at: g('paid_at'), amount: Number(g('amount')), method: bosIseNull(g('method')), notes: bosIseNull(g('notes')) };
+      if (tahsilat) { await app.api.updatePayment(tahsilat.id, degerler); toast('Tahsilat güncellendi.'); }
+      else { await app.api.addPayment({ invoice_id: fatura.id, ...degerler }); toast('Tahsilat kaydedildi.'); }
     },
     onDone: () => (onDone ? onDone() : app.yenile()),
   });
@@ -161,7 +164,7 @@ export function tahsilatFormuAc(app, { fatura, durum, firmaAdi = '', onDone = nu
   const guncelle = () => {
     const t = Number(form.elements.amount.value);
     if (!(t > 0)) { bilgi.innerHTML = ''; return; }
-    const kalan = Math.round((durum.kalan - t) * 100) / 100;
+    const kalan = Math.round((kalanAcilis - t) * 100) / 100;
     bilgi.innerHTML = (kalan < 0
       ? html`<div class="notice notice-warn" role="status">Bu tutar kalanı ${para2(-kalan)} aşıyor. Fazla tahsilat olarak kaydedilir; faturada uyarı görünür.</div>`
       : html`<div class="notice notice-info" role="status">Kayıttan sonra kalan: <strong>${para2(kalan)}</strong>${kalan === 0 ? ' (fatura tamamen tahsil edilmiş olur)' : ''}</div>`).s;
@@ -198,7 +201,7 @@ export async function faturaDetayAc(app, fatura, { firmaAdi = '', onDone = null 
       <h3 class="card-title">Tahsilatlar</h3>
       ${aktif.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Tarih</th><th scope="col">Yöntem</th><th scope="col" class="num">Tutar</th><th scope="col"><span class="sr-only">Eylemler</span></th></tr></thead><tbody>
         ${aktif.map((p) => html`<tr><td>${tarih(p.paid_at)}</td><td>${p.method ?? '—'}${p.notes ? html`<small class="block muted">${p.notes}</small>` : ''}</td><td class="num">${para2(p.amount)}</td>
-          <td class="actions">${arsivleyebilir ? html`<button type="button" class="icon-btn" data-odeme-iptal="${p.id}" aria-label="Tahsilatı iptal et" title="Tahsilatı iptal et">${icon('archive', 16)}</button>` : ''}</td></tr>`)}</tbody></table></div>`
+          <td class="actions">${duzenleyebilir ? html`<button type="button" class="icon-btn" data-odeme-duzenle="${p.id}" aria-label="Tahsilatı düzenle" title="Tahsilatı düzenle">${icon('pencil', 16)}</button>` : ''}${arsivleyebilir ? html`<button type="button" class="icon-btn" data-odeme-iptal="${p.id}" aria-label="Tahsilatı iptal et" title="Tahsilatı iptal et">${icon('archive', 16)}</button>` : ''}</td></tr>`)}</tbody></table></div>`
         : html`<p class="muted">Henüz tahsilat girilmemiş.</p>`}
       <div class="modal-actions modal-actions-wrap">
         ${olusturabilir && d.kalan > 0 ? html`<button type="button" class="btn btn-primary" data-f-eylem="tahsilat">${icon('plus', 18)} Tahsilat ekle</button>` : ''}
@@ -211,6 +214,8 @@ export async function faturaDetayAc(app, fatura, { firmaAdi = '', onDone = null 
       </div>`,
   });
   m.el.addEventListener('click', async (e) => {
+    const duz = e.target.closest('[data-odeme-duzenle]');
+    if (duz) { const t = aktif.find((x) => String(x.id) === duz.dataset.odemeDuzenle); if (t) { m.close(); tahsilatFormuAc(app, { fatura, durum: d, firmaAdi, onDone, tahsilat: t }); } return; }
     const iptal = e.target.closest('[data-odeme-iptal]');
     if (iptal) {
       if (!(await confirmDialog({ baslik: 'Tahsilatı iptal et', onayEtiketi: 'İptal et', tehlikeli: true, mesaj: 'Tahsilat kaydı toplamlardan çıkarılır. Kayıt silinmez; denetim geçmişinde kalır.' }))) return;
@@ -321,7 +326,7 @@ export async function tahsilatSayfasi(app) {
 
   const satir = ({ f, d }) => html`<tr><td><strong>${f.invoice_no}</strong><small class="block muted">${tarih(f.invoice_date)}${f.service_period ? ` · ${ayAdi(f.service_period)}` : ''}</small></td>
     <td>${f.company_id && firmaAdi.get(f.company_id) ? html`<a class="link" href="#/firmalar/${f.company_id}">${firmaAdi.get(f.company_id)}</a>` : f.company_id ? 'Firma' : html`${musteriAdi(f)} <small class="muted">(firma dışı)</small>`}</td>
-    <td class="hide-sm">${tarih(f.due_date)}</td><td class="num">${para2(d.faturaTutari)}</td><td class="num hide-md">${para2(d.tahsilEdilen)}</td><td class="num">${para2(Math.max(d.kalan, 0))}</td>
+    <td class="hide-sm">${tarih(f.due_date)}</td><td class="num">${para2(d.faturaTutari)}</td><td class="num hide-md">${para2(d.tahsilEdilen)}${(harita.get(f.id) ?? []).length ? html`<small class="block muted">son tahsilat ${tarih((harita.get(f.id) ?? []).map((p) => p.paid_at).sort().pop())}</small>` : ''}</td><td class="num">${para2(Math.max(d.kalan, 0))}</td>
     <td>${faturaRozetleri(d)}</td>
     <td class="actions">${olusturabilir && d.kalan > 0 ? html`<button type="button" class="icon-btn" data-fatura-tahsilat="${f.id}" aria-label="Fatura ${f.invoice_no} için tahsilat ekle" title="Tahsilat ekle">${icon('plus', 16)}</button>` : ''}
       <button type="button" class="icon-btn" data-fatura-detay="${f.id}" aria-label="Fatura ${f.invoice_no} detayı" title="Detay">${icon('receipt', 16)}</button></td></tr>`;

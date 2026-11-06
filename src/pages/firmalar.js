@@ -185,6 +185,7 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
   const govde = html`
     ${field({ ad: 'name', etiket: 'Firma adı', deger: v('name'), zorunlu: true, tam: true, maksUzunluk: 200, otomatik: 'organization' })}
     ${field({ ad: 'tax_no', etiket: 'Vergi numarası veya kurum tanımlayıcısı', deger: v('tax_no'), inputmode: 'numeric', maksUzunluk: 30, ipucu: 'Vergi no 10, TC kimlik no 11 haneli olur. Aynı numaralı ikinci aktif firma açılamaz.' })}
+    ${field({ ad: 'tax_office', etiket: 'Vergi dairesi', deger: v('tax_office'), maksUzunluk: 100, ipucu: 'Cari hesap ekstresinde (Excel) görünür.' })}
     ${field({ ad: 'sector', etiket: 'Sektör', deger: v('sector'), maksUzunluk: 100 })}
     ${field({ ad: 'city', etiket: 'İl', deger: v('city'), maksUzunluk: 60 })}
     ${field({ ad: 'district', etiket: 'İlçe', deger: v('district'), maksUzunluk: 60 })}
@@ -250,7 +251,7 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
       }))) return { kal: true };
 
       const degerler = {
-        name: ad, tax_no: bosIseNull(vergi), sector: bosIseNull(g('sector')), city: bosIseNull(g('city')),
+        name: ad, tax_no: bosIseNull(vergi), tax_office: bosIseNull(g('tax_office')), sector: bosIseNull(g('sector')), city: bosIseNull(g('city')),
         district: bosIseNull(g('district')), address: bosIseNull(g('address')), phone: bosIseNull(tel),
         email: bosIseNull(eposta), website: bosIseNull(web), current_provider: bosIseNull(g('current_provider')),
         customer_status: g('customer_status') || 'musteri', responsible_user: bosIseNull(g('responsible_user')),
