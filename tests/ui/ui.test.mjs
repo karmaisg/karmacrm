@@ -1168,6 +1168,61 @@ await test('tahsilat: kısmi, tam, fazla uyarısı, iptal; durum ve bakiye', asy
   await s.locator('.btn[data-ok]').click();
   await s.waitForSelector('.toast:has-text("Tahsilat iptal edildi")');
   await s.selectOption('#fatura-durum', 'kismi_tahsilat'); await s.waitForSelector('#fatura-tablo .pill:has-text("Kısmi tahsilat")');
+  // tahsilat kaydında tarih ve tutar düzenlenebilir
+  await s.click('[data-fatura-detay]'); await s.waitForSelector('.modal [data-odeme-duzenle]');
+  await s.locator('.modal [data-odeme-duzenle]').first().click();
+  m = modal(s);
+  await var_(m.locator('.modal-title:has-text("Tahsilatı düzenle"), h2:has-text("Tahsilatı düzenle")'), 'düzenleme başlığı');
+  esit(await m.locator('#f-amount').inputValue(), '700', 'mevcut tutar');
+  await m.locator('#f-paid_at').fill(await gunOf(s, 1)); await m.locator('button[type=submit]').click();
+  await var_(m.locator('#e-paid_at:has-text("gelecekte")'), 'gelecek tarih engellenir');
+  await m.locator('#f-paid_at').fill(await gunOf(s, 0)); await m.locator('#f-amount').fill('900');
+  await var_(m.locator('#tahsilat-bilgi:has-text("kalan: ₺300,00")'), 'önizleme kendi tutarını düşer');
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.toast:has-text("Tahsilat güncellendi")');
+  await s.waitForSelector('#fatura-tablo .pill:has-text("Kısmi tahsilat")');
+  await s.click('[data-fatura-detay]'); await s.waitForSelector('.modal [data-odeme-duzenle]');
+  await var_(s.locator('.modal td.num:has-text("900,00")'), 'yeni tutar listede');
+});
+
+await test('cari hesap: ekstre, yıl/aralık, tahsilat tarihi düzenleme, Excel indirme', async (s) => {
+  await girisYap(s);
+  const url = await sozlesmeliFirma(s, 'Cari A.Ş.', '6000000077', 5, 100);
+  await git(s, hashOf(url)); await s.click('[data-sekme="faturalar"]'); await s.click('[data-action="fatura-yeni"]');
+  await modal(s).locator('#f-tutar').fill('1000'); await modal(s).locator('#f-invoice_no').fill('CR-1');
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#sekme-govde td:has-text("CR-1")');
+  await git(s, '#/tahsilat'); await s.waitForSelector('[data-fatura-tahsilat]');
+  await s.locator('[data-fatura-tahsilat]').first().click();
+  let m = modal(s);
+  await m.locator('#f-amount').fill('500'); await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.toast:has-text("Tahsilat kaydedildi")');
+  await var_(s.locator('.nav a[href="#/cari"], nav a[href="#/cari"]'), 'menüde Cari');
+  await git(s, '#/cari'); await s.waitForSelector('#cari-tablo');
+  await s.selectOption('#cari-firma', { label: 'Cari A.Ş.' });
+  await s.waitForSelector('#cari-tablo tbody tr[data-cari-satir="fatura"]');
+  esit(await s.locator('#cari-tablo tbody tr[data-cari-satir="fatura"]').count(), 1, 'fatura satırı');
+  esit(await s.locator('#cari-tablo tbody tr[data-cari-satir="tahsilat"]').count(), 1, 'tahsilat satırı');
+  await var_(s.locator('#cari-top-alacak:has-text("1.200,00")'), 'alacak (KDV dahil)');
+  await var_(s.locator('#cari-top-borc:has-text("500,00")'), 'borç');
+  await var_(s.locator('#cari-bakiye:has-text("700,00")'), 'bakiye');
+  await ekran(s, '77-cari-hesap');
+  // tahsilat tarihini düzenle
+  await s.locator('[data-cari-duzenle]').first().click();
+  m = modal(s);
+  await var_(m.locator('h2:has-text("Tahsilatı düzenle"), .modal-title:has-text("Tahsilatı düzenle")'), 'düzenleme formu');
+  await m.locator('#f-paid_at').fill(await gunOf(s, 0)); await m.locator('#f-amount').fill('600'); await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.toast:has-text("Tahsilat güncellendi")');
+  await s.waitForSelector('#cari-bakiye:has-text("600,00")');
+  // dönem seçimi: tarih aralığı gelecekte kalan dönem → hareket yok; devir
+  await s.selectOption('#cari-yil', 'aralik');
+  await s.locator('#cari-bas').fill('2099-01-01'); await s.locator('#cari-bit').fill('2099-12-31');
+  await var_(s.locator('#cari-govde:has-text("Bu dönemde hareket yok"), #cari-govde:has-text("Önceki dönemden devir")'), 'aralık dışı');
+  await s.selectOption('#cari-yil', 'tum'); await s.waitForSelector('#cari-tablo');
+  const [dl] = await Promise.all([s.waitForEvent('download'), s.click('[data-action="cari-excel"]')]);
+  esit(dl.suggestedFilename().endsWith('.xlsx'), true, 'xlsx adı');
+  const yol = await dl.path(); const { readFileSync } = await import('node:fs');
+  esit(readFileSync(yol).subarray(0, 2).toString(), 'PK', 'zip imzası');
 });
 
 await test('fatura: işaretleme, arşiv kuralı (tahsilatlı fatura arşivlenmez)', async (s) => {
