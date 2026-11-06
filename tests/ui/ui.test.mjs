@@ -2726,6 +2726,46 @@ await test('mobil 375px: İdari İşler sekmelerinde yatay taşma yok', async (s
   }
 }, { genislik: 375, yukseklik: 800 });
 
+await test('yönetici paneli: aylık finans özeti kutucukları, grafikler ve ay seçimi', async (s) => {
+  await karlilikHazirla(s);
+  await git(s, '#/panel'); await s.waitForSelector('#yon-finans .kpi');
+  const finans = await s.locator('#yon-finans').innerText();
+  for (const b of ['Toplam hizmet geliri', '20.000,00', 'Toplam tahsilat', 'Tahsil edilmemiş alacak', 'Toplam gider', '13.000,00']) if (!finans.includes(b)) throw new Error(`finans kutularında ${b} yok: ${finans}`);
+  const kar = await s.locator('#yon-kar').innerText();
+  for (const b of ['Vergi öncesi tahmini kâr', '7.000,00', 'Tahmini kurumlar vergisi', '1.750,00', 'Vergi sonrası tahmini kâr', '5.250,00']) if (!kar.includes(b)) throw new Error(`kâr kutularında ${b} yok: ${kar}`);
+  const op = await s.locator('#yon-operasyon').innerText();
+  for (const b of ['Aktif firma sayısı', 'Uzman / hekim sayısı', '1 / 0', 'Toplam teorik hizmet dakikası', 'Toplam fiilî hizmet dakikası']) if (!op.includes(b)) throw new Error(`operasyon kutularında ${b} yok: ${op}`);
+  if (!(await s.locator('#yon-dk').innerText()).includes('hesaplanamaz')) throw new Error('fiilî süre 0 iken dakika başına değerler hesaplanamaz demeli');
+  esit(await s.locator('.yon-ozet svg.grafik').count(), 2, 'iki grafik');
+  esit(await s.locator('.yon-ozet svg.grafik rect').count(), 24, '12 ay x 2 çubuk');
+  esit(await s.locator('.yon-ozet svg.grafik polyline').count(), 2, 'iki çizgi');
+  await var_(s.locator('#yon-kapasite li:has-text("Kar Uzman")'), 'personel kapasite satırı');
+  await var_(s.locator('.yon-ozet .card:has-text("En kârlı müşteriler") li:has-text("Kar A.Ş.")'), 'en kârlı müşteri');
+  await var_(s.locator('#yon-tehlike tbody tr'), 'tehlike sınıfı satırı');
+  await var_(s.locator('#yon-dikkat:has-text("boş kapasite")'), 'dikkat notu');
+  await s.waitForTimeout(900); await ekran(s, '75-yonetici-paneli-ozet');
+  await s.locator('.yon-ozet .grid-2').scrollIntoViewIfNeeded(); await s.evaluate(() => window.scrollBy(0, 200)); await s.waitForTimeout(300); await ekran(s, '75b-yonetici-paneli-grafikler');
+  // geçmiş ay: gelir yok
+  const ay = await s.evaluate(() => { const o = [...document.querySelectorAll('#yon-ay option')]; return o[3].value; });
+  await s.selectOption('#yon-ay', ay);
+  await s.waitForFunction(() => document.querySelector('#yon-finans .kpi-v')?.textContent.includes('0,00'));
+  await var_(s.locator('#yon-finans .kpi:has-text("Toplam hizmet geliri") .kpi-v:has-text("0,00")'), 'geçmiş ayda gelir 0');
+});
+
+await test('yönetici paneli: finans izinleri olmayan rol özeti görmez, portföy görünür', async (s) => {
+  await girisYap(s); await sozlesmeliFirma(s, 'Panel A.Ş.', '7000000009', 20, 1000);
+  await cikisYapGir(s, 'satis@test.com');
+  await git(s, '#/panel'); await s.waitForSelector('.kpi-grid');
+  esit(await s.locator('.yon-ozet').count(), 0, 'finans özeti gizli');
+});
+
+await test('mobil 375px: yönetici paneli finans özetinde yatay taşma yok', async (s) => {
+  await karlilikHazirla(s); await git(s, '#/panel'); await s.waitForSelector('#yon-finans .kpi'); await s.waitForSelector('.yon-ozet svg.grafik');
+  const t = await s.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (t > 1) throw new Error(`yatay taşma ${t}px`);
+  await ekran(s, '76-yonetici-paneli-mobil');
+}, { genislik: 375, yukseklik: 800 });
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }

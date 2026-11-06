@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aktifMi, ayBitisi, kapsamPayi, personelAyYuku, zamanOzeti, dolulukSeviyesi, sureMetni, zamanCakisiyor } from '../src/lib/operasyon.js';
+import { aktifMi, ayAtamalari, ayBitisi, kapsamPayi, personelAyYuku, zamanOzeti, dolulukSeviyesi, sureMetni, zamanCakisiyor } from '../src/lib/operasyon.js';
 
 const kurallar = [
   { staff_type: 'is_guvenligi_uzmani', hazard_class: 'tehlikeli', minutes_per_employee: 20, valid_from: '2020-01-01', valid_to: null },
@@ -83,4 +83,15 @@ test('zamanCakisiyor: bitiş=başlangıç çakışma sayılmaz; arşiv ve başka
   assert.equal(zamanCakisiyor(k, 'e1', '2026-10-01T13:00:00Z', '2026-10-01T15:00:00Z'), null);
   assert.equal(zamanCakisiyor(k, 'e1', '2026-10-01T16:00:00Z', '2026-10-01T17:00:00Z'), null);
   assert.equal(zamanCakisiyor(k, 'e1', '2026-10-01T09:30:00Z', '2026-10-01T10:00:00Z', 'a'), null);
+});
+
+test('ayAtamalari: ay ortasında devreden görevlendirme payı ikiye katlamaz', () => {
+  const a = { id: 'a', company_id: 'f', staff_type: 'is_guvenligi_uzmani', employee_id: 'e1', share_pct: 100, valid_from: '2026-01-01', valid_to: '2026-11-14' };
+  const b = { id: 'b', company_id: 'f', staff_type: 'is_guvenligi_uzmani', employee_id: 'e2', share_pct: 97.77, valid_from: '2026-11-15', valid_to: null };
+  assert.deepEqual(ayAtamalari([a, b], '2026-11-01').map((x) => x.id), ['a']);
+  assert.deepEqual(ayAtamalari([a, b], '2026-12-01').map((x) => x.id), ['b']);
+  const c = { ...b, share_pct: 50 }; const d = { ...a, share_pct: 50 };
+  assert.equal(ayAtamalari([d, c], '2026-11-01').length, 2);
+  const yuk = (emp) => personelAyYuku({ atamalar: [a, b], employeeId: emp, profilHaritasi: new Map([['f', [{ valid_from: '2026-01-01', valid_to: null, employee_count: 10, hazard_class: 'az_tehlikeli' }]]]), kurallar: [], ay: '2026-11' });
+  assert.doesNotThrow(() => yuk('e1'));
 });
