@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cariEkstre, cariYillari, cariExcel, tahsilatTarihiTahmini, donemMetni } from '../src/lib/cari.js';
+import { tahsilatDagitimi, cariEkstre, cariYillari, cariExcel, tahsilatTarihiTahmini, donemMetni } from '../src/lib/cari.js';
 import { xlsxOku } from '../src/lib/xlsx.js';
 
 const F = (id, no, tarih, tutar, extra = {}) => ({ id, invoice_no: no, company_id: 'c1', invoice_date: tarih, amount_incl_vat: tutar, archived_at: null, ...extra });
@@ -41,7 +41,7 @@ test('cariEkstre: tahsilat tarihi değişince ekstredeki yeri ve dönemi değiş
   let e = cariEkstre({ faturalar, tahsilatlar: t, companyId: 'c1', baslangic: '2026-01-01', bitis: '2026-04-15' });
   assert.equal(e.tahminiTarihliAdet, 1);
   assert.equal(e.satirlar.at(-1).bakiye, 0);
-  assert.equal(e.satirlar.find((s) => s.tur === 'tahsilat').aciklama, 'Ödeme (F1)');
+  assert.equal(e.satirlar.find((s) => s.tur === 'tahsilat').aciklama, 'Ödeme - F1 nolu fatura');
   e = cariEkstre({ faturalar, tahsilatlar: [{ ...t[0], paid_at: '2026-05-07', notes: null, method: 'Havale / EFT' }], companyId: 'c1', baslangic: '2026-01-01', bitis: '2026-04-15' });
   assert.equal(e.toplamBorc, 0); assert.equal(e.bakiye, 5500);
 });
@@ -60,4 +60,30 @@ test('cariExcel: geçerli xlsx; başlık bloğu, tablo, toplam ve banka bilgisi'
   const duz = JSON.stringify(sayfa);
   for (const beklenen of ['FİRMA ÜNVANI', 'DALYANKÖY TURİZM', 'ÇEŞME VD', 'TARİH', 'BORÇ', 'ALACAK', 'BAKİYE', 'AÇIKLAMA', 'ALACAKLI', 'BANKA HESAP BİLGİLERİMİZ', 'TR39 0001']) assert.ok(duz.includes(beklenen), beklenen);
   assert.ok(Buffer.from(bayt).includes(Buffer.from('xl/media/image1.png')), 'logo gömülü');
+});
+
+test('tahsilatDagitimi: eski faturadan başlar, kısmi kalan hesaplanır, fazla tutar artan olur', () => {
+  const fat = [F('b', 'N2', '2026-02-01', 5000), F('a', 'N1', '2026-01-01', 5000), F('x', 'XX', '2026-01-01', 100, { company_id: 'c2' }), F('z', 'Z', '2025-01-01', 9, { archived_at: 'x' })];
+  const r = tahsilatDagitimi({ faturalar: fat, tahsilatlar: [], companyId: 'c1', tutar: 7500 });
+  assert.deepEqual(r.dagitim.map((d) => [d.fatura.invoice_no, d.tutar, d.kismi, d.kalanSonra]), [['N1', 5000, false, 0], ['N2', 2500, true, 2500]]);
+  assert.equal(r.artan, 0); assert.equal(r.acik, 10000);
+  const k = tahsilatDagitimi({ faturalar: fat, tahsilatlar: [P('p', 'a', '2026-03-01', 1000)], companyId: 'c1', tutar: 4100 });
+  assert.deepEqual(k.dagitim.map((d) => [d.fatura.invoice_no, d.tutar, d.kismi]), [['N1', 4000, false], ['N2', 100, true]]);
+  assert.equal(tahsilatDagitimi({ faturalar: fat, tahsilatlar: [], companyId: 'c1', tutar: 10000.5 }).artan, 0.5);
+});
+
+test('cariEkstre: firma tahsilatı tek satır; açıklamada fatura no ve kısmi', () => {
+  const fat = [F('a', 'N1', '2026-01-01', 5000), F('b', 'N2', '2026-02-01', 5000)];
+  const tah = [P('p1', 'a', '2026-03-01', 5000, { group_id: 'g', method: 'Havale / EFT', notes: 'dekont' }), P('p2', 'b', '2026-03-01', 2500, { group_id: 'g', method: 'Havale / EFT', notes: 'dekont' })];
+  const e = cariEkstre({ faturalar: fat, tahsilatlar: tah, companyId: 'c1' });
+  assert.equal(e.satirlar.length, 3);
+  const o = e.satirlar[2];
+  assert.equal(o.borc, 7500); assert.equal(o.grup, 'g'); assert.equal(o.kayitlar.length, 2);
+  assert.equal(o.aciklama, 'Ödeme - Havale / EFT - dekont - N1 nolu fatura, N2 nolu fatura (kısmi)');
+  assert.equal(e.bakiye, 2500);
+  // sonradan kalan ödenince ilk ödeme "kısmi" olarak kalır, ikincisi tam
+  const e2 = cariEkstre({ faturalar: fat, tahsilatlar: [...tah, P('p3', 'b', '2026-04-01', 2500)], companyId: 'c1' });
+  assert.match(e2.satirlar[2].aciklama, /N2 nolu fatura \(kısmi\)$/);
+  assert.match(e2.satirlar[3].aciklama, /N2 nolu fatura$/);
+  assert.equal(e2.bakiye, 0);
 });

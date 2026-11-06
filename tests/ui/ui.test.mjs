@@ -1225,6 +1225,52 @@ await test('cari hesap: ekstre, yıl/aralık, tahsilat tarihi düzenleme, Excel 
   esit(readFileSync(yol).subarray(0, 2).toString(), 'PK', 'zip imzası');
 });
 
+await test('firma tahsilatı: tutar eski faturadan başlayarak dağıtılır, cari tek satır gösterir', async (s) => {
+  await girisYap(s);
+  const url = await sozlesmeliFirma(s, 'Dağıtım Ltd.', '6000000088', 5, 100);
+  await git(s, hashOf(url)); await s.click('[data-sekme="faturalar"]');
+  for (const [no, g] of [['N-2', 20], ['N-1', 40]]) {
+    await s.click('[data-action="fatura-yeni"]');
+    await modal(s).locator('#f-tutar').fill('5000'); await modal(s).locator('#f-invoice_no').fill(no);
+    await modal(s).locator('#f-invoice_date').fill(await gunOf(s, -g));
+    await modal(s).locator('button[type=submit]').click();
+    await s.waitForSelector(`#sekme-govde td:has-text("${no}")`);
+  }
+  await s.click('[data-action="firma-tahsilat"]');
+  let m = modal(s);
+  await m.locator('#f-amount').fill('7500');
+  await var_(m.locator('#ft-onizleme tr:has-text("N-1"):has-text("Tahsil edildi")'), 'eski fatura tam kapanır');
+  await var_(m.locator('#ft-onizleme tr:has-text("N-2"):has-text("Kısmi tahsilat")'), 'yeni fatura kısmi');
+  await m.locator('#f-amount').fill('99999');
+  await var_(m.locator('#ft-onizleme:has-text("aşıyor")'), 'fazla tutar uyarısı');
+  await m.locator('button[type=submit]').click();
+  await var_(m.locator('.field-error:has-text("aşıyor")'), 'fazla tutar reddedilir');
+  await m.locator('#f-amount').fill('7500'); await m.locator('#f-notes').fill('dekont 5');
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.toast:has-text("2 faturaya dağıtıldı")');
+  await s.click('[data-sekme="faturalar"]');
+  await var_(s.locator('#sekme-govde tr:has-text("N-1"):has-text("Tahsil edildi")'), 'N-1 tahsil edildi');
+  await var_(s.locator('#sekme-govde tr:has-text("N-2"):has-text("Kısmi")'), 'N-2 kısmi');
+  await git(s, '#/cari'); await s.waitForSelector('#cari-tablo');
+  await s.selectOption('#cari-firma', { label: 'Dağıtım Ltd.' });
+  await s.waitForSelector('#cari-tablo tbody tr[data-cari-satir="tahsilat"]');
+  esit(await s.locator('#cari-tablo tbody tr[data-cari-satir="tahsilat"]').count(), 1, 'tek ödeme satırı');
+  const ack = await s.locator('#cari-tablo tbody tr[data-cari-satir="tahsilat"] em').innerText();
+  esit(ack.includes('N-1 nolu fatura') && ack.includes('N-2 nolu fatura (kısmi)') && ack.includes('dekont 5'), true, 'açıklama: ' + ack);
+  await var_(s.locator('#cari-top-borc:has-text("7.500,00")'), 'ödemenin tamamı borç');
+  await var_(s.locator('#cari-bakiye:has-text("4.500,00")'), 'kalan bakiye');
+  await ekran(s, '78-cari-firma-tahsilati');
+  // grup tarihi düzenle
+  await s.locator('[data-cari-grup-duzenle]').first().click();
+  m = modal(s); await m.locator('#f-paid_at').fill(await gunOf(s, -5)); await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.toast:has-text("Tahsilat güncellendi")');
+  await s.waitForSelector('#cari-tablo tbody tr[data-cari-satir="tahsilat"]');
+  // iptal
+  await s.locator('[data-cari-grup-iptal]').first().click();
+  await s.locator('.modal button:has-text("Tahsilatı iptal et")').click();
+  await s.waitForSelector('#cari-bakiye:has-text("12.000,00")');
+});
+
 await test('fatura: işaretleme, arşiv kuralı (tahsilatlı fatura arşivlenmez)', async (s) => {
   await girisYap(s);
   const url = await sozlesmeliFirma(s, 'Isaret A.Ş.', '6000000004', 5, 100);

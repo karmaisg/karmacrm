@@ -594,6 +594,24 @@ const rpcler = {
     Object.assign(imp, { row_count: eklenen, archived_count: eski.length, total_excl_vat: toplam });
     return { data: { import_id: imp.id, eklenen, arsivlenen: eski.length, yeni_kategori: yeniKat, negatif_atlanan: negatif } };
   },
+  firma_tahsilati_gir(a) {
+    if (!izinVar('invoices', 'can_create')) return { error: hata('Tahsilat girme yetkiniz yok.', 'P0001') };
+    if (a.p_tarih > bugun()) return { error: hata('Tahsilat tarihi gelecekte olamaz.', 'P0001') };
+    if (!(a.p_tutar > 0)) return { error: hata('Tutar sıfırdan büyük olmalıdır.', 'P0001') };
+    const odenen = (id) => tablo.payments.filter((p) => p.invoice_id === id && !p.archived_at).reduce((t, p) => t + Math.round(p.amount * 100), 0);
+    const acikL = tablo.invoices.filter((i) => i.company_id === a.p_firma && !i.archived_at).map((i) => ({ i, acik: Math.round(i.amount_incl_vat * 100) - odenen(i.id) })).filter((x) => x.acik > 0)
+      .sort((x, y) => String(x.i.invoice_date).localeCompare(String(y.i.invoice_date)) || String(x.i.invoice_no).localeCompare(String(y.i.invoice_no)));
+    let kalan = Math.round(a.p_tutar * 100);
+    if (kalan > acikL.reduce((t, x) => t + x.acik, 0)) return { error: hata('Tutar firmanın açık bakiyesini aşıyor.', 'P0001') };
+    const grup = uid(); const dagitim = [];
+    for (const { i, acik } of acikL) {
+      if (kalan <= 0) break;
+      const pay = Math.min(acik, kalan);
+      tablo.payments.push({ id: uid(), organization_id: ORG, invoice_id: i.id, paid_at: a.p_tarih, amount: pay / 100, method: a.p_yontem ?? null, notes: a.p_not ?? null, group_id: grup, created_at: new Date().toISOString(), archived_at: null });
+      dagitim.push({ fatura_no: i.invoice_no, tutar: pay / 100, kismi: pay < acik }); kalan -= pay;
+    }
+    return { data: { group_id: grup, dagitim } };
+  },
   gelir_kalemi_ekle(a) {
     if (!['spot', 'elden'].includes(a.p_tur)) return { error: hata('Gelir türü spot veya elden olmalıdır.', 'P0001') };
     if (!String(a.p_aciklama ?? '').trim()) return { error: hata('Gelir kaleminin ne olduğunu yazın.', 'P0001') };
