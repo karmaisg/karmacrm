@@ -18,6 +18,35 @@ export const aktifMi = (a, tarih) => !a.archived_at && a.valid_from <= tarih && 
 /** Görevlendirme ayın herhangi bir gününde yürürlükte mi (ay içinde başlayan da o aya dahildir). ay: 'YYYY-MM-DD' (ayın 1'i) */
 export const aktifAyda = (a, ayBasi) => !a.archived_at && a.valid_from <= ayBitisi(ayBasi) && (!a.valid_to || a.valid_to >= ayBasi);
 
+/**
+ * Ay için hesaba katılacak görevlendirmeler. Ay içinde biten ve başlayan görevlendirmeler birlikte %100'ü
+ * aşıyorsa (örn. A %100 ayın ortasında biter, B %100 başlar) ayın 1'inde yürürlükte olanlar, yoksa ay sonunda
+ * yürürlükte olanlar kullanılır; böylece aynı firma ihtiyacı iki kez sayılmaz.
+ */
+export function ayAtamalari(atamalar, ayBasi) {
+  const adaylar = atamalar.filter((a) => aktifAyda(a, ayBasi));
+  const gruplar = new Map();
+  for (const a of adaylar) {
+    const k = `${a.company_id}|${a.staff_type}`;
+    if (!gruplar.has(k)) gruplar.set(k, []);
+    gruplar.get(k).push(a);
+  }
+  const bitis = ayBitisi(ayBasi);
+  const toplam = (l) => l.reduce((t, a) => t + Number(a.share_pct), 0);
+  const secilen = new Set();
+  for (const g of gruplar.values()) {
+    let secim = g;
+    if (toplam(g) > 100 + 1e-9) {
+      const basta = g.filter((a) => aktifMi(a, ayBasi));
+      const sonda = g.filter((a) => aktifMi(a, bitis));
+      if (basta.length && toplam(basta) <= 100 + 1e-9) secim = basta;
+      else if (sonda.length && toplam(sonda) <= 100 + 1e-9) secim = sonda;
+    }
+    secim.forEach((a) => secilen.add(a));
+  }
+  return adaylar.filter((a) => secilen.has(a));
+}
+
 export const ayBasiDizge = (iso) => `${String(iso).slice(0, 7)}-01`;
 /** Ayın son günü ('2026-10-01' -> '2026-10-31'). */
 export function ayBitisi(ay) {
@@ -47,14 +76,15 @@ export function kapsamPayi(atamalar, companyId, staffType, tarih) {
  */
 export function personelAyYuku({ atamalar, employeeId, profilHaritasi, kurallar, ay }) {
   const gun = ayBasiDizge(ay);
-  const benimkiler = atamalar.filter((a) => a.employee_id === employeeId && aktifAyda(a, gun));
+  const ayAtama = ayAtamalari(atamalar, gun);
+  const benimkiler = ayAtama.filter((a) => a.employee_id === employeeId);
   const kalemler = [];
   let toplam = 0;
   for (const a of benimkiler) {
     const ihtiyac = firmaAylikIhtiyac({ profiller: profilHaritasi.get(a.company_id) ?? [], kurallar, ay: gun });
     const toplamIhtiyac = a.staff_type === 'is_guvenligi_uzmani' ? ihtiyac.uzmanDakika : ihtiyac.hekimDakika;
     if (toplamIhtiyac === null || toplamIhtiyac === undefined) { kalemler.push({ atama: a, dakika: null, eksik: ihtiyac.eksik || 'Hizmet süresi hesaplanamadı.' }); continue; }
-    const ayniFirma = atamalar.filter((x) => x.company_id === a.company_id && x.staff_type === a.staff_type && aktifAyda(x, gun));
+    const ayniFirma = ayAtama.filter((x) => x.company_id === a.company_id && x.staff_type === a.staff_type);
     const dagilim = dagitPaylar(toplamIhtiyac, ayniFirma);
     const benim = dagilim.kisiler.find((k) => k.id === a.id);
     kalemler.push({ atama: a, dakika: benim.dakika, eksik: null });

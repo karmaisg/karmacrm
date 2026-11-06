@@ -12,7 +12,7 @@
 //  Çift sayım yok : maaş kategorisindeki giderler dahil edilmez (maliyet personel kartından gelir),
 //                   kurumlar vergisi kategorisi gider sayılmaz (vergi tahmininde ayrıca ele alınır).
 import { gecerliKayit, enBuyukKalanDagit, vergiSonrasiKar, kurus, tl } from './hesaplama.js';
-import { aktifMi, aktifAyda, ayBitisi, personelAyYuku } from './operasyon.js';
+import { aktifMi, aktifAyda, ayAtamalari, ayBitisi, personelAyYuku } from './operasyon.js';
 import { profilleriGrupla } from './veri.js';
 
 export const DAGITIM_OLCUTLERI = {
@@ -133,7 +133,7 @@ export function hesaplaKarlilik(g) {
   const ayBasi = `${ayAnahtar}-01`;
   for (const [firmaId, gelirK] of gelir) {
     if (!(gelirK > 0)) continue;
-    const aktifler = atamalar.filter((a) => a.company_id === firmaId && aktifAyda(a, ayBasi) && personelMap.has(a.employee_id));
+    const aktifler = ayAtamalari(atamalar, ayBasi).filter((a) => a.company_id === firmaId && personelMap.has(a.employee_id));
     const turler = [...new Set(aktifler.map((a) => a.staff_type))];
     if (!turler.length) continue;
     const uzmanAgirlik = turler.length === 2 ? uzmanGelirPayi / 100 : 1;
