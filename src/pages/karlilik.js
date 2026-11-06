@@ -16,7 +16,7 @@ const aySecenekleri = (bugunStr) => {
 const renk = (n) => (n < 0 ? 'neg' : '');
 const tutar = (n) => html`<span class="${renk(n)}">${para2(n)}</span>`;
 
-async function girdiYukle(app, ay) {
+export async function girdiYukle(app, ay) {
   const bit = ayBitisi(ay);
   const [firmalar, profiller, kurallar, ayarlar, faturalar, giderler, kategoriler, sozlesmeler, maliyetler, dagitimKurallari, kayitliDagitim, girdi] = await Promise.all([
     app.api.listCompanies(), app.api.listAllProfiles(), app.api.listServiceRules(), app.api.listSettings(),

@@ -12,6 +12,7 @@ import { gorevZamani } from './gorevler.js';
 import { sozlesmeOzeti } from './sozlesmeler.js';
 import { finansOzeti } from '../lib/finans.js';
 import { para2 } from '../lib/format.js';
+import { ozetIzniVar, yonetimOzetiIskelet, yonetimOzetiBaglan, yeniDurum } from './yonetim_ozeti.js';
 
 export async function panelSayfasi(app) {
   const ad = ilkAd(app.ctx.user.full_name);
@@ -112,13 +113,14 @@ export async function panelSayfasi(app) {
       <li><a class="link" href="#/gorevler">Gecikmiş görev</a><strong>${sayi(acikGorev.filter((g) => gorevZamani(g) === 'gecikmis').length)}</strong></li>
     </ul></section>`);
 
+  const ozetVar = ozetIzniVar(app); const ozetDurum = yeniDurum();
   const govde = !firmalar.length
     ? emptyState({
       simge: 'building', baslik: 'Başlamak için ilk firmanızı ekleyin',
       metin: 'Firma kartı oluşturup çalışan sayısı ve tehlike sınıfını girdiğinizde teorik hizmet süresi ve kapasite ihtiyacı burada görünür.',
       eylem: app.can('companies', 'create') ? html`<a class="btn btn-primary" href="#/firmalar">${icon('plus', 18)} Firmalara git</a>` : '',
     })
-    : html`<div class="kpi-grid">
+    : html`${ozetVar ? html`${yonetimOzetiIskelet(ozetDurum)}<h2 class="yon-baslik pad-t">Müşteri portföyü ve hizmet yükü</h2>` : ''}<div class="kpi-grid">
       ${kpi('Aktif müşteri', sayi(musteriler.length), `${sayi(aktif.length - musteriler.length)} eski müşteri`, 'building')}
       ${kpi('Toplam çalışan', sayi(calisan), `${sayi(hesaplananFirma)} firmanın güncel kaydı`, 'users')}
       ${kpi('Uzman ihtiyacı', `${sayi(uzmanDk)} dk`, `${ayAdi(ay)} · yaklaşık ${ondalik2(kisiSayisi(uzmanDk))} tam zamanlı uzman`, 'shield')}
@@ -147,6 +149,10 @@ export async function panelSayfasi(app) {
     altBaslik: 'Müşteri portföyünüzün ve hizmet yükünüzün güncel özeti',
     govde,
     // CSP satır içi style özniteliğine izin vermediği için çubuk genişlikleri burada (CSSOM ile) verilir.
-    mount(kok) { kok.querySelectorAll('.bars-fill[data-w]').forEach((e) => { e.style.width = `${e.dataset.w}%`; }); },
+    mount(kok) {
+      const ciz = (k) => k.querySelectorAll('.bars-fill[data-w]').forEach((e) => { e.style.width = `${e.dataset.w}%`; });
+      ciz(kok);
+      if (ozetVar && firmalar.length) yonetimOzetiBaglan(kok, app, ozetDurum, ciz);
+    },
   };
 }

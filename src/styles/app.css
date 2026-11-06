@@ -419,3 +419,31 @@ li.takvim-yapildi .takvim-metin { text-decoration: line-through; opacity: .65; }
 .kpi-btn { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; border: 1px solid var(--border, transparent); }
 .kpi-btn:hover, .kpi-btn:focus-visible { box-shadow: var(--shadow-md, 0 4px 14px rgba(0,0,0,.12)); outline: 2px solid var(--primary); outline-offset: 2px; }
 .kpi-ipucu { color: var(--primary); font-size: var(--fs-xs); margin-top: 4px; font-weight: 600; }
+
+/* Yönetici paneli: aylık finans özeti ve grafikler */
+.kpi-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kpi-v.pos { color: var(--success); } .kpi-v.neg { color: var(--danger); }
+.yon-grup { margin-top: 18px; }
+.grafik { width: 100%; height: auto; display: block; margin-top: 8px; }
+.g-grid { stroke: var(--border); stroke-width: 1; } .g-sifir { stroke: var(--text-3); }
+.g-eksen { fill: var(--text-3); font-size: 11px; font-family: inherit; }
+.g-s-gelir { fill: var(--primary); background: var(--primary); } .g-s-gider { fill: var(--warning); background: var(--warning); }
+.g-s-oncesi { fill: var(--primary); background: var(--primary); } .g-s-sonrasi { fill: var(--warning); background: var(--warning); }
+.g-l-oncesi { stroke: var(--primary); stroke-width: 2.5; } .g-l-sonrasi { stroke: var(--warning); stroke-width: 2.5; }
+.g-kesik { stroke-dasharray: 6 4; }
+.g-n-oncesi { fill: var(--primary); } .g-n-sonrasi { fill: var(--warning); }
+.g-lejant { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 0; padding: 0; font-size: var(--fs-sm); color: var(--text-2); }
+.g-lejant li { display: inline-flex; align-items: center; gap: 6px; }
+.g-k { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.bars-wide li { grid-template-columns: minmax(110px, 200px) 1fr auto; }
+.bars-wide .bars-l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars-wide .bars-n { font-size: var(--fs-sm); white-space: nowrap; }
+.bars-pos { background: var(--primary); } .bars-neg { background: var(--danger); } .bars-gri { background: var(--text-3); }
+.bars-ikili { display: grid; gap: 4px; }
+.bars-ikili .bars-track { height: 8px; }
+@media (max-width: 900px) { .kpi-grid-2 { grid-template-columns: 1fr; } }
+.yon-baslik { margin: 28px 0 12px; font-size: var(--fs-lg, 18px); }
+.yon-ozet .kpi > div { min-width: 0; }
+.yon-ozet .kpi-v { font-size: clamp(18px, 1.7vw, 24px); overflow-wrap: anywhere; line-height: 1.2; }
+.yon-ozet .kpi { align-items: flex-start; }
+.yon-ozet .kpi-grid { align-items: stretch; }

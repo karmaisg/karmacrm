@@ -442,3 +442,9 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 - **Hesap detayı:** Firma kârlılığında "Toplam maliyet", "Vergi öncesi kâr" ve "Vergi sonrası (tahmini)" kutucuklarına, Personel kârlılığında "Boşta kapasite maliyeti" kutucuğuna tıklayınca hesabın adım adım dökümü açılır.
 - **Ay içinde başlayan:** Bir firma, görevlendirme, firma profili veya personel maliyet dönemi ayın herhangi bir gününde başlarsa o aya tam ay olarak dahil edilir (daha önce yalnızca ayın 1'inde başlayanlar giriyordu). Bu kural Uzmanlar/Hekimler sayfasındaki teorik yükü ve Kapasite sayfasını da etkiler.
 - **Pasif personel:** Ayrılış tarihi girilmemiş pasif personel Personel kârlılığında hiç listelenmez; ayrılış tarihi girilmişse ayrılış ayına kadar görünür.
+
+## Aşama 24 (Yönetici paneli aylık finans özeti) — SQL gerekmez
+
+- **Yönetici paneli** üstünde "Aylık finans özeti" bölümü: ay seçicisi (son 24 ay, varsayılan içinde bulunulan ay), gelir/tahsilat/alacak/gider/vergi öncesi–sonrası kâr/aktif firma/uzman-hekim/dakika kutucukları, "Dikkat" uyarıları, son 12 ay gelir-gider ve kâr grafikleri, en kârlı/en düşük kârlı müşteriler, kapasite kullanımı ve tehlike sınıfı tablosu.
+- Rakamlar Firma/Personel kârlılığı sayfalarıyla aynı hesaptan gelir; geçmiş ay grafikleri teorik yöntemle hesaplanır.
+- Bölüm yalnızca kârlılık, bordro, gider ve fatura görüntüleme yetkisi olanlara görünür; diğer roller eski portföy panelini görür.
