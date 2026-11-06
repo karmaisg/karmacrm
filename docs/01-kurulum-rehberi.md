@@ -461,3 +461,11 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 3. **Excel olarak indir:** ekteki örnek biçimde (firma bilgileri bloğu, Karma logosu, Tarih/Borç/Alacak/Bakiye/Açıklama tablosu, toplam satırı, banka bilgileri) `.xlsx` üretir. Banka bilgisi `src/lib/cari.js` içindeki `BANKA_BILGISI` listesindedir; değişirse oradan güncellenir.
 4. **Tahsilat tarihi düzeltme:** Cari ekstresinde tahsilat satırındaki kalem simgesi (veya fatura detayından) tarih/tutarı değiştirir; ekstre, Gelirler ve tahsilatlar ("son tahsilat" bilgisi) ve tüm raporlar yeni tarihi kullanır. Toplu işaretlemeyle (tarihi bilinmeden, fatura tarihiyle) girilmiş tahsilatlar "Tarih tahmini" etiketiyle gösterilir; gerçek tarihi girilince etiket kalkar.
 5. Firma formuna **Vergi dairesi** alanı eklendi (Excel başlığında kullanılır). Yetkili kişi, firmanın ilk kişisinden alınır.
+
+## Aşama 26 (Firma bazında tahsilat) — `supabase/26_asama26.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `26_asama26.sql` dosyasını çalıştırın (tahsilatlara grup alanı ve `firma_tahsilati_gir` fonksiyonunu ekler; tekrar çalıştırılabilir).
+2. **Tahsilat gir:** Firma kartı → Faturalar sekmesi veya Finans → Cari hesap sayfasındaki "Tahsilat gir" düğmesi. Tarih ve tutar girilir; tutar, açık faturalara **fatura tarihi eskiden yeniye** dağıtılır. Örnek: 5.000 TL'lik iki açık faturaya 7.500 TL → 1. fatura tahsil edildi, 2. fatura 2.500 TL kısmi, kalan 2.500 TL. Dağıtım, kaydetmeden önce önizlenir. Tutar firmanın açık bakiyesini aşamaz.
+3. **Cari ekstre:** Ödemenin tamamı tek borç satırında görünür; açıklamada karşıladığı faturalar yazılır, tam karşılanmayan faturada "(kısmi)" belirtilir. Satırdaki kalem simgesiyle tarih/yöntem/not düzenlenir, çöp kutusuyla tahsilat iptal edilir (tutarı değiştirmek için iptal edip yeniden girin).
+4. Tek fatura için tahsilat (fatura detayı) eskisi gibi çalışır; tarih ve tutar düzenlenebilir.
+5. **Excel:** başlık "CARİ HESAP TABLOSU", logo firma bilgileri kutusunun sağında ve sayfa içinde; sayfa A4'e sığacak şekilde ayarlıdır.

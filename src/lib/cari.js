@@ -18,6 +18,27 @@ const TOPLU_NOT = 'tarih bilinmiyor';
 /** Toplu işaretlemeyle (gerçek tarihi bilinmeden) girilmiş tahsilat mı? */
 export const tahsilatTarihiTahmini = (p) => String(p.notes ?? '').includes(TOPLU_NOT);
 
+/**
+ * Firma bazında tahsilatı açık faturalara dağıtır: fatura tarihi eskiden yeniye (sonra fatura no).
+ * Dönüş: { dagitim: [{ fatura, tutar, kismi, kalanSonra }], artan (açık bakiyeyi aşan tutar), acik (toplam açık bakiye) }
+ * Sunucudaki firma_tahsilati_gir fonksiyonuyla aynı sırayı kullanır (önizleme için).
+ */
+export function tahsilatDagitimi({ faturalar, tahsilatlar, companyId, tutar }) {
+  const odenen = new Map();
+  for (const p of tahsilatlar) if (!p.archived_at) odenen.set(p.invoice_id, (odenen.get(p.invoice_id) ?? 0) + kurus(p.amount));
+  const acikFaturalar = faturalar.filter((f) => !f.archived_at && f.company_id === companyId)
+    .map((f) => ({ f, acik: kurus(f.amount_incl_vat) - (odenen.get(f.id) ?? 0) })).filter((x) => x.acik > 0)
+    .sort((a, b) => String(a.f.invoice_date).localeCompare(String(b.f.invoice_date)) || String(a.f.invoice_no).localeCompare(String(b.f.invoice_no), 'tr') || String(a.f.id).localeCompare(String(b.f.id)));
+  let kalan = kurus(tutar); const dagitim = [];
+  for (const { f, acik } of acikFaturalar) {
+    if (kalan <= 0) break;
+    const pay = Math.min(acik, kalan);
+    dagitim.push({ fatura: f, tutar: tl(pay), kismi: pay < acik, kalanSonra: tl(acik - pay) });
+    kalan -= pay;
+  }
+  return { dagitim, artan: tl(Math.max(kalan, 0)), acik: tl(acikFaturalar.reduce((t, x) => t + x.acik, 0)) };
+}
+
 /** Firmanın cari hareketlerinin geçtiği yıllar (yeniden eskiye). */
 export function cariYillari(faturalar, tahsilatlar, companyId) {
   const set = new Set();
@@ -42,11 +63,31 @@ export function cariEkstre({ faturalar, tahsilatlar, kalemler = [], companyId, b
   const faturaMap = new Map(fat.map((f) => [f.id, f]));
   const hareketler = [];
   for (const f of fat) hareketler.push({ tur: 'fatura', tarih: String(f.invoice_date), alacak: kurus(f.amount_incl_vat), borc: 0, aciklama: faturaAciklama(f, kalemler), kayit: f });
-  for (const p of tahsilatlar) {
-    if (p.archived_at || !faturaMap.has(p.invoice_id)) continue;
-    const f = faturaMap.get(p.invoice_id);
-    const parca = ['Ödeme', p.method && p.method !== 'Toplu işaretleme' ? p.method : '', p.notes && !tahsilatTarihiTahmini(p) ? p.notes : ''].filter(Boolean);
-    hareketler.push({ tur: 'tahsilat', tarih: String(p.paid_at), borc: kurus(p.amount), alacak: 0, aciklama: `${parca.join(' - ')} (${f.invoice_no})`, kayit: p, tahmini: tahsilatTarihiTahmini(p) });
+  // Tahsilatlar: aynı grup (firma tahsilatı) ve aynı tarihte olanlar tek ödeme satırında toplanır.
+  const aktifTah = tahsilatlar.filter((p) => !p.archived_at && faturaMap.has(p.invoice_id));
+  // Fatura bazında birikimli ödeme: bir tahsilat sonrası fatura hâlâ kalanlı ise "kısmi"
+  const kumulatif = new Map();
+  const faturaBazli = new Map();
+  for (const p of aktifTah) { if (!faturaBazli.has(p.invoice_id)) faturaBazli.set(p.invoice_id, []); faturaBazli.get(p.invoice_id).push(p); }
+  for (const liste of faturaBazli.values()) {
+    liste.sort((a, b) => String(a.paid_at).localeCompare(String(b.paid_at)) || String(a.created_at ?? '').localeCompare(String(b.created_at ?? '')) || String(a.id).localeCompare(String(b.id)));
+    let t = 0; for (const p of liste) { t += kurus(p.amount); kumulatif.set(p.id, t); }
+  }
+  const gruplar = new Map();
+  for (const p of aktifTah) {
+    const anahtar = p.group_id ? `g:${p.group_id}:${p.paid_at}` : `t:${p.id}`;
+    if (!gruplar.has(anahtar)) gruplar.set(anahtar, []);
+    gruplar.get(anahtar).push(p);
+  }
+  for (const liste of gruplar.values()) {
+    liste.sort((a, b) => String(faturaMap.get(a.invoice_id).invoice_date).localeCompare(String(faturaMap.get(b.invoice_id).invoice_date)) || String(faturaMap.get(a.invoice_id).invoice_no).localeCompare(String(faturaMap.get(b.invoice_id).invoice_no), 'tr'));
+    const tahmini = liste.some(tahsilatTarihiTahmini);
+    const yontem = liste.find((p) => p.method && p.method !== 'Toplu işaretleme')?.method ?? '';
+    const not = liste.find((p) => p.notes && !tahsilatTarihiTahmini(p))?.notes ?? '';
+    const kalemler = liste.map((p) => { const f = faturaMap.get(p.invoice_id); const kismi = (kumulatif.get(p.id) ?? 0) < kurus(f.amount_incl_vat); return `${f.invoice_no} nolu fatura${kismi ? ' (kısmi)' : ''}`; });
+    const bas = ['Ödeme', yontem, not].filter(Boolean).join(' - ');
+    hareketler.push({ tur: 'tahsilat', tarih: String(liste[0].paid_at), borc: liste.reduce((t, p) => t + kurus(p.amount), 0), alacak: 0, aciklama: `${bas} - ${kalemler.join(', ')}`,
+      kayit: liste[0], kayitlar: liste, grup: liste[0].group_id ?? null, tahmini });
   }
   // aynı gün: önce fatura, sonra tahsilat
   hareketler.sort((a, b) => a.tarih.localeCompare(b.tarih) || (a.tur === b.tur ? 0 : a.tur === 'fatura' ? -1 : 1) || String(a.aciklama).localeCompare(String(b.aciklama), 'tr'));
@@ -61,7 +102,7 @@ export function cariEkstre({ faturalar, tahsilatlar, kalemler = [], companyId, b
   let bakiye = devirK; let toplamBorc = 0; let toplamAlacak = 0;
   const satirlar = donem.map((h) => {
     bakiye += h.alacak - h.borc; toplamBorc += h.borc; toplamAlacak += h.alacak;
-    return { tur: h.tur, tarih: h.tarih, borc: tl(h.borc), alacak: tl(h.alacak), bakiye: tl(bakiye), aciklama: h.aciklama, kayit: h.kayit, tahmini: !!h.tahmini };
+    return { tur: h.tur, tarih: h.tarih, borc: tl(h.borc), alacak: tl(h.alacak), bakiye: tl(bakiye), aciklama: h.aciklama, kayit: h.kayit, kayitlar: h.kayitlar ?? [h.kayit], grup: h.grup ?? null, tahmini: !!h.tahmini };
   });
   return {
     devir: tl(devirK), satirlar, toplamBorc: tl(toplamBorc), toplamAlacak: tl(toplamAlacak), bakiye: tl(bakiye),
@@ -80,13 +121,15 @@ export function cariExcel({ firma, yetkili = '', ekstre, baslangic = '', bitis =
   const d = (v) => ({ st: 'deger', v: v ?? '' });
   const bos = { st: 'deger', v: '' };
   const satirlar = [
-    [e('FİRMA ÜNVANI'), d(firma.name), bos, bos, bos, null],
-    [e('VERGİ NO'), d(firma.tax_no), bos, bos, bos],
-    [e('VERGİ DAİRESİ'), d(firma.tax_office), bos, bos, bos],
-    [e('ADRES'), d([firma.address, [firma.district, firma.city].filter(Boolean).join(' / ')].filter(Boolean).join(' ')), bos, bos, bos],
-    [e('TELEFON'), d(firma.phone), bos, bos, bos],
-    [e('YETKİLİ'), d(yetkili), bos, bos, bos],
-    [e('E-POSTA'), d(firma.email), bos, bos, bos],
+    [{ st: 'buyuk', v: 'CARİ HESAP TABLOSU' }],
+    [],
+    [e('FİRMA ÜNVANI'), d(firma.name), bos, bos],
+    [e('VERGİ NO'), d(firma.tax_no), bos, bos],
+    [e('VERGİ DAİRESİ'), d(firma.tax_office), bos, bos],
+    [e('ADRES'), d([firma.address, [firma.district, firma.city].filter(Boolean).join(' / ')].filter(Boolean).join(' ')), bos, bos],
+    [e('TELEFON'), d(firma.phone), bos, bos],
+    [e('YETKİLİ'), d(yetkili), bos, bos],
+    [e('E-POSTA'), d(firma.email), bos, bos],
     [{ st: 'kalin', v: `Dönem: ${donemMetni(baslangic, bitis)}` }],
     [],
     [{ st: 'baslik', v: 'TARİH' }, { st: 'baslik', v: 'BORÇ' }, { st: 'baslik', v: 'ALACAK' }, { st: 'baslik', v: 'BAKİYE' }, { st: 'baslik', v: 'AÇIKLAMA' }],
@@ -103,11 +146,12 @@ export function cariExcel({ firma, yetkili = '', ekstre, baslangic = '', bitis =
   satirlar.push([{ st: 'buyuk', v: 'BANKA HESAP BİLGİLERİMİZ' }]);
   for (const b of BANKA_BILGISI) satirlar.push([{ st: 'orta', v: b }]);
   const sonBanka = satirlar.length;
-  const birlesik = [];
-  for (let r = 1; r <= 7; r++) birlesik.push(`B${r}:E${r}`);
-  birlesik.push(`A${sonBanka - BANKA_BILGISI.length}:E${sonBanka - BANKA_BILGISI.length}`);
-  for (let i = 0; i < BANKA_BILGISI.length; i++) birlesik.push(`A${sonBanka - BANKA_BILGISI.length + 1 + i}:E${sonBanka - BANKA_BILGISI.length + 1 + i}`);
-  const sayfa = { ad: 'Cari ekstre', satirlar, genislikler: [14, 15, 15, 15, 62, 3, 34], birlesik };
-  if (logoBayt) sayfa.resim = { bayt: logoBayt, kol: 6, satir: 0, solPx: 10, ustPx: 6, genislikPx: Math.round(140 * logoOran), yukseklikPx: 140 };
+  const bankaBas = sonBanka - BANKA_BILGISI.length; // başlık satırı (1 tabanlı)
+  const birlesik = ['A1:E1'];
+  for (let r = 3; r <= 9; r++) birlesik.push(`B${r}:D${r}`); // firma bilgileri değerleri
+  for (let r = bankaBas; r <= sonBanka; r++) birlesik.push(`A${r}:E${r}`);
+  // sütunlar: A tarih, B-D tutarlar, E açıklama (geniş). Logo: E sütununun içinde, firma bilgileri kutusunun sağında (sayfa dışına taşmaz).
+  const sayfa = { ad: 'Cari ekstre', satirlar, genislikler: [14, 18, 18, 18, 70], birlesik, satirYuksekligi: { 0: 26 } };
+  if (logoBayt) sayfa.resim = { bayt: logoBayt, kol: 4, satir: 2, solPx: 150, ustPx: 2, genislikPx: Math.round(130 * logoOran), yukseklikPx: 130 };
   return xlsxYaz([sayfa]);
 }

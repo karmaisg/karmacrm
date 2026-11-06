@@ -20,7 +20,7 @@ import { gorevFormuAc } from './gorevler.js';
 import { gorevlendirmeFormuAc, gorevlendirmeDurumu, gorevlendirmeEylemleri, gorevlendirmeEylemiYurut } from './gorevlendirmeler.js';
 import { PERSONEL_TURU, aktifMi, kapsamPayi, sureMetni } from '../lib/operasyon.js';
 import { para } from '../lib/format.js';
-import { faturaFormuAc, faturaDetayAc, firmaFaturalari } from './faturalar.js';
+import { faturaFormuAc, faturaDetayAc, firmaFaturalari, firmaTahsilatFormuAc } from './faturalar.js';
 
 const SEKMELER = [
   { id: 'genel', ad: 'Genel bilgiler' },
@@ -165,7 +165,7 @@ export async function firmaSayfasi(app, id) {
   const faturaSekmesi = () => {
     const l = firmaFaturalariListesi.map((f) => f.id);
     return html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Faturalar ve tahsilatlar</h2>
-      ${app.can('invoices', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="fatura-yeni">${icon('plus', 16)} Fatura ekle</button>` : ''}</div>
+      <div class="btn-row">${app.can('invoices', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-primary btn-sm" data-action="firma-tahsilat">${icon('wallet', 16)} Tahsilat gir</button> <button type="button" class="btn btn-secondary btn-sm" data-action="fatura-yeni">${icon('plus', 16)} Fatura ekle</button>` : ''}</div></div>
       ${firmaFaturalari(app, firmaFaturalariListesi, tumTahsilatlar.filter((p) => l.includes(p.invoice_id)))}</section>`;
   };
 
@@ -424,6 +424,7 @@ export async function firmaSayfasi(app, id) {
           else if (eylem === 'sozlesme-yeni') sozlesmeFormuAc(app, { companyId: firma.id });
           else if (eylem === 'gorev-ekle') gorevFormuAc(app, { companyId: firma.id });
           else if (eylem === 'fatura-yeni') faturaFormuAc(app, { companyId: firma.id });
+          else if (eylem === 'firma-tahsilat') firmaTahsilatFormuAc(app, { firma, faturalar: firmaFaturalariListesi, tahsilatlar: tumTahsilatlar.filter((p) => firmaFaturalariListesi.some((f) => f.id === p.invoice_id)) });
           else if (eylem === 'gv-yeni') gorevlendirmeFormuAc(app, { companyId: firma.id });
           return;
         }

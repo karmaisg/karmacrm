@@ -7,6 +7,7 @@ import { KDV_MODU, SOZLESME_DURUMLARI } from '../lib/ticari.js';
 import { kdvAyir } from '../lib/hesaplama.js';
 import { bosIseNull } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
+import { tahsilatDagitimi } from '../lib/cari.js';
 
 const SAYFA_BASI = 25;
 
@@ -168,6 +169,43 @@ export function tahsilatFormuAc(app, { fatura, durum, firmaAdi = '', onDone = nu
     bilgi.innerHTML = (kalan < 0
       ? html`<div class="notice notice-warn" role="status">Bu tutar kalanı ${para2(-kalan)} aşıyor. Fazla tahsilat olarak kaydedilir; faturada uyarı görünür.</div>`
       : html`<div class="notice notice-info" role="status">Kayıttan sonra kalan: <strong>${para2(kalan)}</strong>${kalan === 0 ? ' (fatura tamamen tahsil edilmiş olur)' : ''}</div>`).s;
+  };
+  form.addEventListener('input', guncelle); guncelle();
+}
+
+// ---------------------------------------------------------------- firma bazında tahsilat (eski faturadan başlayarak dağıtılır)
+export function firmaTahsilatFormuAc(app, { firma, faturalar, tahsilatlar, onDone = null }) {
+  const bugunStr = bugun();
+  const acik = tahsilatDagitimi({ faturalar, tahsilatlar, companyId: firma.id, tutar: 0 }).acik;
+  const m = openFormModal({
+    baslik: 'Firma tahsilatı gir', altBaslik: `${firma.name} · açık bakiye ${para2(acik)}`, gonderEtiketi: 'Tahsilatı kaydet',
+    govde: html`<div class="notice notice-info field-full" role="note">Girilen tutar, açık faturalara <strong>fatura tarihi eskiden yeniye</strong> doğru otomatik dağıtılır. Son fatura tamamen karşılanmazsa kısmi tahsilat olarak kalır.</div>
+      ${field({ ad: 'paid_at', etiket: 'Tahsilat tarihi', tur: 'date', zorunlu: true, deger: bugunStr, max: bugunStr })}
+      ${field({ ad: 'amount', etiket: 'Tahsilat tutarı (KDV dahil, TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', zorunlu: true })}
+      ${field({ ad: 'method', etiket: 'Ödeme yöntemi', deger: ODEME_YONTEMLERI[0], secenekler: ODEME_YONTEMLERI.map((y) => ({ deger: y, etiket: y })) })}
+      ${field({ ad: 'notes', etiket: 'Not', tam: true, maksUzunluk: 300, yerTutucu: 'Örn. dekont no' })}
+      <div class="field field-full" id="ft-onizleme" aria-live="polite"></div>`,
+    async onSubmit(fd) {
+      const g = (k) => String(fd.get(k) ?? '').trim();
+      const h = {}; const tutar = Number(g('amount'));
+      if (!g('paid_at')) h.paid_at = 'Tarihi seçin.'; else if (g('paid_at') > bugun()) h.paid_at = 'Tahsilat tarihi gelecekte olamaz.';
+      if (!(tutar > 0)) h.amount = 'Tutar sıfırdan büyük olmalıdır.';
+      else if (tutar > acik + 0.001) h.amount = `Tutar açık bakiyeyi (${para2(acik)}) aşıyor.`;
+      if (Object.keys(h).length) return { errors: h };
+      const r = await app.api.addCompanyPayment({ companyId: firma.id, tarih: g('paid_at'), tutar, yontem: bosIseNull(g('method')), not: bosIseNull(g('notes')) });
+      const n = Array.isArray(r?.dagitim) ? r.dagitim.length : 0;
+      toast(`Tahsilat kaydedildi${n ? ` (${n} faturaya dağıtıldı)` : ''}.`);
+    },
+    onDone: () => (onDone ? onDone() : app.yenile()),
+  });
+  const form = m.el.querySelector('form'); const kutu = form.querySelector('#ft-onizleme');
+  const guncelle = () => {
+    const tutar = Number(form.elements.amount.value);
+    if (!(tutar > 0)) { kutu.innerHTML = acik > 0 ? '' : html`<div class="notice notice-warn" role="status">Bu firmanın açık faturası yok.</div>`.s; return; }
+    const r = tahsilatDagitimi({ faturalar, tahsilatlar, companyId: firma.id, tutar });
+    kutu.innerHTML = html`${r.artan > 0 ? html`<div class="notice notice-warn" role="status">Tutar açık bakiyeyi ${para2(r.artan)} aşıyor; kaydedilemez.</div>` : ''}
+      <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Fatura</th><th scope="col" class="num">Bu tahsilattan</th><th scope="col">Sonuç</th><th scope="col" class="num">Kalan</th></tr></thead><tbody>
+      ${r.dagitim.map((d) => html`<tr><td><strong>${d.fatura.invoice_no}</strong><small class="block muted">${tarih(d.fatura.invoice_date)}</small></td><td class="num">${para2(d.tutar)}</td><td>${d.kismi ? pill('Kısmi tahsilat', 'info') : pill('Tahsil edildi', 'success')}</td><td class="num">${para2(d.kalanSonra)}</td></tr>`)}</tbody></table></div>`.s;
   };
   form.addEventListener('input', guncelle); guncelle();
 }

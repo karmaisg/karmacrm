@@ -447,3 +447,5 @@ li.takvim-yapildi .takvim-metin { text-decoration: line-through; opacity: .65; }
 .yon-ozet .kpi-v { font-size: clamp(18px, 1.7vw, 24px); overflow-wrap: anywhere; line-height: 1.2; }
 .yon-ozet .kpi { align-items: flex-start; }
 .yon-ozet .kpi-grid { align-items: stretch; }
+
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
