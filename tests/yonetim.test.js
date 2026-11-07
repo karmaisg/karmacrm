@@ -83,3 +83,23 @@ test('aylık personel serisi: ayda sözleşmesi geçerli firmaların çalışan�
   assert.deepEqual(f1.siniflar.tehlikeli, [50, 60]);
   assert.ok(!r.firmalar.some((f) => f.id === 'f3'));
 });
+
+test('hesap dökümü: gider satırları toplamı = toplam gider; vergi matrahı ve vergi sonrası kâr', () => {
+  const kategoriler = [{ id: 'kp', name: 'Uzman maaşları', is_payroll: true }, { id: 'kk', name: 'Kira', is_payroll: false }, { id: 'kv', name: 'Kurumlar vergisi', is_income_tax: true }];
+  const g = (id, kat, t, ct = 'ortak') => ({ id, category_id: kat, expense_date: '2026-10-05', amount_excl_vat: t, vat_amount: 0, cost_type: ct, company_id: null, employee_id: null, archived_at: null });
+  const o = aylikOzet({ veri: { ...veri, kategoriler, giderler: [g('1', 'kp', 40000, 'dogrudan'), g('2', 'kk', 5000), g('3', 'kv', 1000)] }, tahsilatlar });
+  const d = o.dokum;
+  assert.equal(d.gider, 46000); assert.equal(o.kpi.gider, 46000);
+  assert.equal(Math.round(d.giderSatirlari.reduce((t, x) => t + x.tutar, 0) * 100) / 100, 46000);
+  assert.equal(d.personelKaynak, 'excel'); assert.equal(d.personel, 40000);
+  assert.equal(d.vergiOncesi, 30000 - 45000);                 // gelir 30.000 − (40.000 + 5.000); vergi kaydı düşülmez
+  assert.equal(d.matrah, d.vergiOncesi - d.vergisizGelir);
+  assert.equal(d.vergi, 0); assert.equal(d.vergiSonrasi, d.vergiOncesi);
+});
+
+test('hesap dökümü: personel gideri girilmemişse kart maliyeti satırı eklenir ve toplam tutar', () => {
+  const o = aylikOzet({ veri: { ...veri, kategoriler: [], giderler: [] }, tahsilatlar }); const d = o.dokum;
+  assert.equal(d.personelKaynak, 'kart');
+  assert.ok(d.giderSatirlari.some((x) => x.tur === 'Personel (kart)'));
+  assert.equal(Math.round(d.giderSatirlari.reduce((t, x) => t + x.tutar, 0) * 100) / 100, d.gider);
+});

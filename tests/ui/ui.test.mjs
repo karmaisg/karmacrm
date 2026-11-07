@@ -2689,6 +2689,23 @@ await test('gider tutarlılığı: panel gideri = Giderler menüsü toplamı; Ex
   if (!panel.includes('11.000')) throw new Error(`beklenen 3.000 kira + 8.000 Excel personel = 11.000; bulunan ${panel}`);
 });
 
+await test('panel: gider, vergi öncesi ve vergi sonrası kâr kutucukları hesap detayı açar', async (s) => {
+  await karlilikHazirla(s);
+  await git(s, '#/panel'); await s.waitForSelector('#yon-finans [data-detay="gider"]');
+  await s.locator('#yon-finans [data-detay="gider"]').click(); await s.waitForSelector('.modal table');
+  let m = await s.locator('.modal').innerText();
+  for (const b of ['Toplam gider', 'Kira', '3.000,00', 'Personel (kart)', '10.000,00', '13.000,00']) if (!m.includes(b)) throw new Error(`gider detayında ${b} yok: ${m}`);
+  await s.keyboard.press('Escape'); await s.waitForSelector('.modal', { state: 'detached' });
+  await s.locator('#yon-kar [data-detay="oncesi"]').click(); await s.waitForSelector('.modal table');
+  m = await s.locator('.modal').innerText();
+  for (const b of ['Toplam hizmet geliri', '20.000,00', 'Personel maliyeti', 'Ortak giderler', '7.000,00']) if (!m.includes(b)) throw new Error(`vergi öncesi detayında ${b} yok: ${m}`);
+  await s.keyboard.press('Escape'); await s.waitForSelector('.modal', { state: 'detached' });
+  await s.locator('#yon-kar [data-detay="sonrasi"]').click(); await s.waitForSelector('.modal table');
+  m = await s.locator('.modal').innerText();
+  await ekran(s, '77-hesap-detayi');
+  for (const b of ['matrah', '1.750,00', '5.250,00', '%25']) if (!m.toLowerCase().includes(b.toLowerCase())) throw new Error(`vergi sonrası detayında ${b} yok: ${m}`);
+});
+
 // ---------------------------------------------------------------- Panel: aylık personel grafiği
 await test('panel: aylık hizmet verilen personel grafiği, tıklayınca firma seçilebilen pencere', async (s) => {
   await girisYap(s);
