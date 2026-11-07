@@ -115,3 +115,30 @@ export function aylikSeri({ veri, n = 12, yontem = 'teorik' }) {
     return { ay, gelir: i.gelir, gider: k2(i.personel + i.dogrudan + i.ortakHavuz), vergiOncesi: i.vergiOncesiKar, vergiSonrasi: i.vergiSonrasiKar };
   });
 }
+
+/**
+ * Aylık hizmet verilen personel (çalışan) sayısı: o ayda sözleşmesi geçerli müşteri firmaların, o ayki profildeki çalışan sayıları.
+ * Dönen: { aylar, toplam:[n], firmalar:[{ id, ad, degerler:[n] }] } (bağlı firmalar ana firmada toplanır).
+ */
+export function personelSeri({ firmalar, profiller, sozlesmeler, aylar }) {
+  const anaMap = anaFirmaHaritasi(firmalar); const anaOf = (id) => anaMap.get(id) ?? id;
+  const harita = profilleriGrupla(profiller, firmalar);
+  const musteri = firmalar.filter((f) => !f.archived_at && (f.customer_status ?? 'musteri') === 'musteri' && !f.parent_company_id);
+  const satirlar = musteri.map((f) => ({ id: f.id, ad: f.name, degerler: [] }));
+  const toplam = [];
+  for (const a of aylar) {
+    const ay = ay7(a); const bas = `${ay}-01`;
+    const soz = new Set(sozlesmeler.filter((c) => !c.archived_at && ['aktif', 'yenilendi', 'sona_erdi'].includes(c.status) && ay7(c.start_date) <= ay && ay7(c.end_date) >= ay).map((c) => anaOf(c.company_id)));
+    let t = 0;
+    for (const s of satirlar) {
+      let n = 0;
+      if (soz.has(s.id)) {
+        const p = (harita.get(s.id) ?? []).find((x) => x.valid_from <= ayBitisi(bas) && (!x.valid_to || x.valid_to >= bas));
+        n = Number(p?.employee_count) || 0;
+      }
+      s.degerler.push(n); t += n;
+    }
+    toplam.push(t);
+  }
+  return { aylar, toplam, firmalar: satirlar.filter((s) => s.degerler.some((n) => n > 0)).sort((x, y) => x.ad.localeCompare(y.ad, 'tr')) };
+}

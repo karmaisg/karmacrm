@@ -473,3 +473,7 @@ svg.grafik rect[data-ipucu]:hover, svg.grafik circle[data-ipucu]:hover { opacity
 .kpi-grid > .card + .card, .kpi-grid > .card { margin-top: 0; }
 .kpi-grid > .kpi { min-height: 132px; }
 #yon-tehlike li { grid-template-columns: 110px 1fr auto; }
+
+.card-genis { grid-column: 1 / -1; }
+.g-s-personel { fill: var(--primary); background: var(--primary); }
+.table td.pos { color: var(--success); font-weight: 700; } .table td.neg { color: var(--danger); font-weight: 700; }

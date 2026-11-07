@@ -1,5 +1,5 @@
 // OSGB 360 - Küçük SVG grafikler (kütüphanesiz, CSP uyumlu: satır içi style yok; renkler CSS sınıflarından gelir).
-import { html, para2, ayAdi } from '../lib/format.js';
+import { html, para2, ayAdi, sayi } from '../lib/format.js';
 
 const AY_KISA = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 export const kisaAy = (iso) => `${AY_KISA[Number(String(iso).slice(5, 7)) - 1]} ${String(iso).slice(2, 4)}`;
@@ -22,6 +22,7 @@ export function eksenAraligi(min, max, adet = 4) {
 
 const G = { w: 640, h: 260, sol: 52, sag: 12, ust: 14, alt: 32 };
 const G_BUYUK = { w: 1040, h: 440, sol: 64, sag: 16, ust: 18, alt: 36 };
+const G_GENIS = { w: 1040, h: 300, sol: 56, sag: 14, ust: 14, alt: 32 };
 let G_AKTIF = G;
 function iskelet(min, max, etiketler) {
   const [lo, hi, adim] = eksenAraligi(min, max); const { w, h, sol, sag, ust, alt } = G_AKTIF;
@@ -33,20 +34,21 @@ function iskelet(min, max, etiketler) {
   return { y, x, zemin, gx, n, lo, hi };
 }
 const sarmal = (ad, aciklama, icerik) => html`<svg class="grafik" viewBox="0 0 ${G_AKTIF.w} ${G_AKTIF.h}" role="img" aria-label="${ad}. ${aciklama}" preserveAspectRatio="xMidYMid meet"><title>${ad}</title>${icerik}</svg>`;
-const olcuyle = (buyuk, f) => { G_AKTIF = buyuk ? G_BUYUK : G; try { return f(); } finally { G_AKTIF = G; } };
+const olcuyle = (buyuk, f) => { G_AKTIF = buyuk === 'genis' ? G_GENIS : buyuk ? G_BUYUK : G; try { return f(); } finally { G_AKTIF = G; } };
 
 /** Gruplu çubuk grafik: seriler [{ad, sinif, degerler}] */
-export function cubukGrafik({ ad, etiketler, seriler, buyuk = false }) {
-  return olcuyle(buyuk, () => cubukGrafikCiz({ ad, etiketler, seriler }));
+export function cubukGrafik({ ad, etiketler, seriler, buyuk = false, birim = 'para' }) {
+  return olcuyle(buyuk, () => cubukGrafikCiz({ ad, etiketler, seriler, birim }));
 }
-function cubukGrafikCiz({ ad, etiketler, seriler }) {
+function cubukGrafikCiz({ ad, etiketler, seriler, birim }) {
+  const bicim = birim === 'kisi' ? (v) => `${sayi(v)} kişi` : para2;
   const hepsi = seriler.flatMap((s) => s.degerler); const t = iskelet(Math.min(...hepsi, 0), Math.max(...hepsi, 0), etiketler);
   const grup = t.gx / t.n; const kalin = Math.max(4, Math.min(22, (grup * 0.7) / seriler.length));
   const cubuklar = etiketler.map((e, i) => seriler.map((s, k) => {
     const v = s.degerler[i]; const x = t.x(i) - (kalin * seriler.length) / 2 + k * kalin; const y0 = t.y(0); const y1 = t.y(v);
-    return html`<rect class="g-s-${s.sinif}" x="${x.toFixed(1)}" y="${Math.min(y0, y1).toFixed(1)}" width="${(kalin - 2).toFixed(1)}" height="${Math.max(0, Math.abs(y0 - y1)).toFixed(1)}" rx="2" data-ipucu="${kisaAy(e)} · ${s.ad}: ${para2(v)}"/>`;
+    return html`<rect class="g-s-${s.sinif}" x="${x.toFixed(1)}" y="${Math.min(y0, y1).toFixed(1)}" width="${(kalin - 2).toFixed(1)}" height="${Math.max(0, Math.abs(y0 - y1)).toFixed(1)}" rx="2" data-ipucu="${kisaAy(e)} · ${s.ad}: ${bicim(v)}"/>`;
   }));
-  const ozet = etiketler.map((e, i) => `${ayAdi(e)}: ${seriler.map((s) => `${s.ad} ${para2(s.degerler[i])}`).join(', ')}`).join('; ');
+  const ozet = etiketler.map((e, i) => `${ayAdi(e)}: ${seriler.map((s) => `${s.ad} ${bicim(s.degerler[i])}`).join(', ')}`).join('; ');
   return sarmal(ad, ozet, html`${t.zemin}${cubuklar}`);
 }
 

@@ -510,3 +510,9 @@ Birkaç firmanın işyerleri tek firmaya bağlanınca (tek tahsilat/fatura için
 - **İpucu ve büyütme:** Çubukların ve noktaların üzerine gelince tutar (TL) görünür. Aylık gelir-gider-kâr grafiğine, aylık kâr grafiğine tıklayınca büyük pencerede açılır. "En kârlı" ve "en düşük kârlı müşteriler" kartlarına tıklayınca tüm firmalar sıralı listelenir.
 - **Tehlike sınıfına göre gelir** (zaman ifadesi kalktı): o ay faturası kesilmiş firmaların KDV hariç geliri çok tehlikeli / tehlikeli / az tehlikeli sınıfa göre çubuk grafikle gösterilir.
 - **Sıra:** Müşteri portföyü bölümünde ilçe, sektör, tehlike sınıfı dağılımı, tahsilat durumu sırasıyla gelir.
+
+## Panel: aylık hizmet verilen personel grafiği (veri tabanı değişikliği yok)
+
+- Yönetici paneli → Müşteri portföyü bölümünde, "Tahsilat durumu" kutusundan sonra iki kutu genişliğinde yeni bir kutu eklendi: **Hizmet verilen toplam personel — aylık** (son 12 ay, sütun grafik). Her ay, o ayda sözleşmesi geçerli müşteri firmaların o aydaki çalışan sayıları toplanır; bağlı firmalar ana firmada sayılır.
+- Sütunların üzerine gelince kişi sayısı görünür.
+- Grafiğe tıklayınca açılan pencerede **Firma** seçilebilir; seçilen firmanın aylık çalışan sayısı ve aydan aya değişimi (+/−) grafik ve tabloyla görünür. "Tüm firmalar (toplam)" seçeneği genel toplamı gösterir.

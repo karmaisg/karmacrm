@@ -1,7 +1,9 @@
 // OSGB 360 - Yönetici paneli (Aşama 2: gerçek firma verisinden özet).
 import { html, bugun, ayBasi, ayAdi, sayi, ondalik2, selamlama, ilkAd, tarih, TEHLIKE, TEHLIKE_SIRASI } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
-import { avatar, emptyState } from '../ui/components.js';
+import { avatar, emptyState, openModal } from '../ui/components.js';
+import { cubukGrafik, ipucuBagla } from '../ui/grafik.js';
+import { personelSeri, sonAylar } from '../lib/yonetim.js';
 import { firmaAylikIhtiyac } from '../lib/hesaplama.js';
 import { profilleriGrupla, guncelProfil, kapasiteDakika } from '../lib/veri.js';
 import { tehlikePill } from './firmalar.js';
@@ -131,6 +133,13 @@ export async function panelSayfasi(app) {
     <li><a class="link" href="#/tahsilat">Vadesi geçmiş</a><strong>${para2(fin.gecikmisKalan)} · ${sayi(fin.gecikmisAdet)} fatura</strong></li>
     <li><a class="link" href="#/tahsilat">Bu ay tahsilat</a><strong>${para2(fin.buAyTahsilat)}</strong></li>
   </ul></section>`);
+  const seriAylari = sonAylar(ay, 12).map((a) => a.slice(0, 7) + '-01');
+  const pSeri = personelSeri({ firmalar, profiller, sozlesmeler, aylar: seriAylari });
+  const personelKarti = () => html`<section class="card card-genis card-buyut" id="personel-grafik" data-buyut-personel title="Firma seçerek aylık değişimi görmek için tıklayın">
+    <h2 class="card-title">Hizmet verilen toplam personel — aylık <span class="buyut-ipucu">Firma seç</span></h2>
+    ${pSeri.toplam.some((n) => n > 0) ? html`${cubukGrafik({ ad: 'Hizmet verilen toplam personel (aylık)', etiketler: seriAylari, seriler: [{ ad: 'Hizmet verilen personel', sinif: 'personel', degerler: pSeri.toplam }], birim: 'kisi', buyuk: 'genis' })}
+      <p class="fine">Her ay, o ayda sözleşmesi geçerli müşteri firmaların çalışan sayıları toplanır (bağlı firmalar ana firmada). Ayrıntı ve firma bazında değişim için grafiğe tıklayın.</p>` : html`<p class="muted">Sözleşmeli firma ve çalışan sayısı girildikçe aylık grafik burada görünür.</p>`}
+  </section>`;
   const acikGorev = gorevler.filter((g) => !g.archived_at && (g.status === 'acik' || g.status === 'devam_ediyor'));
   const gorevKarti = () => (!app.can('tasks', 'view') ? '' : html`<section class="card"><h2 class="card-title">Görevler</h2>
     <ul class="list">
@@ -157,6 +166,7 @@ export async function panelSayfasi(app) {
       <section class="card" id="sektor-dagilim"><h2 class="card-title">Sektörlere göre müşteri sayısı</h2>${dagilimGrafigi(sektorler, 'Sektörlere göre müşteri sayısı')}</section>
       <section class="card"><h2 class="card-title">Tehlike sınıfı dağılımı</h2>${dagilimHtml}</section>
       ${finansKarti()}
+      ${personelKarti()}
       <section class="card"><h2 class="card-title">Eksik veri ${eksikSayisi ? html`<span class="chip-n">${eksikSayisi}</span>` : ''}</h2>
         ${eksikSayisi ? html`<ul class="list">
           ${eksikProfil.slice(0, 6).map((f) => html`<li><a class="link" href="#/firmalar/${f.id}">${f.name}</a><span class="muted">çalışan sayısı girilmedi</span></li>`)}
@@ -181,7 +191,25 @@ export async function panelSayfasi(app) {
     mount(kok) {
       const ciz = (k) => k.querySelectorAll('.bars-fill[data-w]').forEach((e) => { e.style.width = `${e.dataset.w}%`; });
       ciz(kok);
+      ipucuBagla(document.body);
+      kok.querySelector('[data-buyut-personel]')?.addEventListener('click', (e) => { if (!e.target.closest('a, button, select')) personelPenceresi(pSeri); });
       if (ozetVar && firmalar.length) yonetimOzetiBaglan(kok, app, ozetDurum, ciz);
     },
   };
+}
+
+/** Aylık personel grafiğinin büyük penceresi: tüm firmalar (toplam) veya seçilen firmanın aylık çalışan sayısı ve değişimi. */
+function personelPenceresi(seri) {
+  const ciz = (id) => {
+    const s = id ? seri.firmalar.find((f) => f.id === id) : null;
+    const degerler = s ? s.degerler : seri.toplam; const ad = s ? s.ad : 'Tüm firmalar (toplam)';
+    const satirlar = seri.aylar.map((a, i) => ({ ay: a, n: degerler[i], fark: i ? degerler[i] - degerler[i - 1] : null }));
+    return html`<div class="grafik-buyuk">${cubukGrafik({ ad: `Aylık personel — ${ad}`, etiketler: seri.aylar, seriler: [{ ad: 'Personel', sinif: 'personel', degerler }], buyuk: true, birim: 'kisi' })}</div>
+      <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Ay</th><th scope="col" class="num">Personel</th><th scope="col" class="num">Değişim</th></tr></thead><tbody>
+      ${satirlar.map((r) => html`<tr><td>${ayAdi(r.ay)}</td><td class="num">${sayi(r.n)}</td><td class="num ${r.fark > 0 ? 'pos' : r.fark < 0 ? 'neg' : ''}">${r.fark === null ? '—' : `${r.fark > 0 ? '+' : ''}${sayi(r.fark)}`}</td></tr>`)}</tbody></table></div>`;
+  };
+  openModal({ baslik: 'Hizmet verilen personel — aylık değişim', altBaslik: 'Firma seçerek o firmanın aylık çalışan sayısını görebilirsiniz; çubukların üzerine gelince kişi sayısı görünür.', boyut: 'xl',
+    govde: html`<label class="field"><span class="field-label">Firma</span><select id="personel-firma"><option value="">Tüm firmalar (toplam)</option>${seri.firmalar.map((f) => html`<option value="${f.id}">${f.ad}</option>`)}</select></label><div id="personel-icerik">${ciz('')}</div>` });
+  const sec = document.querySelector('#personel-firma'); const icerik = document.querySelector('#personel-icerik');
+  sec?.addEventListener('change', () => { icerik.innerHTML = ciz(sec.value).s; });
 }
