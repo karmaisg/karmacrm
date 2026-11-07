@@ -13,6 +13,8 @@ export const telHucre = (t) => (t ? (telHref(t) ? html`<a class="link" href="${t
 export const epostaHucre = (e) => (e ? (mailHref(e) ? html`<a class="link" href="${mailHref(e)}">${e}</a>` : e) : html`<span class="muted">—</span>`);
 
 // ---------------------------------------------------------------- form
+export const KISI_TURU = { firma: 'Firma yetkilisi', mulk_sahibi: 'Mülk sahibi', bina_yonetimi: 'Bina yönetimi', avukat: 'Avukat', mali_musavir: 'Mali müşavir', diger: 'Diğer' };
+
 export async function kisiFormuAc(app, { kisi = null, firmaId = null, leadId = null, onDone = null } = {}) {
   const duzenle = kisi !== null;
   const leadModu = leadId !== null && !duzenle;   // potansiyel müşteriye bağlı yeni kişi
@@ -30,13 +32,16 @@ export async function kisiFormuAc(app, { kisi = null, firmaId = null, leadId = n
   );
   const v = (k) => kisi?.[k] ?? '';
   const potansiyel = duzenle && !kisi.company_id && kisi.lead_id;
+  const tur0 = kisi?.contact_type ?? 'firma';
 
   openFormModal({
     baslik: duzenle ? 'Kişiyi düzenle' : 'Yeni kişi',
     altBaslik: duzenle ? kisi.full_name : (leadModu ? 'Potansiyel müşterinin yetkilisi' : 'Firma yetkilisi veya iletişim kişisi ekleyin'),
     gonderEtiketi: duzenle ? 'Değişiklikleri kaydet' : 'Kişiyi ekle',
     govde: html`
-      ${leadModu ? '' : field({ ad: 'company_id', etiket: 'Firma', deger: secilenFirma, secenekler, zorunlu: !potansiyel, pasif: sabitFirma, tam: true,
+      ${leadModu || sabitFirma ? '' : field({ ad: 'contact_type', etiket: 'Kişi türü', deger: tur0, secenekler: Object.entries(KISI_TURU).map(([deger, etiket]) => ({ deger, etiket })), tam: true,
+        ipucu: 'Firma yetkilisi dışındaki kişiler (mülk sahibi, bina yönetimi, avukat, mali müşavir...) için firma seçmek isteğe bağlıdır.' })}
+      ${leadModu ? '' : field({ ad: 'company_id', etiket: 'Firma', deger: secilenFirma, secenekler, zorunlu: !potansiyel && tur0 === 'firma', pasif: sabitFirma, tam: true,
         ipucu: potansiyel ? 'Bu kişi bir potansiyel müşteriye bağlı. Firma seçmeden bırakabilirsiniz.' : '' })}
       ${field({ ad: 'full_name', etiket: 'Ad soyad', deger: v('full_name'), zorunlu: true, maksUzunluk: 120, otomatik: 'off' })}
       ${field({ ad: 'title', etiket: 'Unvan', deger: v('title'), maksUzunluk: 100 })}
@@ -48,13 +53,14 @@ export async function kisiFormuAc(app, { kisi = null, firmaId = null, leadId = n
       const g = (k) => String(fd.get(k) ?? '').trim();
       const hatalar = {};
       const firma = leadModu ? '' : (sabitFirma ? firmaId : g('company_id'));
-      if (!firma && !potansiyel && !leadModu) hatalar.company_id = 'Firma seçin.';
+      const tur = leadModu || sabitFirma ? 'firma' : (g('contact_type') || 'firma');
+      if (!firma && !potansiyel && !leadModu && tur === 'firma') hatalar.company_id = 'Firma yetkilisi için firma seçin (diğer kişi türlerinde firma isteğe bağlıdır).';
       if (!g('full_name')) hatalar.full_name = 'Ad soyad zorunludur.';
       if (g('email') && !epostaGecerli(g('email'))) hatalar.email = 'Geçerli bir e-posta adresi yazın.';
       if (g('phone') && !telefonGecerli(g('phone'))) hatalar.phone = 'Telefon numarasında yalnızca rakam, boşluk, + ( ) - kullanın (en az 7 rakam).';
       if (Object.keys(hatalar).length) return { errors: hatalar };
       const degerler = {
-        company_id: bosIseNull(firma), full_name: g('full_name'), title: bosIseNull(g('title')),
+        contact_type: tur, company_id: bosIseNull(firma), full_name: g('full_name'), title: bosIseNull(g('title')),
         phone: bosIseNull(g('phone')), email: bosIseNull(g('email')),
         is_decision_maker: fd.get('is_decision_maker') === '1', notes: bosIseNull(g('notes')),
         ...(leadModu ? { lead_id: leadId } : {}),
@@ -99,7 +105,7 @@ export async function kisilerSayfasi(app) {
   const firmaAdi = new Map(firmalar.map((f) => [f.id, f.name]));
   const olusturabilir = app.can('contacts', 'create');
   const arsivGorebilir = app.can('contacts', 'archive');
-  const durum = { filtre: 'aktif', q: '', firma: '', sayfa: 1 };
+  const durum = { filtre: 'aktif', q: '', firma: '', tur: '', sayfa: 1 };
   const aktifSayisi = kisiler.filter((k) => !k.archived_at).length;
   const arsivSayisi = kisiler.length - aktifSayisi;
 
@@ -109,6 +115,7 @@ export async function kisilerSayfasi(app) {
   function filtrele() {
     let liste = kisiler.filter((k) => (durum.filtre === 'arsiv' ? !!k.archived_at : !k.archived_at));
     if (durum.firma) liste = liste.filter((k) => k.company_id === durum.firma);
+    if (durum.tur) liste = liste.filter((k) => (k.contact_type ?? 'firma') === durum.tur);
     const q = durum.q.trim();
     if (q) liste = liste.filter((k) => [k.full_name, k.title, k.phone, k.email, firmaAdi.get(k.company_id)].some((d) => d && icerir(d, q)));
     return liste.sort((a, b) => trSirala(a.full_name, b.full_name));
@@ -116,7 +123,7 @@ export async function kisilerSayfasi(app) {
 
   const satir = (k) => html`<tr class="${k.archived_at ? 'row-muted' : ''}">
     <td><span class="cell-main">${avatar(k.full_name)}<span><strong>${k.full_name}</strong>${k.is_decision_maker ? html`<small class="tag-ok">Karar verici</small>` : ''}</span></span></td>
-    <td>${k.company_id ? html`<a class="link" href="#/firmalar/${k.company_id}">${firmaAdi.get(k.company_id) ?? 'Firma'}</a>` : (k.lead_id && app.can('crm', 'view') ? html`<a class="link" href="#/crm/${k.lead_id}">Potansiyel müşteri</a>` : pill('Potansiyel müşteri', 'info'))}</td>
+    <td>${k.contact_type && k.contact_type !== 'firma' ? html`${pill(KISI_TURU[k.contact_type] ?? k.contact_type, 'neutral')}${k.company_id ? html` <a class="link" href="#/firmalar/${k.company_id}">${firmaAdi.get(k.company_id) ?? 'Firma'}</a>` : ''}` : k.company_id ? html`<a class="link" href="#/firmalar/${k.company_id}">${firmaAdi.get(k.company_id) ?? 'Firma'}</a>` : (k.lead_id && app.can('crm', 'view') ? html`<a class="link" href="#/crm/${k.lead_id}">Potansiyel müşteri</a>` : pill('Potansiyel müşteri', 'info'))}</td>
     <td class="hide-md">${k.title || html`<span class="muted">—</span>`}</td>
     <td class="hide-sm">${telHucre(k.phone)}</td>
     <td class="hide-md">${epostaHucre(k.email)}</td>
@@ -139,7 +146,7 @@ export async function kisilerSayfasi(app) {
     durum.sayfa = Math.min(durum.sayfa, sayfaSayisi);
     const gorunen = liste.slice((durum.sayfa - 1) * SAYFA_BASI, durum.sayfa * SAYFA_BASI);
     return html`<div class="table-wrap"><table class="table">
-      <thead><tr><th scope="col">Kişi</th><th scope="col">Firma</th><th scope="col" class="hide-md">Unvan</th><th scope="col" class="hide-sm">Telefon</th><th scope="col" class="hide-md">E-posta</th><th scope="col"><span class="sr-only">Eylemler</span></th></tr></thead>
+      <thead><tr><th scope="col">Kişi</th><th scope="col">Firma / tür</th><th scope="col" class="hide-md">Unvan</th><th scope="col" class="hide-sm">Telefon</th><th scope="col" class="hide-md">E-posta</th><th scope="col"><span class="sr-only">Eylemler</span></th></tr></thead>
       <tbody>${gorunen.map(satir)}</tbody></table></div>
       ${sayfalama({ sayfa: durum.sayfa, sayfaSayisi, toplam: liste.length, sayfaBasi: SAYFA_BASI })}`;
   }
@@ -150,13 +157,15 @@ export async function kisilerSayfasi(app) {
 
   return {
     baslik: 'Kişiler',
-    altBaslik: 'Firma yetkilileri ve iletişim kişileri. Görüşme geçmişi Aşama 3\'te eklenecek.',
+    altBaslik: 'Firma yetkilileri ve diğer kişiler: mülk sahibi, bina yönetimi, avukat, mali müşavir...',
     eylemler: olusturabilir ? html`<button type="button" class="btn btn-primary" data-action="yeni-kisi">${icon('plus', 18)} Yeni kişi</button>` : '',
     govde: html`<section class="card card-flush">
       <div class="toolbar">
         <div class="search-field">${icon('search', 18)}<input type="search" id="kisi-ara" placeholder="Ad, firma, unvan, telefon veya e-posta ara" aria-label="Kişilerde ara" autocomplete="off"></div>
         <label class="select-inline"><span class="sr-only">Firmaya göre filtrele</span>
           <select id="kisi-firma"><option value="">Tüm firmalar</option>${firmaSecenekleri.map((f) => html`<option value="${f.id}">${f.ad}</option>`)}</select></label>
+        <label class="select-inline"><span class="sr-only">Kişi türüne göre filtrele</span>
+          <select id="kisi-tur"><option value="">Tüm kişi türleri</option>${Object.entries(KISI_TURU).map(([k, v]) => html`<option value="${k}">${v}</option>`)}</select></label>
         <div class="chips" id="kisi-filtre" role="group" aria-label="Kişi filtresi">${filtreHtml()}</div>
       </div>
       <div id="kisi-tablo">${tablo()}</div>
@@ -166,6 +175,7 @@ export async function kisilerSayfasi(app) {
       const yenile = () => { tabloEl.innerHTML = tablo().s; };
       kok.querySelector('#kisi-ara').addEventListener('input', (e) => { durum.q = e.target.value; durum.sayfa = 1; yenile(); });
       kok.querySelector('#kisi-firma').addEventListener('change', (e) => { durum.firma = e.target.value; durum.sayfa = 1; yenile(); });
+      kok.querySelector('#kisi-tur').addEventListener('change', (e) => { durum.tur = e.target.value; durum.sayfa = 1; yenile(); });
       kok.querySelector('#kisi-filtre').addEventListener('click', (e) => {
         const d = e.target.closest('[data-filtre]');
         if (!d) return;

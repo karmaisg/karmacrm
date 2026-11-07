@@ -75,6 +75,32 @@ export async function panelSayfasi(app) {
         <span class="bars-n">${sayi(dagilim[k])}</span></li>`)}</ul>`
     : html`<p class="muted">Çalışan sayısı girilmiş müşteri olunca dağılım burada görünür.</p>`;
 
+  // Müşteri dağılımı: ilçe ve sektör (aktif müşteriler; boş olanlar "Belirtilmemiş")
+  const KOVA_SINIRI = 10;
+  const gruplaSay = (anahtar, etiket) => {
+    const m = new Map();
+    for (const f of musteriler) {
+      const ham = anahtar(f); const k = ham ? ham.toLocaleLowerCase('tr') : '';
+      const e = m.get(k) ?? { ad: ham ? etiket(f) : 'Belirtilmemiş', n: 0, bos: !ham }; e.n += 1; m.set(k, e);
+    }
+    const l = [...m.values()].sort((a, b) => (a.bos - b.bos) || b.n - a.n || a.ad.localeCompare(b.ad, 'tr'));
+    const dolu = l.filter((x) => !x.bos); const bos = l.find((x) => x.bos);
+    const gor = dolu.slice(0, KOVA_SINIRI); const kalan = dolu.slice(KOVA_SINIRI);
+    if (kalan.length) gor.push({ ad: `Diğer (${kalan.length} başlık daha)`, n: kalan.reduce((t, x) => t + x.n, 0) });
+    if (bos) gor.push(bos);
+    return gor;
+  };
+  const birIl = new Set(musteriler.map((f) => (f.city ?? '').trim().toLocaleLowerCase('tr')).filter(Boolean)).size <= 1;
+  const ilceler = gruplaSay((f) => (f.district ?? '').trim() ? `${(f.district ?? '').trim()}|${birIl ? '' : (f.city ?? '').trim()}` : '', (f) => `${f.district.trim()}${!birIl && f.city?.trim() ? ` / ${f.city.trim()}` : ''}`);
+  const sektorler = gruplaSay((f) => (f.sector ?? '').trim(), (f) => f.sector.trim());
+  const dagilimGrafigi = (liste, ad) => {
+    const enb = Math.max(1, ...liste.map((x) => x.n));
+    return musteriler.length ? html`<ul class="bars bars-genis" aria-label="${ad}">${liste.map((x) => html`<li>
+        <span class="bars-l" title="${x.ad}">${x.ad}</span>
+        <span class="bars-track"><span class="bars-fill bars-mavi" data-w="${Math.round((x.n / enb) * 100)}"></span></span>
+        <span class="bars-n">${sayi(x.n)}</span></li>`)}</ul>` : html`<p class="muted">Müşteri eklendikçe dağılım burada görünür.</p>`;
+  };
+
   const son = [...aktif].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5);
   const eksikSayisi = eksikProfil.length + eksikKural.length + ayortasi.length;
 
@@ -128,6 +154,8 @@ export async function panelSayfasi(app) {
     </div>
     <div class="grid-2">
       <section class="card"><h2 class="card-title">Tehlike sınıfı dağılımı</h2>${dagilimHtml}</section>
+      <section class="card" id="ilce-dagilim"><h2 class="card-title">İlçelere göre müşteri sayısı</h2>${dagilimGrafigi(ilceler, 'İlçelere göre müşteri sayısı')}</section>
+      <section class="card" id="sektor-dagilim"><h2 class="card-title">Sektörlere göre müşteri sayısı</h2>${dagilimGrafigi(sektorler, 'Sektörlere göre müşteri sayısı')}</section>
       <section class="card"><h2 class="card-title">Eksik veri ${eksikSayisi ? html`<span class="chip-n">${eksikSayisi}</span>` : ''}</h2>
         ${eksikSayisi ? html`<ul class="list">
           ${eksikProfil.slice(0, 6).map((f) => html`<li><a class="link" href="#/firmalar/${f.id}">${f.name}</a><span class="muted">çalışan sayısı girilmedi</span></li>`)}

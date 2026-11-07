@@ -121,6 +121,8 @@ svg { flex: none; }
 .bars { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 12px; }
 .bars li { display: grid; grid-template-columns: 110px 1fr 36px; align-items: center; gap: 12px; }
 .bars-l { font-size: var(--fs-sm); color: var(--text-2); font-weight: 600; }
+.bars-genis li { grid-template-columns: 150px 1fr 36px; } .bars-genis .bars-l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars-mavi { background: var(--primary); }
 .bars-track { height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
 .bars-fill { display: block; height: 100%; border-radius: 999px; }
 .bars-sev1 { background: #f0b3ad; } .bars-sev2 { background: #e0756c; } .bars-sev3 { background: #b02a2a; }

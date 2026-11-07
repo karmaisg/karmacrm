@@ -496,3 +496,9 @@ Birkaç firmanın işyerleri tek firmaya bağlanınca (tek tahsilat/fatura için
 - "Gelirler ve tahsilatlar" menüsünün adı **Fatura Takip** oldu (faturalar, tahsilat, vade takibi; işleyiş aynı).
 - Yeni **Finans → Gelirler** sayfası: Giderler gibi ay seçilir; o ayın toplam geliri (KDV hariç / dahil), tahsil edilen ve kalan tutar ile gelir kalemlerinin listesi görünür. Tür (fatura, spot iş, elden ödeme) süzülebilir. Gelir ayı, hizmet dönemi varsa o, yoksa fatura tarihidir (kârlılıkla aynı kural).
 - Finans sırası: Fatura Takip, Gelirler, Giderler, Cari hesap, Personel kârlılığı, Firma kârlılığı. Menü grupları: Genel, Operasyon, Finans, **Satış**, Yönetim (Satış artık Finans'tan sonra).
+
+## Aşama 29 (Firma dışı kişiler, panel grafikleri) — `supabase/30_asama29.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `30_asama29.sql` dosyasını çalıştırın (kişilere "kişi türü" alanı ekler; firma dışı kişilerde firma zorunluluğunu kaldırır; tekrar çalıştırılabilir).
+2. **Kişiler → Yeni kişi:** "Kişi türü" seçilir: Firma yetkilisi, Mülk sahibi, Bina yönetimi, Avukat, Mali müşavir, Diğer. Firma yetkilisi dışındaki türlerde firma seçmek isteğe bağlıdır (seçerseniz kişi o firmayla ilişkilendirilir). Telefon, e-posta, unvan ve not girilir. Liste "Tüm kişi türleri" süzgeciyle türe göre daraltılır; arama telefon ve e-postada da çalışır.
+3. **Yönetici paneli → Müşteri portföyü ve hizmet yükü:** "İlçelere göre müşteri sayısı" ve "Sektörlere göre müşteri sayısı" grafikleri eklendi (aktif müşteriler; en çok 10 başlık, kalanlar "Diğer", boş olanlar "Belirtilmemiş"). Veri, firma kartındaki İlçe ve Sektör alanlarından gelir; boş bırakılmış firmalar "Belirtilmemiş" satırında toplanır.
