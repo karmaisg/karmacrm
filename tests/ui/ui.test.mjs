@@ -2674,6 +2674,21 @@ await test('panel: ilçe ve sektör dağılım grafikleri', async (s) => {
   if (!/Turizm\s*2/.test(sek) || !/İnşaat\s*1/.test(sek)) throw new Error(`sektör: ${sek}`);
 });
 
+// ---------------------------------------------------------------- Gider tutarlılığı (Aşama 30)
+await test('gider tutarlılığı: panel gideri = Giderler menüsü toplamı; Excel personel gideri varsa kart maliyeti eklenmez', async (s) => {
+  await karlilikHazirla(s);
+  await s.evaluate((bugun) => {
+    const t = globalThis.__fake.tablo; const maas = t.expense_categories.find((k) => k.is_payroll);
+    t.expenses.push({ id: 'gm1', organization_id: t.expenses[0].organization_id, category_id: maas.id, expense_date: bugun, amount_excl_vat: 8000, vat_amount: 0, amount_incl_vat: 8000, cost_type: 'dogrudan', company_id: null, employee_id: null, paid: true, archived_at: null, import_id: 'imp1' });
+  }, await gunOf(s, 0));
+  await git(s, '#/giderler'); await s.waitForSelector('.kpi:has-text("Toplam gider")');
+  const menu = (await s.locator('.kpi:has-text("Toplam gider") .kpi-v').first().innerText()).trim();
+  await git(s, '#/panel'); await s.waitForSelector('#yon-finans .t-gider');
+  const panel = (await s.locator('#yon-finans .t-gider').innerText()).trim();
+  esit(panel.replace(',00', ''), menu.replace(',00', ''), 'panel gideri Giderler menüsüyle aynı olmalı');
+  if (!panel.includes('11.000')) throw new Error(`beklenen 3.000 kira + 8.000 Excel personel = 11.000; bulunan ${panel}`);
+});
+
 // ---------------------------------------------------------------- Panel: aylık personel grafiği
 await test('panel: aylık hizmet verilen personel grafiği, tıklayınca firma seçilebilen pencere', async (s) => {
   await girisYap(s);

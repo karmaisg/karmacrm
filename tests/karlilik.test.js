@@ -91,12 +91,26 @@ test('kaydedilmiş dağıtım hesabı sabitler; havuz büyürse fark dağıtılm
   assert.equal(r.isletme.ortakDagitilmayan, 100);
 });
 
-test('çift sayım yok: maaş kategorisi dahil edilmez (uyarı), kurumlar vergisi gider sayılmaz ama vergiye yansır', () => {
+test('Excel personel gideri esas alınır: kart maliyeti ayrıca eklenmez, kartlar yalnız paylaştırma oranıdır', () => {
   const r = hesaplaKarlilik({ ...temel, giderler: [gider('m', 'k-maas', 40000, { cost_type: 'dogrudan', employee_id: 'u1' }), gider('v', 'k-vergi', 1000)] });
-  assert.equal(r.isletme.personel, 70000);
-  assert.ok(r.uyarilar.some((u) => u.includes('Maaş kategorisindeki 1 gider')));
+  assert.equal(r.isletme.personel, 40000);                       // kartlardaki 70.000 değil, Giderler menüsündeki 40.000
+  assert.equal(r.isletme.excelPersonel, 40000);
+  const u = r.personel.find((p) => p.id === 'u1'); const h = r.personel.find((p) => p.id === 'h1');
+  assert.equal(u.maliyet + h.maliyet, 40000); assert.equal(u.maliyet, 22857.14);   // 40.000 : 30.000 oranı
   assert.equal(r.isletme.kayitliVergi, 1000); assert.equal(r.isletme.ortakHavuz, 0);
-  assert.equal(r.isletme.vergiOncesiKar, 40000 - 70000);
+  assert.equal(r.isletme.toplamGider, 41000);                    // Giderler menüsü toplamı (vergi kategorisi dahil)
+  assert.equal(r.isletme.vergiOncesiKar, 40000 - 40000);
+});
+
+test('Excel personel gideri yoksa kart maliyetleri kullanılır', () => {
+  const r = hesaplaKarlilik({ ...temel, giderler: [gider('v', 'k-vergi', 1000)] });
+  assert.equal(r.isletme.personel, 70000); assert.equal(r.isletme.excelPersonel, 0); assert.equal(r.isletme.toplamGider, 71000);
+});
+
+test('toplam gider, Giderler menüsünün KDV hariç toplamına eşit: bağlanmamış doğrudan gider ortak havuza girer', () => {
+  const g = [gider('m', 'k-maas', 40000), gider('d', 'k-ortak', 500, { cost_type: 'dogrudan' }), gider('o', 'k-ortak', 300), gider('v', 'k-vergi', 1000)];
+  const r = hesaplaKarlilik({ ...temel, giderler: g });
+  assert.equal(r.isletme.toplamGider, 40000 + 500 + 300 + 1000);
 });
 
 test('fiili yöntem: maliyet fiilî hizmet dakikası oranında; kayıt yoksa tamamı boşta', () => {
