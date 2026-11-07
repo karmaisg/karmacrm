@@ -429,7 +429,7 @@ li.takvim-yapildi .takvim-metin { text-decoration: line-through; opacity: .65; }
 .grafik { width: 100%; height: auto; display: block; margin-top: 8px; }
 .g-grid { stroke: var(--border); stroke-width: 1; } .g-sifir { stroke: var(--text-3); }
 .g-eksen { fill: var(--text-3); font-size: 11px; font-family: inherit; }
-.g-s-gelir { fill: var(--primary); background: var(--primary); } .g-s-gider { fill: var(--warning); background: var(--warning); }
+.g-s-gelir { fill: var(--success); background: var(--success); } .g-s-gider { fill: var(--danger); background: var(--danger); } .g-s-kar { fill: var(--warning); background: var(--warning); }
 .g-s-oncesi { fill: var(--primary); background: var(--primary); } .g-s-sonrasi { fill: var(--warning); background: var(--warning); }
 .g-l-oncesi { stroke: var(--primary); stroke-width: 2.5; } .g-l-sonrasi { stroke: var(--warning); stroke-width: 2.5; }
 .g-kesik { stroke-dasharray: 6 4; }
@@ -451,3 +451,25 @@ li.takvim-yapildi .takvim-metin { text-decoration: line-through; opacity: .65; }
 .yon-ozet .kpi-grid { align-items: stretch; }
 
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Yönetici paneli: tek tip kutucuk boyutu, para renkleri, büyütülebilir kartlar, ipucu */
+.kpi-v.t-gelir { color: var(--success); } .kpi-v.t-gider { color: var(--danger); } .kpi-v.t-kar { color: var(--warning); }
+.kpi-mini { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; font-size: var(--fs-sm); }
+.kpi-mini li { display: flex; justify-content: space-between; gap: 10px; } .kpi-mini strong { font-weight: 800; white-space: nowrap; }
+.card-buyut { cursor: zoom-in; transition: box-shadow .15s; } .card-buyut:hover { box-shadow: var(--shadow-md, 0 6px 20px rgba(0,0,0,.12)); }
+.card-buyut a { cursor: pointer; }
+.buyut-ipucu { float: right; font-size: var(--fs-xs); font-weight: 600; color: var(--primary); }
+.modal-xl { max-width: 1120px; } .grafik-buyuk { width: 100%; }
+.bars-gelir { background: var(--success); }
+.yon-siralama { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: sira; }
+.yon-siralama li { counter-increment: sira; display: grid; grid-template-columns: minmax(120px, 240px) 1fr auto; align-items: center; gap: 12px; }
+.yon-sira-ad::before { content: counter(sira) ". "; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.yon-siralama .bars-n { font-size: var(--fs-sm); white-space: nowrap; }
+.g-ipucu { position: fixed; z-index: 3000; pointer-events: none; background: var(--text); color: var(--surface, #fff); padding: 6px 10px; border-radius: 8px; font-size: var(--fs-sm); font-weight: 600; box-shadow: 0 4px 14px rgba(0,0,0,.25); white-space: nowrap; }
+.g-ipucu[hidden] { display: none; }
+svg.grafik rect[data-ipucu]:hover, svg.grafik circle[data-ipucu]:hover { opacity: .8; }
+@media (max-width: 520px) { .yon-siralama li { grid-template-columns: 1fr auto; } .yon-siralama .bars-track { display: none; } }
+/* Satır başındaki kutucuk, bitişik kart kuralı yüzünden aşağı kaymasın; tüm kutucuklar aynı boyda olsun */
+.kpi-grid > .card + .card, .kpi-grid > .card { margin-top: 0; }
+.kpi-grid > .kpi { min-height: 132px; }
+#yon-tehlike li { grid-template-columns: 110px 1fr auto; }

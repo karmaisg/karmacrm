@@ -67,12 +67,38 @@ export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
     t.firma += 1; t.gelir = k2(t.gelir + (gelirFirma.get(f.id) ?? 0)); t.teorikDk += teorikFirma.get(f.id) ?? 0; t.fiiliDk += fiiliFirma.get(f.id) ?? 0;
   }
 
+  // hizmet verilen firmalar: seçili ayda sözleşmesi geçerli olanlar + o ay faturası kesilenler.
+  // Çalışan sayısı ve tehlike sınıfı o ayın profilinden; karma sınıflı firmada gelir, sınıfların çalışan sayısı oranında bölünür.
+  const SINIFLAR = ['cok_tehlikeli', 'tehlikeli', 'az_tehlikeli'];
+  const sinifToplam = Object.fromEntries(SINIFLAR.map((s) => [s, { sinif: s, gelir: 0, calisan: 0, firma: 0 }]));
+  let hizmetCalisan = 0; let siniflanamayanGelir = 0;
+  for (const f of musteri) {
+    const g = gelirFirma.get(f.id) ?? 0;
+    if (!sozlesmeli.has(f.id) && !(g > 0)) continue;
+    const profil = (harita.get(f.id) ?? []).find((p) => p.valid_from <= ayBitisi(ayBasi) && (!p.valid_to || p.valid_to >= ayBasi));
+    if (!profil || !profil.hazard_class) { siniflanamayanGelir += g; continue; }
+    const parcalar = Array.isArray(profil.site_breakdown) && profil.site_breakdown.length > 1
+      ? profil.site_breakdown.map((d) => ({ sinif: d.tehlike, calisan: Number(d.calisan) || 0 }))
+      : [{ sinif: profil.hazard_class, calisan: Number(profil.employee_count) || 0 }];
+    const toplamCalisan = parcalar.reduce((t, x) => t + x.calisan, 0);
+    hizmetCalisan += toplamCalisan;
+    for (const x of parcalar) {
+      const t = sinifToplam[x.sinif]; if (!t) continue;
+      t.calisan += x.calisan; t.firma += 1;
+      t.gelir += toplamCalisan > 0 ? (g * x.calisan) / toplamCalisan : (x.sinif === profil.hazard_class ? g : 0);
+    }
+  }
+  const sinifGelir = SINIFLAR.map((s) => { const t = sinifToplam[s]; return { sinif: s, firma: t.firma, calisan: t.calisan, gelir: k2(t.gelir), kisiGelir: t.calisan > 0 ? k2(t.gelir / t.calisan) : null }; });
+  const kisiGelir = hizmetCalisan > 0 ? k2(i.gelir / hizmetCalisan) : null;
+
   const firmalar = r.firmalar.filter((f) => f.id !== null);
   return {
     ay: ayBasi, r,
     kpi: { gelir: i.gelir, tahsilat, tahsilEdilmemis, gider, personel: i.personel, dogrudan: i.dogrudan, ortak: i.ortakHavuz, vergiOncesi: i.vergiOncesiKar, vergi: i.tahminiVergi, vergiSonrasi: i.vergiSonrasiKar,
-      aktifFirma: aktifFirmalar.length, uzman, hekim, teorikDk: uzmanDk + hekimDk, uzmanDk, hekimDk, fiiliDk, dkGelir: fiiliDk > 0 ? k2(i.gelir / fiiliDk) : null, dkMaliyet: fiiliDk > 0 ? k2(gider / fiiliDk) : null },
+      hizmetCalisan, kisiGelir, siniflanamayanGelir: k2(siniflanamayanGelir), aktifFirma: aktifFirmalar.length, uzman, hekim, teorikDk: uzmanDk + hekimDk, uzmanDk, hekimDk, fiiliDk, dkGelir: fiiliDk > 0 ? k2(i.gelir / fiiliDk) : null, dkMaliyet: fiiliDk > 0 ? k2(gider / fiiliDk) : null },
     dikkat: { atanmamisGelir, dagitilmayanOrtak: i.ortakDagitilmayan, bosta: i.bosta },
+    sinifGelir,
+    tumFirmalar: [...firmalar].sort((a, b) => b.kar - a.kar).map((f) => ({ id: f.id, ad: f.ad, kar: f.kar })),
     enKarli: [...firmalar].sort((a, b) => b.kar - a.kar).slice(0, 5).map((f) => ({ id: f.id, ad: f.ad, kar: f.kar })),
     enDusuk: [...firmalar].sort((a, b) => a.kar - b.kar).slice(0, 5).map((f) => ({ id: f.id, ad: f.ad, kar: f.kar })),
     kapasite: r.personel.map((p) => ({ id: p.id, ad: p.ad, kapasite: p.kapasite, teorikDk: p.teorikDk, fiiliDk: p.fiiliDk, teorikOran: p.kapasite > 0 ? p.teorikDk / p.kapasite : null, fiiliOran: p.kapasite > 0 ? p.fiiliDk / p.kapasite : null }))

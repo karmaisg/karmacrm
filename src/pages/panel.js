@@ -153,9 +153,10 @@ export async function panelSayfasi(app) {
       ${kpi('Hekim ihtiyacı', `${sayi(hekimDk)} dk`, `${ayAdi(ay)} · yaklaşık ${ondalik2(kisiSayisi(hekimDk))} tam zamanlı hekim`, 'pulse')}
     </div>
     <div class="grid-2">
-      <section class="card"><h2 class="card-title">Tehlike sınıfı dağılımı</h2>${dagilimHtml}</section>
       <section class="card" id="ilce-dagilim"><h2 class="card-title">İlçelere göre müşteri sayısı</h2>${dagilimGrafigi(ilceler, 'İlçelere göre müşteri sayısı')}</section>
       <section class="card" id="sektor-dagilim"><h2 class="card-title">Sektörlere göre müşteri sayısı</h2>${dagilimGrafigi(sektorler, 'Sektörlere göre müşteri sayısı')}</section>
+      <section class="card"><h2 class="card-title">Tehlike sınıfı dağılımı</h2>${dagilimHtml}</section>
+      ${finansKarti()}
       <section class="card"><h2 class="card-title">Eksik veri ${eksikSayisi ? html`<span class="chip-n">${eksikSayisi}</span>` : ''}</h2>
         ${eksikSayisi ? html`<ul class="list">
           ${eksikProfil.slice(0, 6).map((f) => html`<li><a class="link" href="#/firmalar/${f.id}">${f.name}</a><span class="muted">çalışan sayısı girilmedi</span></li>`)}
@@ -169,7 +170,7 @@ export async function panelSayfasi(app) {
     const p = guncelProfil(harita.get(f.id), bugunStr);
     return html`<li><a class="cell-main" href="#/firmalar/${f.id}">${avatar(f.name, 'sm')}<span><strong>${f.name}</strong><small>${tarih(String(f.created_at ?? '').slice(0, 10))}</small></span></a>${tehlikePill(p?.hazard_class)}</li>`;
   })}</ul></section>
-      ${satisKarti()}${ticariKart()}${finansKarti()}${gorevKarti()}
+      ${satisKarti()}${ticariKart()}${gorevKarti()}
     </div>`;
 
   return {
