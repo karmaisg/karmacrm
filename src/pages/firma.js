@@ -9,6 +9,7 @@ import {
 import { firmaAylikIhtiyac, kapasiteKullanimi } from '../lib/hesaplama.js';
 import { guncelProfil, kapasiteDakika, bosIseNull } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
+import { TEHLIKE_ADI } from '../lib/aktarim.js';
 import { tehlikePill, durumPill, firmaFormuAc } from './firmalar.js';
 import { kisiFormuAc, kisiArsivle, kisiArsivdenCikar, kisiEylemDugmeleri, telHucre, epostaHucre } from './kisiler.js';
 import { MENU } from '../modules.js';
@@ -57,7 +58,8 @@ export async function firmaSayfasi(app, id) {
     app.can('invoices', 'view') ? app.api.listInvoices() : Promise.resolve([]),
     app.can('invoices', 'view') ? app.api.listPayments() : Promise.resolve([]),
   ]);
-  const siteler = firma ? await app.api.listSites().then((l) => l.filter((x) => x.company_id === id && !x.archived_at).sort((a, b) => a.site_name.localeCompare(b.site_name, 'tr'))).catch(() => null) : null;
+  const tumSiteler = firma ? await app.api.listSites().catch(() => null) : null;
+  const siteler = tumSiteler ? tumSiteler.filter((x) => x.company_id === id && !x.archived_at).sort((a, b) => a.site_name.localeCompare(b.site_name, 'tr')) : null;
   if (!firma) {
     return {
       baslik: 'Firma bulunamadı', altBaslik: '',
@@ -231,18 +233,56 @@ export async function firmaSayfasi(app, id) {
       <div id="teorik-icerik">${teorikIcerik()}</div></section>`;
   }
 
+  const TEHLIKE_SECENEKLERI = [['', 'Belirtilmedi'], ['az_tehlikeli', 'Az tehlikeli'], ['tehlikeli', 'Tehlikeli'], ['cok_tehlikeli', 'Çok tehlikeli']];
+  const isyeriOzeti = () => {
+    const sayilan = siteler.filter((x) => x.is_active && x.hazard_class);
+    if (!sayilan.length) return html`<div class="notice notice-warn" role="status">Tehlike sınıfı girilmiş işyeri yok; hizmet süresi ve maliyet hesabı firma kartındaki çalışan sayısı ve tehlike sınıfına göre yapılır.</div>`;
+    const gruplar = TEHLIKE_SECENEKLERI.slice(1).map(([k, ad]) => [ad, sayilan.filter((x) => x.hazard_class === k)]).filter(([, l]) => l.length);
+    return html`<div class="notice notice-info" id="isyeri-ozet" role="note">Hesapta kullanılan: ${gruplar.map(([ad, l]) => html`<strong>${ad}</strong> ${l.length} işyeri / ${l.reduce((t, x) => t + (x.employee_count ?? 0), 0)} çalışan`).reduce((acc, x, i) => (i ? [...acc, html`; `, x] : [x]), [])}. Her tehlike sınıfı kendi süresiyle hesaplanır.</div>`;
+  };
+
   const isyeriSekmesi = () => {
     if (siteler === null) return html`<section class="card"><div class="notice notice-info" role="note">İşyeri bilgisi okunamadı. Supabase'de 14_asama13_katip.sql ve 16_asama15.sql dosyalarının çalıştırıldığından emin olun.</div></section>`;
     const duzenleyebilir = app.can('companies', 'edit');
     return html`<section class="card card-flush"><div class="card-head"><div><h2 class="card-title">İşyerleri</h2>
-      <p class="card-sub">İSG-Katip'ten gelen işyerleri burada listelenir. Faturada geçen kısa adı (ör. UKEM) "Fatura adı" alanına yazın; ayrı fatura kesiliyorsa işaretleyin. Fatura Excel'i yüklenirken bu ad tanınacaktır. İSG-Katip'te olmayan işyerini elle ekleyebilirsiniz.</p></div>
-      ${app.can('companies', 'create') ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="isyeri-ekle">${icon('plus', 16)} İşyeri ekle</button>` : ''}</div>
-      ${siteler.length ? html`<div class="table-wrap"><table class="table" id="isyeri-tablo"><thead><tr><th scope="col">İşyeri (Katip unvanı)</th><th scope="col" class="num hide-sm">Çalışan</th><th scope="col">Fatura adı</th><th scope="col">Ayrı fatura</th></tr></thead><tbody>
-        ${siteler.map((x) => html`<tr data-isyeri="${x.id}"><td><strong>${x.site_name}</strong><small class="block muted">${x.is_manual ? 'Elle girildi' : `Sicil: ${x.sgk_no}${x.is_active ? '' : ' · dosyada yok'}`}</small>${x.is_manual && duzenleyebilir ? html`<button type="button" class="btn btn-secondary btn-sm" data-isyeri-sil="${x.id}">Sil</button>` : ''}</td><td class="num hide-sm">${x.employee_count ?? '—'}</td>
+      <p class="card-sub">İşyerlerinin çalışan sayısı ve tehlike sınıfı hizmet süresi ve maliyet hesabında kullanılır (farklı sınıflar ayrı ayrı hesaplanır). "Ayrı fatura" işaretlenmeyen işyerleri için firmaya tek fatura kesilir. Faturada geçen kısa adı (ör. UKEM) "Fatura adı" alanına yazın.</p></div>
+      <div class="btn-row">${app.can('companies', 'create') ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="isyeri-mevcut">${icon('search', 16)} Mevcut işyerini ekle</button> <button type="button" class="btn btn-secondary btn-sm" data-action="isyeri-ekle">${icon('plus', 16)} İşyeri ekle</button>` : ''}</div></div>
+      ${siteler.length ? html`<div class="pad-x">${isyeriOzeti()}</div><div class="table-wrap"><table class="table" id="isyeri-tablo"><thead><tr><th scope="col">İşyeri</th><th scope="col" class="num hide-sm">Çalışan</th><th scope="col">Tehlike sınıfı</th><th scope="col">Fatura adı</th><th scope="col">Ayrı fatura</th><th scope="col"><span class="sr-only">Eylemler</span></th></tr></thead><tbody>
+        ${siteler.map((x) => {
+          const elle = x.is_manual && duzenleyebilir;
+          return html`<tr data-isyeri="${x.id}"><td><strong>${x.site_name}</strong><small class="block muted">${x.is_manual ? 'Elle girildi' : `Sicil: ${x.sgk_no}${x.is_active ? '' : ' · dosyada yok'}`}</small></td>
+          <td class="num hide-sm">${elle ? html`<input type="number" min="0" step="1" inputmode="numeric" class="input-sm" data-isyeri-calisan="${x.id}" value="${x.employee_count ?? ''}" aria-label="${x.site_name} çalışan sayısı">` : (x.employee_count ?? '—')}</td>
+          <td>${elle ? html`<select data-isyeri-tehlike="${x.id}" aria-label="${x.site_name} tehlike sınıfı">${TEHLIKE_SECENEKLERI.map(([k, ad]) => html`<option value="${k}" ${(x.hazard_class ?? '') === k ? html`selected` : ''}>${ad}</option>`)}</select>` : (x.hazard_class ? TEHLIKE_ADI[x.hazard_class] : html`<span class="muted">Belirtilmedi</span>`)}${!x.hazard_class ? html`<small class="block muted">hesaba katılmaz</small>` : (!x.is_active ? html`<small class="block muted">pasif: hesaba katılmaz</small>` : '')}</td>
           <td>${duzenleyebilir ? html`<input type="text" maxlength="120" data-isyeri-ad="${x.id}" value="${x.invoice_alias ?? ''}" placeholder="Örn. UKEM" aria-label="${x.site_name} fatura adı">` : (x.invoice_alias || '—')}</td>
-          <td>${duzenleyebilir ? html`<label class="check-inline"><input type="checkbox" data-isyeri-ayri="${x.id}" ${x.separate_invoice ? html`checked` : ''}> <span>Ayrı fatura</span></label>` : (x.separate_invoice ? 'Evet' : 'Hayır')}</td></tr>`)}</tbody></table></div>`
-        : emptyState({ simge: 'building', baslik: 'Bu firmaya bağlı işyeri yok', metin: 'İSG-Katip aktarımı yapıldığında firmanın işyerleri burada görünür; Katip\'te olmayanı "İşyeri ekle" ile elle girin.' })}</section>`;
+          <td>${duzenleyebilir ? html`<label class="check-inline"><input type="checkbox" data-isyeri-ayri="${x.id}" ${x.separate_invoice ? html`checked` : ''}> <span>Ayrı fatura</span></label>` : (x.separate_invoice ? 'Evet' : 'Hayır')}</td>
+          <td class="actions">${duzenleyebilir ? html`<button type="button" class="icon-btn" data-isyeri-sil="${x.id}" aria-label="${x.site_name} işyerini sil" title="Listeden sil">${icon('trash', 16)}</button>` : ''}</td></tr>`;
+        })}</tbody></table></div>`
+        : emptyState({ simge: 'building', baslik: 'Bu firmaya bağlı işyeri yok', metin: 'İSG-Katip aktarımı yapıldığında firmanın işyerleri burada görünür; "İşyeri ekle" ile elle girebilir veya "Mevcut işyerini ekle" ile sistemde kayıtlı bir işyerini bu firmaya bağlayabilirsiniz.' })}</section>`;
   };
+
+  /** İşyeri değişikliğinden sonra firma profilini (çalışan sayısı/tehlike sınıfı) işyerlerinden yeniler. */
+  async function profilEsitle(firmaId = id) {
+    try { await app.api.isyeriProfilEsitle(firmaId); } catch (err) { toast(`İşyeri kaydedildi ancak firma hesabı güncellenemedi: ${humanError(err)}`, 'hata'); }
+  }
+
+  async function mevcutIsyeriFormu() {
+    const firmaHaritasi = new Map(((await app.api.listCompanies().catch(() => [])) ?? []).map((c) => [c.id, c.name]));
+    const adaylar = (tumSiteler ?? []).filter((x) => x.company_id !== id).sort((a, b) => a.site_name.localeCompare(b.site_name, 'tr'));
+    if (!adaylar.length) { toast('Başka firmalarda kayıtlı işyeri bulunamadı.', 'bilgi'); return; }
+    const firmaAdi = (cid) => firmaHaritasi.get(cid) ?? 'Bilinmeyen firma';
+    openFormModal({
+      baslik: 'Mevcut işyerini ekle', altBaslik: `${firma.name} firmasına bağlanacak`, gonderEtiketi: 'Bu firmaya ekle', boyut: 'lg',
+      govde: html`<div class="notice notice-info field-full" role="note">Sistemde daha önce girilmiş (başka firmada duran veya silinmiş) bir işyerini bu firmaya bağlar; işyeri eski firmadan çıkar, faturalama bu firmaya göre yapılır.</div>
+        ${field({ ad: 'site_id', etiket: 'İşyeri', zorunlu: true, tam: true, deger: '', secenekler: [{ deger: '', etiket: 'İşyeri seçin' }, ...adaylar.map((x) => ({ deger: x.id, etiket: `${x.site_name} — ${firmaAdi(x.company_id)}${x.archived_at ? ' (silinmiş)' : ''}${x.hazard_class ? ` · ${TEHLIKE_ADI[x.hazard_class]}` : ''}` }))] })}`,
+      async onSubmit(fd) {
+        const sid = String(fd.get('site_id') ?? '');
+        if (!sid) return { errors: { site_id: 'Bir işyeri seçin.' } };
+        await app.api.isyeriFirmayaTasi(sid, id);
+        toast('İşyeri bu firmaya bağlandı.');
+      },
+      onDone: () => app.yenile(),
+    });
+  }
 
   function isyeriFormu() {
     openFormModal({
@@ -260,6 +300,7 @@ export async function firmaSayfasi(app, id) {
         const rastgele = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => (b % 36).toString(36)).join('').toUpperCase();
         await app.api.createSite({ company_id: id, sgk_no: `EL${rastgele}`, site_name: g('site_name'), invoice_alias: bosIseNull(g('invoice_alias')),
           employee_count: g('employee_count') === '' ? null : Number(g('employee_count')), hazard_class: bosIseNull(g('hazard_class')), separate_invoice: fd.get('separate_invoice') === '1', is_manual: true, is_active: true });
+        await profilEsitle();
         toast('İşyeri eklendi.');
       },
       onDone: () => app.yenile(),
@@ -393,6 +434,19 @@ export async function firmaSayfasi(app, id) {
           catch (err) { toast(humanError(err), 'hata'); }
           return;
         }
+        const ihedef = e.target.dataset.isyeriCalisan ?? e.target.dataset.isyeriTehlike;
+        if (ihedef) {
+          const x = siteler.find((y) => y.id === ihedef); if (!x) return;
+          let degisim;
+          if (e.target.dataset.isyeriCalisan !== undefined) {
+            const v = e.target.value.trim();
+            if (v !== '' && !/^\d{1,6}$/.test(v)) { toast('Çalışan sayısı 0 veya daha büyük bir tam sayı olmalıdır.', 'hata'); e.target.value = x.employee_count ?? ''; return; }
+            degisim = { employee_count: v === '' ? null : Number(v) };
+          } else degisim = { hazard_class: e.target.value || null };
+          try { Object.assign(x, await app.api.updateSite(x.id, degisim)); await profilEsitle(); toast('İşyeri bilgisi kaydedildi.'); app.yenile(); }
+          catch (err) { toast(humanError(err), 'hata'); }
+          return;
+        }
         if (e.target.id === 'teorik-ay') {
           durum.ay = e.target.value;
           kok.querySelector('#teorik-icerik').innerHTML = teorikIcerik().s;
@@ -402,8 +456,8 @@ export async function firmaSayfasi(app, id) {
         const sil = e.target.closest('[data-isyeri-sil]');
         if (sil) {
           const x = siteler.find((y) => y.id === sil.dataset.isyeriSil); if (!x) return;
-          if (!(await confirmDialog({ baslik: 'İşyerini sil', mesaj: `"${x.site_name}" işyeri kaldırılacak.`, onayEtiketi: 'Sil', tehlikeli: true }))) return;
-          try { await app.api.updateSite(x.id, { archived_at: new Date().toISOString() }); toast('İşyeri silindi.'); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
+          if (!(await confirmDialog({ baslik: 'İşyerini sil', mesaj: `"${x.site_name}" işyeri listeden kaldırılacak; hizmet süresi ve maliyet hesabından da çıkar.${x.is_manual ? '' : ' İSG-Katip dosyasında hâlâ yer alıyorsa sonraki yüklemede yeniden gelir.'} Silinen işyeri daha sonra "Mevcut işyerini ekle" ile geri alınabilir.`, onayEtiketi: 'Sil', tehlikeli: true }))) return;
+          try { await app.api.updateSite(x.id, { archived_at: new Date().toISOString() }); await profilEsitle(); toast('İşyeri silindi.'); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
           return;
         }
         const t = e.target.closest('[data-sekme]');
@@ -416,6 +470,7 @@ export async function firmaSayfasi(app, id) {
           else if (eylem === 'pasif') await pasifIslemi();
           else if (eylem === 'firma-sil') silIslemi();
           else if (eylem === 'isyeri-ekle') isyeriFormu();
+          else if (eylem === 'isyeri-mevcut') mevcutIsyeriFormu();
           else if (eylem === 'profil-ekle') profilFormu();
           else if (eylem === 'kisi-ekle') kisiFormuAc(app, { firmaId: firma.id });
           else if (eylem === 'gorusme-ekle') gorusmeFormuAc(app, { companyId: firma.id, kisiler });

@@ -469,3 +469,12 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 3. **Cari ekstre:** Ödemenin tamamı tek borç satırında görünür; açıklamada karşıladığı faturalar yazılır, tam karşılanmayan faturada "(kısmi)" belirtilir. Satırdaki kalem simgesiyle tarih/yöntem/not düzenlenir, çöp kutusuyla tahsilat iptal edilir (tutarı değiştirmek için iptal edip yeniden girin).
 4. Tek fatura için tahsilat (fatura detayı) eskisi gibi çalışır; tarih ve tutar düzenlenebilir.
 5. **Excel:** başlık "CARİ HESAP TABLOSU", logo firma bilgileri kutusunun sağında ve sayfa içinde; sayfa A4'e sığacak şekilde ayarlıdır.
+
+## Aşama 27 (İşyerleri ve tehlike sınıfı) — `supabase/27_asama27.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `27_asama27.sql` dosyasını çalıştırın (14, 16 ve 17 numaralı dosyalardan sonra; tekrar çalıştırılabilir).
+2. **Firma → İşyerleri:** liste artık **tehlike sınıfını** da gösterir. Elle girilen işyerlerinin çalışan sayısı ve tehlike sınıfı listeden düzenlenir. Her satırda **sil** düğmesi vardır (silinen işyeri hesaptan çıkar; İSG-Katip dosyasında hâlâ varsa sonraki yüklemede geri gelir).
+3. **Mevcut işyerini ekle:** sistemde daha önce girilmiş (başka firmada duran veya silinmiş) bir işyerini bu firmaya bağlar; eski firmanın hesabı da güncellenir.
+4. **Maliyet hesabı:** firmanın aktif işyerleri (Katip + elle girilen) toplanır; farklı tehlike sınıfları **ayrı ayrı kendi dakikasıyla** hesaplanır (örn. 10 çalışan az tehlikeli + 20 çalışan tehlikeli). Hesap, işyeri eklendiğinde/değiştirildiğinde/silindiğinde bu ayın başından itibaren yenilenir; geçmiş aylar değişmez. Tehlike sınıfı girilmemiş işyeri hesaba katılmaz.
+5. **Fatura:** "Ayrı fatura" işaretlenmeyen tüm işyerleri için firmaya tek fatura kesilir (mevcut davranış); işaretlenenler ayrı faturalanır.
+6. Mevcut elle girilmiş işyerlerinin hesaba yansıması için her firmada işyerlerinden birinin tehlike sınıfını/çalışan sayısını bir kez kaydetmeniz yeterlidir (ya da işyerini yeniden kaydedin).

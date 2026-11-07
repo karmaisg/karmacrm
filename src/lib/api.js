@@ -169,6 +169,8 @@ export function createApi(db) {
     completeCalendarItem: (itemId, gun) => bir(T('calendar_completions').insert({ item_id: itemId, occurrence_date: gun }).select().single()),
     uncompleteCalendarItem: (itemId, gun) => bir(T('calendar_completions').delete().eq('item_id', itemId).eq('occurrence_date', gun).select()),
     createSite: (d) => bir(T('company_sites').insert(d).select().single()),
+    isyeriProfilEsitle: (firmaId) => bir(db.rpc('isyeri_profil_esitle', { p_firma: firmaId })),
+    isyeriFirmayaTasi: (siteId, firmaId) => bir(db.rpc('isyeri_firmaya_tasi', { p_site: siteId, p_firma: firmaId })),
     listSites: () => hepsiniOku(() => T('company_sites').select('*').order('id')),
     updateSite: (id, degerler) => bir(T('company_sites').update(degerler).eq('id', id).select().single()),
     listKatipImports: () => bir(T('katip_imports').select('id,period,file_name,row_count,site_count,new_company_count,summary,created_at').order('created_at', { ascending: false }).limit(24)),

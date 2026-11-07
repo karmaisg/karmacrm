@@ -28,6 +28,7 @@ const P = {
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   plus: '<path d="M5 12h14M12 5v14"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   panel: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>',
   chevronR: '<path d="m9 18 6-6-6-6"/>',
