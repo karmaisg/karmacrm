@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aylikOzet, aylikSeri, sonAylar } from '../src/lib/yonetim.js';
+import { aylikOzet, aylikSeri, sonAylar, personelSeri } from '../src/lib/yonetim.js';
 
 const veri = {
   ay: '2026-10-01',
@@ -70,4 +70,14 @@ test('sınıfa göre gelir: karma sınıflı firmanın geliri çalışan sayıs�
   const s = Object.fromEntries(aylikOzet({ veri: v, tahsilatlar }).sinifGelir.map((x) => [x.sinif, x]));
   assert.equal(s.tehlikeli.gelir, 12000); assert.equal(s.cok_tehlikeli.gelir, 8000); assert.equal(s.cok_tehlikeli.calisan, 20);
   assert.equal(s.cok_tehlikeli.kisiGelir, 400);
+});
+
+test('aylık personel serisi: ayda sözleşmesi geçerli firmaların çalışanı; firma bazında değişim', () => {
+  const v = { ...veri, profiller: [...veri.profiller, { company_id: 'f1', employee_count: 60, hazard_class: 'tehlikeli', valid_from: '2026-10-01', valid_to: null }].map((p) => (p.company_id === 'f1' && p.valid_from < '2026-10-01' ? { ...p, valid_to: '2026-09-30' } : p)) };
+  const r = personelSeri({ firmalar: v.firmalar, profiller: v.profiller, sozlesmeler: v.sozlesmeler, aylar: ['2026-09-01', '2026-10-01'] });
+  const f1 = r.firmalar.find((f) => f.id === 'f1'); const f2 = r.firmalar.find((f) => f.id === 'f2');
+  assert.deepEqual(f1.degerler, [50, 60]);
+  assert.deepEqual(f2.degerler, [0, 25]);      // f2 sözleşmesi 15 Ekim'de başlıyor: Ekim'e dahil
+  assert.deepEqual(r.toplam, [50, 85]);
+  assert.ok(!r.firmalar.some((f) => f.id === 'f3'));
 });

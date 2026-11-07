@@ -2674,6 +2674,23 @@ await test('panel: ilçe ve sektör dağılım grafikleri', async (s) => {
   if (!/Turizm\s*2/.test(sek) || !/İnşaat\s*1/.test(sek)) throw new Error(`sektör: ${sek}`);
 });
 
+// ---------------------------------------------------------------- Panel: aylık personel grafiği
+await test('panel: aylık hizmet verilen personel grafiği, tıklayınca firma seçilebilen pencere', async (s) => {
+  await girisYap(s);
+  await karlilikHazirla(s);
+  await git(s, '#/panel'); await s.waitForSelector('#personel-grafik svg.grafik');
+  esit(await s.locator('#personel-grafik svg.grafik rect').count(), 12, '12 aylık sütun');
+  await s.locator('#personel-grafik').scrollIntoViewIfNeeded(); await s.waitForTimeout(200); await ekran(s, '76-panel-personel-grafik');
+  const genis = await s.evaluate(() => { const k = document.querySelector('#personel-grafik').getBoundingClientRect(); const d = document.querySelector('#tehlike-dagilim, .grid-2 > .card:not(.card-genis)').getBoundingClientRect(); return k.width / d.width; });
+  if (genis < 1.8) throw new Error(`grafik kutusu iki kutu genişliğinde değil: ${genis}`);
+  await s.locator('#personel-grafik .card-title').click(); await s.waitForSelector('.modal #personel-firma');
+  const secenekler = await s.locator('#personel-firma option').allInnerTexts();
+  if (secenekler.length < 2) throw new Error(`firma seçeneği yok: ${secenekler}`);
+  await s.selectOption('#personel-firma', { index: 1 });
+  await s.waitForSelector('.modal #personel-icerik svg.grafik rect', { state: 'attached' });
+  esit(await s.locator('.modal #personel-icerik tbody tr').count(), 12, 'aylık değişim satırı');
+});
+
 // ---------------------------------------------------------------- Menü düzeni: Fatura Takip, Gelirler
 await test('menü: Fatura Takip, Gelirler, Giderler, Cari sırası; Satış grubu Finans\'tan sonra; Gelirler sayfası ay toplamı', async (s) => {
   await girisYap(s);
