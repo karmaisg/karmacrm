@@ -2951,14 +2951,34 @@ await test('yönetici paneli: aylık finans özeti kutucukları, grafikler ve ay
   const kar = await s.locator('#yon-kar').innerText();
   for (const b of ['Vergi öncesi tahmini kâr', '7.000,00', 'Tahmini kurumlar vergisi', '1.750,00', 'Vergi sonrası tahmini kâr', '5.250,00']) if (!kar.includes(b)) throw new Error(`kâr kutularında ${b} yok: ${kar}`);
   const op = await s.locator('#yon-operasyon').innerText();
-  for (const b of ['Aktif firma sayısı', 'Uzman / hekim sayısı', '1 / 0', 'Toplam teorik hizmet dakikası', 'Toplam fiilî hizmet dakikası']) if (!op.includes(b)) throw new Error(`operasyon kutularında ${b} yok: ${op}`);
+  for (const b of ['Hizmet verilen toplam personel', 'Ortalama kişi bazlı gelir', 'Tehlike sınıfına göre ort. kişi bazlı gelir', 'Çok tehlikeli', 'Tehlikeli', 'Az tehlikeli']) if (!op.includes(b)) throw new Error(`operasyon kutularında ${b} yok: ${op}`);
+  for (const b of ['Aktif firma sayısı', 'Uzman / hekim sayısı', 'Toplam teorik hizmet dakikası', 'Toplam fiilî hizmet dakikası']) if (op.includes(b)) throw new Error(`kaldırılan kutu hâlâ var: ${b}`);
+  const kutular = await s.evaluate(() => [...document.querySelectorAll(".kpi-grid .kpi")].map((k) => `${Math.round(k.getBoundingClientRect().width)}x${Math.round(k.getBoundingClientRect().height)}`));
+  { const w = kutular.map((x) => Number(x.split('x')[0])); const y = kutular.map((x) => Number(x.split('x')[1])); if (Math.max(...w) - Math.min(...w) > 2) throw new Error(`kutucuk genişlikleri eşit değil: ${kutular}`); if (Math.max(...y) - Math.min(...y) > 40) throw new Error(`kutucuk yükseklikleri çok farklı: ${kutular}`); }
+  const renk = (sel) => s.evaluate((q) => getComputedStyle(document.querySelector(q)).color, sel);
+  const [rg, rd, rk] = [await renk('#yon-finans .t-gelir'), await renk('#yon-finans .t-gider'), await renk('#yon-kar .t-kar')];
+  if (rg === rd || rd === rk || rg === rk) throw new Error(`para renkleri ayrışmıyor: ${rg} ${rd} ${rk}`);
   if (!(await s.locator('#yon-dk').innerText()).includes('hesaplanamaz')) throw new Error('fiilî süre 0 iken dakika başına değerler hesaplanamaz demeli');
   esit(await s.locator('.yon-ozet svg.grafik').count(), 2, 'iki grafik');
-  esit(await s.locator('.yon-ozet svg.grafik rect').count(), 24, '12 ay x 2 çubuk');
+  esit(await s.locator('.yon-ozet svg.grafik rect').count(), 36, '12 ay x 3 çubuk (gelir, gider, kâr)');
   esit(await s.locator('.yon-ozet svg.grafik polyline').count(), 2, 'iki çizgi');
   await var_(s.locator('#yon-kapasite li:has-text("Kar Uzman")'), 'personel kapasite satırı');
   await var_(s.locator('.yon-ozet .card:has-text("En kârlı müşteriler") li:has-text("Kar A.Ş.")'), 'en kârlı müşteri');
-  await var_(s.locator('#yon-tehlike tbody tr'), 'tehlike sınıfı satırı');
+  await var_(s.locator('#yon-tehlike li'), 'tehlike sınıfı gelir satırı');
+  if ((await s.locator('.yon-ozet').innerText()).includes('gelir ve zaman')) throw new Error('"zaman" ifadesi kalkmalıydı');
+  // ipucu: çubuğun üzerine gelince tutar görünür
+  const kutu = await s.evaluate(() => { const e = [...document.querySelectorAll('.yon-ozet svg.grafik rect')].sort((a, b) => b.getBoundingClientRect().height - a.getBoundingClientRect().height)[0]; e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+  await s.mouse.move(kutu.x + kutu.width / 2, kutu.y + kutu.height / 2); await s.waitForSelector('.g-ipucu:not([hidden])');
+  if (!/₺|TL|\d/.test(await s.locator('.g-ipucu').innerText())) throw new Error('ipucu tutar göstermiyor');
+  // büyütme pencereleri
+  await s.locator('[data-buyut="gelirgider"] .card-title').click(); await s.waitForSelector('.modal svg.grafik');
+  esit(await s.locator('.modal svg.grafik rect').count(), 36, 'büyük grafik çubukları');
+  await s.keyboard.press('Escape'); await s.waitForSelector('.modal', { state: 'detached' });
+  await s.locator('[data-buyut="kar"] .card-title').click(); await s.waitForSelector('.modal svg.grafik circle');
+  esit(await s.locator('.modal svg.grafik circle').count(), 24, 'kâr noktaları'); await s.keyboard.press('Escape'); await s.waitForSelector('.modal', { state: 'detached' });
+  await s.locator('[data-buyut="enkarli"] .card-title').click(); await s.waitForSelector('.modal .yon-siralama li');
+  await s.keyboard.press('Escape'); await s.waitForSelector('.modal', { state: 'detached' });
+  await s.locator('[data-buyut="endusuk"] .card-title').click(); await s.waitForSelector('.modal .yon-siralama li'); await s.keyboard.press('Escape');
   await var_(s.locator('#yon-dikkat:has-text("boş kapasite")'), 'dikkat notu');
   await s.waitForTimeout(900); await ekran(s, '75-yonetici-paneli-ozet');
   await s.locator('.yon-ozet .grid-2').scrollIntoViewIfNeeded(); await s.evaluate(() => window.scrollBy(0, 200)); await s.waitForTimeout(300); await ekran(s, '75b-yonetici-paneli-grafikler');

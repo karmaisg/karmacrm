@@ -54,3 +54,20 @@ test('12 aylık seri: gelir yalnız ilgili ayda; vergi öncesi = gelir - gider',
   const ekim = s[11]; const eylul = s[10]; assert.equal(ekim.ay, '2026-10-01'); assert.equal(ekim.gelir, 30000); assert.equal(eylul.gelir, 5000);
   for (const m of s) assert.equal(Math.round((m.gelir - m.gider) * 100) / 100, m.vergiOncesi);
 });
+
+test('kişi bazlı gelir: toplam gelir ÷ hizmet verilen çalışan; sınıfa göre gelir ve kişi başı gelir', () => {
+  const o = aylikOzet({ veri, tahsilatlar }); const k = o.kpi;
+  assert.equal(k.hizmetCalisan, 75); assert.equal(k.kisiGelir, 400);
+  const s = Object.fromEntries(o.sinifGelir.map((x) => [x.sinif, x]));
+  assert.equal(s.tehlikeli.gelir, 20000); assert.equal(s.tehlikeli.calisan, 50); assert.equal(s.tehlikeli.kisiGelir, 400);
+  assert.equal(s.az_tehlikeli.gelir, 10000); assert.equal(s.az_tehlikeli.kisiGelir, 400);
+  assert.equal(s.cok_tehlikeli.gelir, 0); assert.equal(s.cok_tehlikeli.kisiGelir, null);
+  assert.equal(o.tumFirmalar.length, 2);
+});
+
+test('sınıfa göre gelir: karma sınıflı firmanın geliri çalışan sayısı oranında bölünür', () => {
+  const v = { ...veri, profiller: veri.profiller.map((p) => (p.company_id === 'f1' ? { ...p, site_breakdown: [{ tehlike: 'tehlikeli', calisan: 30 }, { tehlike: 'cok_tehlikeli', calisan: 20 }] } : p)) };
+  const s = Object.fromEntries(aylikOzet({ veri: v, tahsilatlar }).sinifGelir.map((x) => [x.sinif, x]));
+  assert.equal(s.tehlikeli.gelir, 12000); assert.equal(s.cok_tehlikeli.gelir, 8000); assert.equal(s.cok_tehlikeli.calisan, 20);
+  assert.equal(s.cok_tehlikeli.kisiGelir, 400);
+});
