@@ -2,7 +2,8 @@
 import { hesaplaKarlilik, faturaAyi } from './karlilik.js';
 import { aktifAyda, ayBitisi } from './operasyon.js';
 import { firmaAylikIhtiyac } from './hesaplama.js';
-import { profilleriGrupla } from './veri.js';
+import { profilleriGrupla, anaFirmaHaritasi } from './veri.js';
+import { atamalariBagla } from './operasyon.js';
 
 const ay7 = (d) => String(d).slice(0, 7);
 const k2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -32,15 +33,16 @@ export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
   const tahsilEdilmemis = k2(ayFaturalari.reduce((t, f) => t + Math.max(0, faturaTutari(f) - (odenen.get(f.id) ?? 0)), 0));
 
   // aktif firma = seçili ayda sözleşmesi geçerli müşteri
-  const musteri = veri.firmalar.filter((f) => !f.archived_at && (f.customer_status ?? 'musteri') === 'musteri');
-  const sozlesmeli = new Set(veri.sozlesmeler.filter((c) => !c.archived_at && ['aktif', 'yenilendi', 'sona_erdi'].includes(c.status) && ay7(c.start_date) <= ay && ay7(c.end_date) >= ay).map((c) => c.company_id));
+  const anaMap = anaFirmaHaritasi(veri.firmalar); const anaOf = (id) => anaMap.get(id) ?? id;
+  const musteri = veri.firmalar.filter((f) => !f.archived_at && (f.customer_status ?? 'musteri') === 'musteri' && !f.parent_company_id);
+  const sozlesmeli = new Set(veri.sozlesmeler.filter((c) => !c.archived_at && ['aktif', 'yenilendi', 'sona_erdi'].includes(c.status) && ay7(c.start_date) <= ay && ay7(c.end_date) >= ay).map((c) => anaOf(c.company_id)));
   const aktifFirmalar = musteri.filter((f) => sozlesmeli.has(f.id));
 
   const calisanlar = veri.personeller.filter((e) => e.is_active !== false && !e.archived_at);
   const uzman = calisanlar.filter((e) => e.staff_type === 'is_guvenligi_uzmani').length; const hekim = calisanlar.filter((e) => e.staff_type === 'isyeri_hekimi').length;
 
   // teorik / fiilî hizmet dakikası
-  const harita = profilleriGrupla(veri.profiller); let uzmanDk = 0; let hekimDk = 0;
+  const harita = profilleriGrupla(veri.profiller, veri.firmalar); let uzmanDk = 0; let hekimDk = 0;
   const teorikFirma = new Map();
   for (const f of aktifFirmalar) {
     const s = firmaAylikIhtiyac({ profiller: harita.get(f.id) ?? [], kurallar: veri.kurallar, ay: ayBasi });
@@ -49,11 +51,11 @@ export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
   const fiiliFirma = new Map(); let fiiliDk = 0;
   for (const z of veri.zaman) {
     if (z.archived_at || ay7(z.work_date) !== ay || !z.company_id) continue;
-    const dk = Number(z.onsite_minutes ?? 0) + Number(z.reporting_minutes ?? 0); fiiliDk += dk; fiiliFirma.set(z.company_id, (fiiliFirma.get(z.company_id) ?? 0) + dk);
+    const dk = Number(z.onsite_minutes ?? 0) + Number(z.reporting_minutes ?? 0); fiiliDk += dk; fiiliFirma.set(anaOf(z.company_id), (fiiliFirma.get(anaOf(z.company_id)) ?? 0) + dk);
   }
 
   // dikkat: personele atanmamış firma geliri
-  const atanan = new Set(veri.atamalar.filter((a) => aktifAyda(a, ayBasi)).map((a) => a.company_id));
+  const atanan = new Set(atamalariBagla(veri.atamalar, veri.firmalar).filter((a) => aktifAyda(a, ayBasi)).map((a) => a.company_id));
   const atanmamisGelir = k2(r.firmalar.filter((f) => f.id === null || !atanan.has(f.id)).reduce((t, f) => t + f.gelir, 0));
 
   // tehlike sınıfı dökümü

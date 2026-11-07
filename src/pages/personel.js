@@ -72,7 +72,7 @@ export async function personelListeSayfasi(app, tur) {
   void firmalar;
   const bugunStr = bugun();
   const ay = ayBasi(bugunStr);
-  const harita = profilleriGrupla(profiller);
+  const harita = profilleriGrupla(profiller, firmalar);
   const rolluListe = tur === 'diger';
   const liste0 = personel.filter((p) => (rolluListe ? !p.staff_type : p.staff_type === tur));
   const durum = { filtre: 'aktif', q: '' };
@@ -156,7 +156,7 @@ export async function personelSayfasi(app, id) {
   const kullanicilar = app.can('users', 'view') ? await app.api.listUsers().catch(() => []) : [];
   const bagli = kullanicilar.find((u) => u.employee_id === id) ?? null;
   const benim = atamalar.filter((a) => a.employee_id === id);
-  const yuk = gorevGorur ? personelAyYuku({ atamalar: aktifFirmaAtamalari(atamalar, firmalar), employeeId: id, profilHaritasi: profilleriGrupla(profiller), kurallar, ay }) : null;
+  const yuk = gorevGorur ? personelAyYuku({ atamalar: aktifFirmaAtamalari(atamalar, firmalar), employeeId: id, profilHaritasi: profilleriGrupla(profiller, firmalar), kurallar, ay }) : null;
   const oran = yuk && !yuk.eksikVar ? yuk.dakika / p.monthly_capacity_min : null;
   const zamanOz = zamanOzeti(zaman.filter((k) => k.employee_id === id));
   const duzenleyebilir = app.can('staff', 'edit') && !p.archived_at;

@@ -22,7 +22,7 @@ export async function kapasiteSayfasi(app) {
   const [personel, atamalar, firmalar, profiller, kurallar] = await Promise.all([
     app.api.listEmployees(), app.api.listAssignments(), app.api.listCompanies(), app.api.listAllProfiles(), app.api.listServiceRules(),
   ]);
-  const harita = profilleriGrupla(profiller);
+  const harita = profilleriGrupla(profiller, firmalar);
   // İSG-Katip'te bildirilen aylık süre (son yükleme): sertifika numarası, yoksa ad ile personele eşlenir
   const katipSure = new Map(); let katipDonem = null;
   try {
@@ -55,7 +55,7 @@ export async function kapasiteSayfasi(app) {
     // görevlendirme eksiği: müşteri firmaların ihtiyacından payı %100'ün altında kalanlar
     const eksikler = [];
     const toplamlar = { is_guvenligi_uzmani: { ihtiyac: 0, atanmamis: 0 }, isyeri_hekimi: { ihtiyac: 0, atanmamis: 0 } };
-    for (const f of firmalar.filter((x) => !x.archived_at && x.customer_status === 'musteri')) {
+    for (const f of firmalar.filter((x) => !x.archived_at && x.customer_status === 'musteri' && !x.parent_company_id)) {
       const ih = firmaAylikIhtiyac({ profiller: harita.get(f.id) ?? [], kurallar, ay: durum.ay });
       if (!ih.profil) continue;
       for (const tur of ['is_guvenligi_uzmani', 'isyeri_hekimi']) {

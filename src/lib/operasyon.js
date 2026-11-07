@@ -42,9 +42,11 @@ export function ayAtamalari(atamalar, ayBasi) {
       if (basta.length && toplam(basta) <= 100 + 1e-9) secim = basta;
       else if (sonda.length && toplam(sonda) <= 100 + 1e-9) secim = sonda;
     }
-    secim.forEach((a) => secilen.add(a));
+    const t = toplam(secim);
+    // bağlı firmaların görevlendirmeleri ana firmada toplanınca %100'ü aşabilir: paylar oranlanarak %100'e indirilir
+    secim.forEach((a) => secilen.add(t > 100 + 1e-9 ? { ...a, share_pct: (Number(a.share_pct) * 100) / t, _kaynak: a } : a));
   }
-  return adaylar.filter((a) => secilen.has(a));
+  return adaylar.map((a) => [...secilen].find((x) => x === a || x._kaynak === a)).filter(Boolean);
 }
 
 export const ayBasiDizge = (iso) => `${String(iso).slice(0, 7)}-01`;
@@ -60,7 +62,19 @@ export const firmaPasifMi = (f) => !!f && (!!f.archived_at || (f.customer_status
 /** Pasif firmaların görevlendirmelerini çıkarır (yük / kapasite hesabı için). Firma listesi boşsa süzmez. */
 export function aktifFirmaAtamalari(atamalar, firmalar) {
   const pasif = new Set((firmalar ?? []).filter(firmaPasifMi).map((f) => f.id));
-  return pasif.size ? atamalar.filter((a) => !pasif.has(a.company_id)) : atamalar;
+  const liste = pasif.size ? atamalar.filter((a) => !pasif.has(a.company_id)) : atamalar;
+  return atamalariBagla(liste, firmalar); // bağlı firmaların görevlendirmeleri ana firmada toplanır
+}
+
+/**
+ * Bağlı firmaların (parent_company_id) görevlendirmelerini ana firmaya taşır; pasif bağlı firmanın görevlendirmeleri düşer.
+ * Aynı ana firmada payların toplamı %100'ü aşarsa ayAtamalari oranlayarak küçültür.
+ */
+export function atamalariBagla(atamalar, firmalar) {
+  const bagli = new Map((firmalar ?? []).filter((f) => f.parent_company_id).map((f) => [f.id, f]));
+  if (!bagli.size) return atamalar;
+  return atamalar.filter((a) => !(bagli.has(a.company_id) && firmaPasifMi(bagli.get(a.company_id))))
+    .map((a) => (bagli.has(a.company_id) ? { ...a, company_id: bagli.get(a.company_id).parent_company_id, bagli_firma_id: a.company_id } : a));
 }
 
 /** Bir firmada, hizmet türü ve gün için toplam görevlendirme payı (%). */

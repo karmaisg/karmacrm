@@ -12,8 +12,8 @@
 //  Çift sayım yok : maaş kategorisindeki giderler dahil edilmez (maliyet personel kartından gelir),
 //                   kurumlar vergisi kategorisi gider sayılmaz (vergi tahmininde ayrıca ele alınır).
 import { gecerliKayit, enBuyukKalanDagit, vergiSonrasiKar, kurus, tl } from './hesaplama.js';
-import { aktifMi, aktifAyda, ayAtamalari, ayBitisi, personelAyYuku } from './operasyon.js';
-import { profilleriGrupla } from './veri.js';
+import { aktifMi, aktifAyda, ayAtamalari, ayBitisi, personelAyYuku, atamalariBagla } from './operasyon.js';
+import { profilleriGrupla, anaFirmaHaritasi } from './veri.js';
 
 export const DAGITIM_OLCUTLERI = {
   gelir_orani: 'Gelir oranı', fiili_sure: 'Fiilî hizmet süresi', musteri_sayisi: 'Müşteri sayısı (eşit)',
@@ -34,21 +34,27 @@ const topla = (m, k, v) => { m.set(k, (m.get(k) ?? 0) + v); };
  */
 export function hesaplaKarlilik(g) {
   const {
-    ay, firmalar = [], profiller = [], kurallar = [], kapasiteVarsayilan = 11700, atamalar = [], personeller = [], maliyetler = [], zaman = [],
+    ay, firmalar = [], profiller = [], kurallar = [], kapasiteVarsayilan = 11700, atamalar: hamAtamalar = [], personeller = [], maliyetler = [], zaman = [],
     faturalar = [], giderler = [], kategoriler = [], sozlesmeler = [], dagitimKurallari = [], kayitliDagitim = [],
     yontem = 'teorik', uzmanGelirPayi = 50, vergiOrani = 25,
   } = g;
   const ayAnahtar = ay7(ay);
   const uyarilar = [];
   const firmaAdi = new Map(firmalar.map((f) => [f.id, f.name]));
-  const profilHaritasi = profilleriGrupla(profiller);
+  // Bağlı firmalar (parent_company_id): gelir, gider, görevlendirme ve çalışan/tehlike sınıfı ana firmada tek firma gibi toplanır.
+  const anaMap = anaFirmaHaritasi(firmalar);
+  const anaOf = (id) => (id ? (anaMap.get(id) ?? id) : id);
+  const bagliAdlari = new Map();
+  for (const [c, a] of anaMap) { if (!bagliAdlari.has(a)) bagliAdlari.set(a, []); bagliAdlari.get(a).push(firmaAdi.get(c) ?? 'Firma'); }
+  const atamalar = atamalariBagla(hamAtamalar, firmalar);
+  const profilHaritasi = profilleriGrupla(profiller, firmalar);
   const katMap = new Map(kategoriler.map((k) => [k.id, k]));
 
   // ---- gelir
   const gelir = new Map(); const faturaAdet = new Map(); let vergisizGelirK = 0;
   for (const f of faturalar) {
     if (f.archived_at || faturaAyi(f) !== ayAnahtar) continue;
-    topla(gelir, f.company_id ?? null, kurus(f.amount_excl_vat)); topla(faturaAdet, f.company_id ?? null, 1);
+    topla(gelir, anaOf(f.company_id) ?? null, kurus(f.amount_excl_vat)); topla(faturaAdet, anaOf(f.company_id) ?? null, 1);
     // KDV'si 0 girilen spot iş ve elden ödemeler faturasız paradır: vergi tahminine dahil edilmez
     if (f.income_kind && f.income_kind !== 'fatura' && !(Number(f.vat_amount) > 0)) vergisizGelirK += kurus(f.amount_excl_vat);
   }
@@ -58,8 +64,8 @@ export function hesaplaKarlilik(g) {
   for (const z of zaman) {
     if (z.archived_at || ay7(z.work_date) !== ayAnahtar || !z.company_id) continue;
     const dk = Number(z.onsite_minutes ?? 0) + Number(z.reporting_minutes ?? 0);
-    topla(fiiliKisiFirma, `${z.employee_id}|${z.company_id}`, dk); topla(fiiliFirma, z.company_id, dk); topla(fiiliKisi, z.employee_id, dk);
-    if (z.activity_type === 'ziyaret') topla(ziyaret, z.company_id, 1);
+    topla(fiiliKisiFirma, `${z.employee_id}|${anaOf(z.company_id)}`, dk); topla(fiiliFirma, anaOf(z.company_id), dk); topla(fiiliKisi, z.employee_id, dk);
+    if (z.activity_type === 'ziyaret') topla(ziyaret, anaOf(z.company_id), 1);
   }
 
   // ---- giderlerin sınıflandırılması
@@ -72,7 +78,7 @@ export function hesaplaKarlilik(g) {
     if (kat?.is_income_tax) { vergiK += k; continue; }
     if (kat?.is_management_pay) { yonetimOdenenK += k; continue; }
     if (x.cost_type === 'ortak') topla(havuz, x.category_id, k);
-    else if (x.company_id) topla(dogrudanFirma, x.company_id, k);
+    else if (x.company_id) topla(dogrudanFirma, anaOf(x.company_id), k);
     else if (x.employee_id) topla(dogrudanKisi, x.employee_id, k);
     else uyarilar.push('Bir doğrudan gider firmaya veya personele bağlı değil; hesaba katılmadı.');
   }
@@ -151,7 +157,7 @@ export function hesaplaKarlilik(g) {
     if (f.archived_at) continue;
     const sozlesmeli = sozlesmeler.some((c) => c.company_id === f.id && !c.archived_at && ['aktif', 'yenilendi', 'sona_erdi'].includes(c.status)
       && ay7(c.start_date) <= ayAnahtar && ay7(c.end_date) >= ayAnahtar);
-    if ((gelir.get(f.id) ?? 0) > 0 || sozlesmeli) adaylar.add(f.id);
+    if ((gelir.get(anaOf(f.id)) ?? 0) > 0 || sozlesmeli) adaylar.add(anaOf(f.id));
   }
   const olcutAgirligi = (olcut, id) => {
     if (olcut === 'gelir_orani') return gelir.get(id) ?? 0;
@@ -172,7 +178,7 @@ export function hesaplaKarlilik(g) {
     const dagitim = new Map(); let dagitilmayanK; let kaydedilmis = false;
     if (kayitli.length) {
       kaydedilmis = true;
-      for (const r of kayitli) topla(dagitim, r.company_id, kurus(r.amount));
+      for (const r of kayitli) topla(dagitim, anaOf(r.company_id), kurus(r.amount));
       dagitilmayanK = havuzK - [...dagitim.values()].reduce((t, x) => t + x, 0);
     } else {
       const ids = [...adaylar];
@@ -190,7 +196,7 @@ export function hesaplaKarlilik(g) {
   const firmaSatirlari = [...idler].map((id) => {
     const gK = gelir.get(id) ?? 0; const pK = firmaPersonelK.get(id) ?? 0; const dK = dogrudanFirma.get(id) ?? 0; const oK = firmaOrtakK.get(id) ?? 0;
     const katkiK = gK - pK - dK; const karK = katkiK - oK;
-    return { id, ad: id === null ? 'Firma dışı işler' : (firmaAdi.get(id) ?? 'Firma'), faturaAdet: faturaAdet.get(id) ?? 0, gelir: tl(gK), personel: tl(pK), dogrudan: tl(dK), katki: tl(katkiK), ortak: tl(oK), kar: tl(karK), marj: gK > 0 ? Math.round((karK / gK) * 1000) / 10 : null, _k: { gK, pK, dK, oK, karK } };
+    return { id, bagliFirmalar: bagliAdlari.get(id) ?? [], ad: id === null ? 'Firma dışı işler' : `${firmaAdi.get(id) ?? 'Firma'}${bagliAdlari.get(id)?.length ? ` (+${bagliAdlari.get(id).length} bağlı firma)` : ''}`, faturaAdet: faturaAdet.get(id) ?? 0, gelir: tl(gK), personel: tl(pK), dogrudan: tl(dK), katki: tl(katkiK), ortak: tl(oK), kar: tl(karK), marj: gK > 0 ? Math.round((karK / gK) * 1000) / 10 : null, _k: { gK, pK, dK, oK, karK } };
   }).sort((a, b) => b.kar - a.kar || String(a.ad).localeCompare(String(b.ad), 'tr'));
 
   // ---- işletme toplamı

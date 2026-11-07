@@ -40,9 +40,9 @@ export async function panelSayfasi(app) {
   ]);
   const bugunStr = bugun();
   const ay = ayBasi(bugunStr);
-  const harita = profilleriGrupla(profiller);
+  const harita = profilleriGrupla(profiller, firmalar);
   const aktif = firmalar.filter((f) => !f.archived_at);
-  const musteriler = aktif.filter((f) => f.customer_status === 'musteri');
+  const musteriler = aktif.filter((f) => f.customer_status === 'musteri' && !f.parent_company_id);
   const kap = kapasiteDakika(ayarlar, ay);
 
   let calisan = 0, uzmanDk = 0, hekimDk = 0;

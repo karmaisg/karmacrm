@@ -181,6 +181,11 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
     uyeler.filter((u) => u.is_active || u.id === firma?.responsible_user).map((u) => ({ deger: u.id, etiket: u.is_active ? u.full_name : `${u.full_name} (pasif)` })),
   );
   const v = (k) => firma?.[k] ?? '';
+  // Ana firma: bağlı firma, karlılık raporlarında ve hesaplarda ana firmayla tek firma gibi toplanır
+  const altiVar = duzenle && tum.some((x) => x.parent_company_id === firma.id);
+  const anaSecenekleri = [{ deger: '', etiket: 'Yok (bağımsız firma)' }].concat(
+    tum.filter((x) => !x.archived_at && !x.parent_company_id && x.id !== firma?.id).map((x) => ({ deger: x.id, etiket: x.name })),
+  );
 
   const govde = html`
     ${field({ ad: 'name', etiket: 'Firma adı', deger: v('name'), zorunlu: true, tam: true, maksUzunluk: 200, otomatik: 'organization' })}
@@ -195,6 +200,7 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
     ${field({ ad: 'website', etiket: 'Web sitesi', deger: v('website'), yerTutucu: 'www.firma.com', maksUzunluk: 200 })}
     ${field({ ad: 'current_provider', etiket: 'Mevcut OSGB (biliniyorsa)', deger: v('current_provider'), maksUzunluk: 120 })}
     ${field({ ad: 'customer_status', etiket: 'Müşteri durumu', deger: firma?.customer_status ?? 'musteri', secenekler: [{ deger: 'musteri', etiket: 'Müşteri' }, { deger: 'eski_musteri', etiket: 'Eski müşteri' }] })}
+    ${altiVar ? '' : field({ ad: 'parent_company_id', etiket: 'Ana firma (fatura grubu)', deger: v('parent_company_id'), secenekler: anaSecenekleri, ipucu: 'Seçilirse bu firma karlılık raporlarında ana firmayla tek firma sayılır; çalışan sayısı ve tehlike sınıfı ana firmaya eklenir.' })}
     ${field({ ad: 'responsible_user', etiket: 'Sorumlu kullanıcı', deger: v('responsible_user'), secenekler: uyeSecenekleri })}
     ${field({ ad: 'notes', etiket: 'Notlar', tur: 'textarea', deger: v('notes'), tam: true, maksUzunluk: 2000 })}
     ${duzenle ? '' : html`<div class="form-section field-full">
@@ -257,11 +263,14 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
         customer_status: g('customer_status') || 'musteri', responsible_user: bosIseNull(g('responsible_user')),
         notes: bosIseNull(g('notes')),
       };
+      if (!altiVar) degerler.parent_company_id = bosIseNull(g('parent_company_id'));
       if (duzenle) {
         await app.api.updateCompany(firma.id, degerler);
         toast('Firma bilgileri güncellendi.');
       } else {
-        const yeni = await app.api.createCompany(degerler, profil);
+        const { parent_company_id: anaId, ...digerleri } = degerler;
+        const yeni = await app.api.createCompany(digerleri, profil);
+        if (anaId) await app.api.updateCompany(yeni.id, { parent_company_id: anaId });
         yeniId = yeni.id;
         toast('Firma oluşturuldu.');
       }

@@ -5,6 +5,6 @@
   "type": "module",
   "description": "OSGB 360 - OSGB yönetim, CRM, satış ve kârlılık platformu",
   "scripts": {
-    "test": "node --test tests/hesaplama.test.js tests/puanlama.test.js tests/operasyon.test.js tests/finans.test.js tests/karlilik.test.js tests/csv.test.js tests/aktarim.test.js tests/ayarlar.test.js tests/ozet.test.js tests/denetim.test.js tests/yedek.test.js tests/musteri.test.js tests/katip.test.js tests/gorevlendirme.test.js tests/takvim.test.js tests/gelir.test.js tests/gider_aktar.test.js tests/maliyet.test.js tests/izin.test.js tests/yonetim.test.js tests/cari.test.js"
+    "test": "node --test tests/hesaplama.test.js tests/puanlama.test.js tests/operasyon.test.js tests/finans.test.js tests/karlilik.test.js tests/csv.test.js tests/aktarim.test.js tests/ayarlar.test.js tests/ozet.test.js tests/denetim.test.js tests/yedek.test.js tests/musteri.test.js tests/katip.test.js tests/gorevlendirme.test.js tests/takvim.test.js tests/gelir.test.js tests/gider_aktar.test.js tests/maliyet.test.js tests/izin.test.js tests/yonetim.test.js tests/baglifirma.test.js tests/cari.test.js"
   }
 }

@@ -58,6 +58,9 @@ export async function firmaSayfasi(app, id) {
     app.can('invoices', 'view') ? app.api.listInvoices() : Promise.resolve([]),
     app.can('invoices', 'view') ? app.api.listPayments() : Promise.resolve([]),
   ]);
+  const tumFirmalar = firma ? ((await app.api.listCompanies().catch(() => [])) ?? []) : [];
+  const anaFirma = firma?.parent_company_id ? tumFirmalar.find((c) => c.id === firma.parent_company_id) : null;
+  const bagliFirmalar = firma ? tumFirmalar.filter((c) => c.parent_company_id === firma.id && !c.archived_at) : [];
   const tumSiteler = firma ? await app.api.listSites().catch(() => null) : null;
   const siteler = tumSiteler ? tumSiteler.filter((x) => x.company_id === id && !x.archived_at).sort((a, b) => a.site_name.localeCompare(b.site_name, 'tr')) : null;
   if (!firma) {
@@ -416,7 +419,7 @@ export async function firmaSayfasi(app, id) {
       ${arsivleyebilir ? html`<button type="button" class="btn ${firma.archived_at ? 'btn-primary' : 'btn-secondary'}" data-action="arsiv">${icon(firma.archived_at ? 'restore' : 'archive', 18)} ${firma.archived_at ? 'Arşivden çıkar' : 'Arşivle'}</button>` : ''}
       ${duzenleyebilir && !firma.archived_at ? html`<button type="button" class="btn btn-secondary" data-action="pasif">${icon('archive', 18)} ${firma.customer_status === 'eski_musteri' ? 'Aktif et' : 'Pasife al'}</button>` : ''}
       ${silebilir ? html`<button type="button" class="btn btn-danger" data-action="firma-sil">${icon('x', 18)} Firmayı sil</button>` : ''}`,
-    govde: html`${!firma.archived_at && firma.customer_status === 'eski_musteri' ? html`<div class="notice notice-info" role="status" id="firma-pasif-notu">Bu firma pasif (eski müşteri). Kayıtları durur; yeni aylık fatura üretilmez, görevlendirmeleri uzman/hekim yüküne sayılmaz ve yeni zaman kaydı girilemez.</div>` : ''}${firma.archived_at ? html`<div class="notice notice-warn" role="status">Bu firma arşivde. Kayıtları görüntüleyebilirsiniz; düzenlemek için önce arşivden çıkarın.</div>` : ''}
+    govde: html`${anaFirma ? html`<div class="notice notice-info" role="status" id="firma-ana-notu">Bu firma <a href="${`#/firmalar/${anaFirma.id}`}">${anaFirma.name}</a> firmasına bağlıdır. Karlılık raporlarında ve çalışan/tehlike sınıfı hesabında ana firmayla tek firma sayılır.</div>` : ''}${bagliFirmalar.length ? html`<div class="notice notice-info" role="status" id="firma-bagli-notu">Bağlı firmalar: ${bagliFirmalar.map((c, i) => html`${i ? ', ' : ''}<a href="${`#/firmalar/${c.id}`}">${c.name}</a>`)}. Bu firmaların geliri, maliyeti, çalışan sayısı ve tehlike sınıfı burada toplanır.</div>` : ''}${!firma.archived_at && firma.customer_status === 'eski_musteri' ? html`<div class="notice notice-info" role="status" id="firma-pasif-notu">Bu firma pasif (eski müşteri). Kayıtları durur; yeni aylık fatura üretilmez, görevlendirmeleri uzman/hekim yüküne sayılmaz ve yeni zaman kaydı girilemez.</div>` : ''}${firma.archived_at ? html`<div class="notice notice-warn" role="status">Bu firma arşivde. Kayıtları görüntüleyebilirsiniz; düzenlemek için önce arşivden çıkarın.</div>` : ''}
       <div id="sekme-cubugu">${sekmeCubugu()}</div>
       <div id="sekme-govde" role="tabpanel">${sekmeGovdesi()}</div>`,
     mount(kok) {

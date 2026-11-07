@@ -478,3 +478,15 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 4. **Maliyet hesabı:** firmanın aktif işyerleri (Katip + elle girilen) toplanır; farklı tehlike sınıfları **ayrı ayrı kendi dakikasıyla** hesaplanır (örn. 10 çalışan az tehlikeli + 20 çalışan tehlikeli). Hesap, işyeri eklendiğinde/değiştirildiğinde/silindiğinde bu ayın başından itibaren yenilenir; geçmiş aylar değişmez. Tehlike sınıfı girilmemiş işyeri hesaba katılmaz.
 5. **Fatura:** "Ayrı fatura" işaretlenmeyen tüm işyerleri için firmaya tek fatura kesilir (mevcut davranış); işaretlenenler ayrı faturalanır.
 6. Mevcut elle girilmiş işyerlerinin hesaba yansıması için her firmada işyerlerinden birinin tehlike sınıfını/çalışan sayısını bir kez kaydetmeniz yeterlidir (ya da işyerini yeniden kaydedin).
+
+### Aşama 27 düzeltmesi — `supabase/28_asama27b.sql`
+Birkaç firmanın işyerleri tek firmaya bağlanınca (tek tahsilat/fatura için), işyerlerinin tamamı taşınan firmanın çalışan sayısı bu aydan itibaren 0 olur; böylece aynı yük iki kez sayılmaz ve boşalan firma "en düşük kârlı" listesine düşmez. Daha önce taşıdığınız firmalar için: boşalan firmanın **Çalışan sayısı** sekmesinden bu aydan itibaren 0 çalışan girin veya firmayı **Pasife alın**.
+
+## Aşama 28 (Bağlı firmalar / ana firma) — `supabase/29_asama28.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `29_asama28.sql` dosyasını çalıştırın (firmalara `parent_company_id` alanı ve bağlantı kontrolü ekler; tekrar çalıştırılabilir).
+2. **Bağlama:** Bağlı olacak firmayı açın → Düzenle → **Ana firma (fatura grubu)** alanından ana firmayı seçin. Yalnızca tek seviye desteklenir (ana firma başka firmaya bağlanamaz; bağlı firması olan firma bağlanamaz).
+3. **Karlılık:** Bağlı firmaların geliri, doğrudan giderleri, ortak gider payı, fiilî çalışma süresi ve personel maliyeti ana firmada toplanır; tek satır, adı "(+N bağlı firma)" ile gösterilir. En karlı / en düşük karlı listeleri ve yönetim özeti de aynı şekilde çalışır.
+4. **Çalışan ve tehlike sınıfı:** Bağlı (pasif veya aktif) firmaların çalışan sayıları ana firmaya eklenir; farklı tehlike sınıfları ayrı ayrı kendi süreleriyle hesaplanır, firma sınıfı en yükseği olur. Bağlı firmalar kapasite ve panelde ayrıca sayılmaz.
+5. **Görevlendirme:** Bağlı firmaların görevlendirmeleri ana firmada toplanır; pasif bağlı firmanınkiler yok sayılır. Toplam pay %100'ü aşarsa oranlanarak %100'e indirilir (hata vermez).
+6. Daha önce bağladığınız firmalar için: ilgili firmaları bu alandan ana firmaya bağlayın.
