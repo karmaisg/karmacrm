@@ -79,5 +79,7 @@ test('aylık personel serisi: ayda sözleşmesi geçerli firmaların çalışan�
   assert.deepEqual(f1.degerler, [50, 60]);
   assert.deepEqual(f2.degerler, [0, 25]);      // f2 sözleşmesi 15 Ekim'de başlıyor: Ekim'e dahil
   assert.deepEqual(r.toplam, [50, 85]);
+  assert.deepEqual(r.siniflar.tehlikeli, [50, 60]); assert.deepEqual(r.siniflar.az_tehlikeli, [0, 25]); assert.deepEqual(r.siniflar.cok_tehlikeli, [0, 0]);
+  assert.deepEqual(f1.siniflar.tehlikeli, [50, 60]);
   assert.ok(!r.firmalar.some((f) => f.id === 'f3'));
 });

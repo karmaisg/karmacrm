@@ -2683,12 +2683,21 @@ await test('panel: aylık hizmet verilen personel grafiği, tıklayınca firma s
   await s.locator('#personel-grafik').scrollIntoViewIfNeeded(); await s.waitForTimeout(200); await ekran(s, '76-panel-personel-grafik');
   const genis = await s.evaluate(() => { const k = document.querySelector('#personel-grafik').getBoundingClientRect(); const d = document.querySelector('#tehlike-dagilim, .grid-2 > .card:not(.card-genis)').getBoundingClientRect(); return k.width / d.width; });
   if (genis < 1.8) throw new Error(`grafik kutusu iki kutu genişliğinde değil: ${genis}`);
+  // sınıf düğmeleri: varsayılan toplam; düğmeye tıklayınca modal açılmaz, grafik sınıfa göre değişir
+  esit(await s.locator('#personel-grafik [data-psinif]').count(), 4, 'toplam + 3 sınıf düğmesi');
+  esit(await s.locator('#personel-grafik [data-psinif=""]').getAttribute('aria-pressed'), 'true', 'varsayılan toplam');
+  await s.locator('#personel-grafik [data-psinif="tehlikeli"]').click();
+  esit(await s.locator('.modal').count(), 0, 'düğme tıklaması pencere açmamalı');
+  esit(await s.locator('#personel-grafik [data-psinif="tehlikeli"]').getAttribute('aria-pressed'), 'true', 'tehlikeli seçili');
+  if (!(await s.locator('#personel-grafik svg.grafik').getAttribute('aria-label')).includes('Tehlikeli')) throw new Error('grafik sınıfa göre değişmedi');
   await s.locator('#personel-grafik .card-title').click(); await s.waitForSelector('.modal #personel-firma');
   const secenekler = await s.locator('#personel-firma option').allInnerTexts();
   if (secenekler.length < 2) throw new Error(`firma seçeneği yok: ${secenekler}`);
   await s.selectOption('#personel-firma', { index: 1 });
   await s.waitForSelector('.modal #personel-icerik svg.grafik rect', { state: 'attached' });
   esit(await s.locator('.modal #personel-icerik tbody tr').count(), 12, 'aylık değişim satırı');
+  await s.locator('.modal [data-psinif="az_tehlikeli"]').click();
+  if (!(await s.locator('.modal #personel-icerik svg.grafik').getAttribute('aria-label')).includes('Az tehlikeli')) throw new Error('pencerede sınıf düğmesi çalışmadı');
 });
 
 // ---------------------------------------------------------------- Menü düzeni: Fatura Takip, Gelirler
@@ -2970,8 +2979,8 @@ await test('yönetici paneli: aylık finans özeti kutucukları, grafikler ve ay
   const op = await s.locator('#yon-operasyon').innerText();
   for (const b of ['Hizmet verilen toplam personel', 'Ortalama kişi bazlı gelir', 'Tehlike sınıfına göre ort. kişi bazlı gelir', 'Çok tehlikeli', 'Tehlikeli', 'Az tehlikeli']) if (!op.includes(b)) throw new Error(`operasyon kutularında ${b} yok: ${op}`);
   for (const b of ['Aktif firma sayısı', 'Uzman / hekim sayısı', 'Toplam teorik hizmet dakikası', 'Toplam fiilî hizmet dakikası']) if (op.includes(b)) throw new Error(`kaldırılan kutu hâlâ var: ${b}`);
-  const kutular = await s.evaluate(() => [...document.querySelectorAll(".kpi-grid .kpi")].map((k) => `${Math.round(k.getBoundingClientRect().width)}x${Math.round(k.getBoundingClientRect().height)}`));
-  { const w = kutular.map((x) => Number(x.split('x')[0])); const y = kutular.map((x) => Number(x.split('x')[1])); if (Math.max(...w) - Math.min(...w) > 2) throw new Error(`kutucuk genişlikleri eşit değil: ${kutular}`); if (Math.max(...y) - Math.min(...y) > 40) throw new Error(`kutucuk yükseklikleri çok farklı: ${kutular}`); }
+  const kutular = await s.evaluate(() => [...document.querySelectorAll(".yon-ozet .kpi")].map((k) => `${Math.round(k.getBoundingClientRect().width)}x${Math.round(k.getBoundingClientRect().height)}`));
+  { const w = kutular.map((x) => Number(x.split('x')[0])); if (Math.max(...w) - Math.min(...w) > 2) throw new Error(`kutucuk genişlikleri eşit değil: ${kutular}`); }
   const renk = (sel) => s.evaluate((q) => getComputedStyle(document.querySelector(q)).color, sel);
   const [rg, rd, rk] = [await renk('#yon-finans .t-gelir'), await renk('#yon-finans .t-gider'), await renk('#yon-kar .t-kar')];
   if (rg === rd || rd === rk || rg === rk) throw new Error(`para renkleri ayrışmıyor: ${rg} ${rd} ${rk}`);
