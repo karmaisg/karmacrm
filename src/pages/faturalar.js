@@ -1,4 +1,4 @@
-// OSGB 360 - Gelirler ve tahsilatlar: fatura listesi, kısmi tahsilat, vade/gecikme takibi, toplu dönem faturası.
+// OSGB 360 - Fatura Takip: fatura listesi, kısmi tahsilat, vade/gecikme takibi, toplu dönem faturası.
 import { html, bugun, tarih, gunEkle, para, para2, sayi, icerir, trSirala, ayAdi, ayBasi } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import { pill, emptyState, field, checkbox, openModal, openFormModal, confirmDialog, toast, sayfalama } from '../ui/components.js';
@@ -314,7 +314,7 @@ export function topluFaturaFormuAc(app, { onDone = null } = {}) {
 export function firmaFaturalari(app, faturalar, tahsilatlar, bugunStr = bugun()) {
   const harita = tahsilatHaritasi(tahsilatlar);
   const l = faturalar.filter((f) => !f.archived_at).sort((a, b) => String(b.invoice_date).localeCompare(String(a.invoice_date)));
-  if (!l.length) return emptyState({ simge: 'wallet', baslik: 'Bu firmaya henüz fatura kesilmemiş', metin: 'Fatura ekleyin veya Gelirler ve tahsilatlar sayfasından aylık faturaları toplu oluşturun.' });
+  if (!l.length) return emptyState({ simge: 'wallet', baslik: 'Bu firmaya henüz fatura kesilmemiş', metin: 'Fatura ekleyin veya Fatura Takip sayfasından aylık faturaları toplu oluşturun.' });
   return html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Fatura</th><th scope="col" class="hide-sm">Vade</th><th scope="col" class="num">Tutar</th><th scope="col" class="num hide-sm">Kalan</th><th scope="col">Durum</th><th scope="col"><span class="sr-only">Eylemler</span></th></tr></thead><tbody>
     ${l.map((f) => { const d = faturaDurumu(f, harita.get(f.id) ?? [], bugunStr);
       return html`<tr><td><strong>${f.invoice_no}</strong><small class="block muted">${tarih(f.invoice_date)}${f.service_period ? ` · ${ayAdi(f.service_period)}` : ''}</small></td><td class="hide-sm">${tarih(f.due_date)}</td>
@@ -381,7 +381,7 @@ export async function tahsilatSayfasi(app) {
   };
 
   return {
-    baslik: 'Gelirler ve tahsilatlar', altBaslik: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi (tutarlar KDV dahil)',
+    baslik: 'Fatura Takip', altBaslik: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi (tutarlar KDV dahil)',
     eylemler: olusturabilir ? html`<button type="button" class="btn btn-secondary" data-action="toplu-fatura">${icon('calendar', 18)} Aylık faturaları oluştur</button>
       <button type="button" class="btn btn-secondary" data-action="yeni-gelir">${icon('plus', 18)} Gelir ekle</button>
       <button type="button" class="btn btn-primary" data-action="yeni-fatura">${icon('plus', 18)} Fatura ekle</button>` : '',

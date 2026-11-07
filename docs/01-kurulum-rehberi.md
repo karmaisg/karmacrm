@@ -176,7 +176,7 @@ Uzman veya hekimin kendi hesabıyla zaman girebilmesi için: Uzmanlar (veya İş
 
 Bu dosya: fatura numarasını otomatik verme (F-2026-0001), vade/firma/sözleşme doğrulaması, bir sözleşme için bir hizmet dönemine tek fatura, tahsilatı olan faturanın arşivlenememesi, tahsilatta gelecek tarih engeli, fatura tamamen ödenince açık "tahsilat takibi" görevinin kapanması, gider kuralları (ortak gider firmaya bağlanmaz, doğrudan gider tam olarak bir firmaya ya da personele bağlanır, maaş kategorisi maaş yetkisi ister) ve `fatura_kaydet`, `donem_faturalari_olustur`, `tahsilat_gecikme_gorevleri`, `gider_kaydet` fonksiyonlarını ekler.
 
-Kullanım: **Gelirler ve tahsilatlar** sayfasında "Aylık faturaları oluştur" ile aktif sözleşmelerin o ayki faturaları tek tıkla üretilir; kişi başı sözleşmelerde tutar, o tarihte geçerli çalışan sayısıyla hesaplanır. Vadesi geçen faturalar için giriş yapıldığında görev üretilir (Finans veya İşletme sahibi girişinde).
+Kullanım: **Fatura Takip** sayfasında "Aylık faturaları oluştur" ile aktif sözleşmelerin o ayki faturaları tek tıkla üretilir; kişi başı sözleşmelerde tutar, o tarihte geçerli çalışan sayısıyla hesaplanır. Vadesi geçen faturalar için giriş yapıldığında görev üretilir (Finans veya İşletme sahibi girişinde).
 
 ---
 
@@ -372,16 +372,16 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
    - **Vade:** Excel'de olmadığı için fatura tarihine eklenen gün sayısı (varsayılan 30) girilir.
    - **Uyarılar:** KDV sütunu ile tutar uyuşmazsa (ör. %10 sütununa %20'lik tutar yazılmışsa) tutara göre düzeltilir ve satırda yazılır; Ücret + KDV ile Toplam farklıysa, tarih okunamıyorsa veya tutar yoksa uyarılır / satır aktarılmaz; aynı numara sistemde varsa "zaten kayıtlı — atlanır".
    - **Faturası unutulmuş olabilecek firmalar:** dosyanın ana hizmet döneminde (satırların en az %20'sini oluşturan ay) aktif sözleşmesi olan, ama ne sistemde ne bu dosyada faturası bulunan firmalar listelenir. Aynı uyarı aktarımdan sonra da gösterilir.
-4. **Spot iş ve elden ödeme:** **Gelirler ve tahsilatlar > Gelir ekle**. Gelir türü *Spot iş* ise ne olduğunu yazar, KDV oranını ve tutarın KDV hariç/dahil olduğunu seçersiniz. *Elden ödeme* seçilirse KDV hesaplanmaz (KDV yok) ve "tahsil edildi" kutusu işaretli gelir; kayıt, ödeme yöntemi "Elden" olan bir tahsilatla kapanır. Fatura numarası boşsa otomatik verilir.
+4. **Spot iş ve elden ödeme:** **Fatura Takip > Gelir ekle**. Gelir türü *Spot iş* ise ne olduğunu yazar, KDV oranını ve tutarın KDV hariç/dahil olduğunu seçersiniz. *Elden ödeme* seçilirse KDV hesaplanmaz (KDV yok) ve "tahsil edildi" kutusu işaretli gelir; kayıt, ödeme yöntemi "Elden" olan bir tahsilatla kapanır. Fatura numarası boşsa otomatik verilir.
 5. **Fatura detayı:** gelir türünü, ortalama KDV'yi ve iki oranlı faturalarda oran kırılımını gösterir.
-6. **Yetki:** Excel yüklemek için Gelirler ve tahsilatlar'da *ekleme* ve Veri içe/dışa aktarma'da *ekleme* yetkisi gerekir; yeni firma oluşturmak için ayrıca Firmalar'da *ekleme* yetkisi.
+6. **Yetki:** Excel yüklemek için Fatura Takip'da *ekleme* ve Veri içe/dışa aktarma'da *ekleme* yetkisi gerekir; yeni firma oluşturmak için ayrıca Firmalar'da *ekleme* yetkisi.
 7. **Sınırlar:** Yalnızca %20 / %10 / KDV'siz sütunları tanınır (başka oran ayrı sütunla desteklenmez, tuhaf oran uyarı ile işlenir). Tek seferde en çok 1.000 satır. Elden/spot gelirler Excel'le değil elle girilir. Tahsilat, bu aktarımda kendiliğinden oluşmaz (Excel'de ödeme bilgisi yok). "Unutulan fatura" kontrolü yalnızca aktif sözleşmesi olan firmaları kapsar. Gerçek bir Supabase üzerinde RLS davranışı bu ortamda denenemedi (yerel PostgreSQL'de denendi).
 
 ## Aşama 18 kurulumu (firmayı kalıcı silme, pasif firma kuralı)
 
 1. **SQL:** Supabase > SQL Editor'de `supabase/19_asama18.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. Edge Function'a dokunulmaz.
 2. **Pasife al / Aktif et:** firma kartında **Pasife al** (firmayı "eski müşteri" yapar). Pasif firmada tüm kayıtlar durur; ama
-   - aylık toplu faturada (Gelirler ve tahsilatlar > Aylık faturaları oluştur) yer almaz, yani sonraki aya otomatik gelir eklenmez;
+   - aylık toplu faturada (Fatura Takip > Aylık faturaları oluştur) yer almaz, yani sonraki aya otomatik gelir eklenmez;
    - görevlendirmeleri uzman/hekim teorik yükünde ve Kapasite analizinde sayılmaz (uzmanın saati harcanmış görünmez);
    - yeni görevlendirme ve yeni zaman kaydı için firma listesinde çıkmaz.
    **Aktif et** ile her şey eski haline döner. Arşivlenen firma da pasif sayılır.
@@ -432,7 +432,7 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 ## Aşama 22 kurulumu (firma dışı spot işler, kârlılık düzeltmeleri)
 
 1. **SQL:** Supabase > SQL Editor'de `supabase/24_asama22.sql` dosyasını çalıştırın ("Success"). Yeniden çalıştırılabilir. Faturalar tablosunda firma alanı boş bırakılabilir hale gelir ve `gelir_kalemi_ekle` fonksiyonu yenilenir.
-2. **Firma dışı spot iş:** Gelirler ve tahsilatlar > Gelir ekle'de Firma alanını "Firma dışı iş" bırakın; işin adını (sağlık raporu, risk analizi, sözleşme, eğitim vb.) ve isterseniz müşteri adını yazın. Listede "(firma dışı)" ibaresiyle görünür.
+2. **Firma dışı spot iş:** Fatura Takip > Gelir ekle'de Firma alanını "Firma dışı iş" bırakın; işin adını (sağlık raporu, risk analizi, sözleşme, eğitim vb.) ve isterseniz müşteri adını yazın. Listede "(firma dışı)" ibaresiyle görünür.
 3. **KDV 0 kuralı:** KDV oranı 0 girilen spot işler ve elden ödemeler faturasız paradır; gelire ve vergi öncesi kâra dahildir ama **tahmini kurumlar vergisi hesabına dahil edilmez**. Kârlılık sayfasında "KDV 0 gelir ... vergiye dahil değil" notu görünür.
 4. **Personel kârlılığı:** Yönetim olarak işaretli personel listede görünmez (maliyeti yönetim giderine yansımaya devam eder). Ayrılış tarihinden sonraki aylarda personel hiç gösterilmez; ayrılış ayı dahildir.
 5. **Uzman ve Hekimler:** Aya ait teorik yük dakika olarak gösterilir (örn. 1.050 dk).
@@ -459,7 +459,7 @@ Logo dosyaları `assets/` klasöründedir: `logo.png` (simge, menü), `logo-tam.
 1. Supabase → SQL Editor'de `25_asama25.sql` dosyasını çalıştırın (firmalara isteğe bağlı "vergi dairesi" alanı ekler; tekrar çalıştırılabilir).
 2. **Finans → Cari hesap:** firma ve dönem (yıl / tüm dönem / tarih aralığı) seçilir. Faturalar **alacak**, tahsilatlar **borç** hanesine yazılır (KDV dahil); bakiye birikimli hesaplanır, bakiye pozitifse "ALACAKLI" görünür. Dönem başından önceki hareketler "Önceki dönemden devir" satırıyla özetlenir.
 3. **Excel olarak indir:** ekteki örnek biçimde (firma bilgileri bloğu, Karma logosu, Tarih/Borç/Alacak/Bakiye/Açıklama tablosu, toplam satırı, banka bilgileri) `.xlsx` üretir. Banka bilgisi `src/lib/cari.js` içindeki `BANKA_BILGISI` listesindedir; değişirse oradan güncellenir.
-4. **Tahsilat tarihi düzeltme:** Cari ekstresinde tahsilat satırındaki kalem simgesi (veya fatura detayından) tarih/tutarı değiştirir; ekstre, Gelirler ve tahsilatlar ("son tahsilat" bilgisi) ve tüm raporlar yeni tarihi kullanır. Toplu işaretlemeyle (tarihi bilinmeden, fatura tarihiyle) girilmiş tahsilatlar "Tarih tahmini" etiketiyle gösterilir; gerçek tarihi girilince etiket kalkar.
+4. **Tahsilat tarihi düzeltme:** Cari ekstresinde tahsilat satırındaki kalem simgesi (veya fatura detayından) tarih/tutarı değiştirir; ekstre, Fatura Takip ("son tahsilat" bilgisi) ve tüm raporlar yeni tarihi kullanır. Toplu işaretlemeyle (tarihi bilinmeden, fatura tarihiyle) girilmiş tahsilatlar "Tarih tahmini" etiketiyle gösterilir; gerçek tarihi girilince etiket kalkar.
 5. Firma formuna **Vergi dairesi** alanı eklendi (Excel başlığında kullanılır). Yetkili kişi, firmanın ilk kişisinden alınır.
 
 ## Aşama 26 (Firma bazında tahsilat) — `supabase/26_asama26.sql` çalıştırılmalı
@@ -490,3 +490,9 @@ Birkaç firmanın işyerleri tek firmaya bağlanınca (tek tahsilat/fatura için
 4. **Çalışan ve tehlike sınıfı:** Bağlı (pasif veya aktif) firmaların çalışan sayıları ana firmaya eklenir; farklı tehlike sınıfları ayrı ayrı kendi süreleriyle hesaplanır, firma sınıfı en yükseği olur. Bağlı firmalar kapasite ve panelde ayrıca sayılmaz.
 5. **Görevlendirme:** Bağlı firmaların görevlendirmeleri ana firmada toplanır; pasif bağlı firmanınkiler yok sayılır. Toplam pay %100'ü aşarsa oranlanarak %100'e indirilir (hata vermez).
 6. Daha önce bağladığınız firmalar için: ilgili firmaları bu alandan ana firmaya bağlayın.
+
+## Menü düzeni (Fatura Takip ve Gelirler)
+
+- "Gelirler ve tahsilatlar" menüsünün adı **Fatura Takip** oldu (faturalar, tahsilat, vade takibi; işleyiş aynı).
+- Yeni **Finans → Gelirler** sayfası: Giderler gibi ay seçilir; o ayın toplam geliri (KDV hariç / dahil), tahsil edilen ve kalan tutar ile gelir kalemlerinin listesi görünür. Tür (fatura, spot iş, elden ödeme) süzülebilir. Gelir ayı, hizmet dönemi varsa o, yoksa fatura tarihidir (kârlılıkla aynı kural).
+- Finans sırası: Fatura Takip, Gelirler, Giderler, Cari hesap, Personel kârlılığı, Firma kârlılığı. Menü grupları: Genel, Operasyon, Finans, **Satış**, Yönetim (Satış artık Finans'tan sonra).

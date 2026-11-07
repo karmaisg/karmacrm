@@ -90,7 +90,7 @@ export function gelirSablonu() {
       ['Açıklama sütunu firma adını içermelidir; hizmet ayı parantez içinde yazılabilir. Örnek: Alfa Gıda (Ekim)'],
       ['Bir faturada hem %20 hem %10 KDV varsa iki sütun da doldurulur. KDV\'siz satırda iki KDV sütunu boş bırakılır.'],
       ['Fatura tarihi gün.ay.yıl biçiminde tarih hücresi olmalıdır. Fatura numarası boşsa sistem numara verir.'],
-      ['Spot iş ve elden ödemeler bu dosyayla değil, Gelirler ve tahsilatlar sayfasındaki "Gelir ekle" ile elle girilir.'],
+      ['Spot iş ve elden ödemeler bu dosyayla değil, Fatura Takip sayfasındaki "Gelir ekle" ile elle girilir.'],
     ] },
   ]);
 }

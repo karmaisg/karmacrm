@@ -13,7 +13,7 @@ export const MODUL_ADLARI = {
   staff: 'Uzman ve hekim kayıtları',
   assignments: 'Görevlendirmeler',
   time: 'Zaman ve ziyaret takibi',
-  invoices: 'Gelirler ve tahsilatlar',
+  invoices: 'Fatura takip, gelirler ve cari hesap',
   expenses: 'Giderler',
   payroll: 'Maaş ve personel maliyeti (hassas)',
   staff_profit: 'Personel kârlılığı',
@@ -44,9 +44,9 @@ export const AYRICALIKLI_ROLLER = ['sistem_yoneticisi', 'isletme_sahibi'];
 
 export const GRUPLAR = [
   { id: 'genel', ad: 'Genel' },
-  { id: 'satis', ad: 'Satış' },
   { id: 'operasyon', ad: 'Operasyon' },
   { id: 'finans', ad: 'Finans' },
+  { id: 'satis', ad: 'Satış' },
   { id: 'yonetim', ad: 'Yönetim' },
 ];
 
@@ -81,12 +81,14 @@ export const MENU = [
     aciklama: 'Aylık tekrarlayan ödemeler, hatırlatmalar ve görev tarihleri.' },
   { id: 'gorevler', grup: 'operasyon', modul: 'tasks', ad: 'Hatırlatmalar ve görevler', simge: 'checksq', yapildi: true },
 
-  { id: 'tahsilat', grup: 'finans', modul: 'invoices', ad: 'Gelirler ve tahsilatlar', simge: 'wallet', yapildi: true,
+  { id: 'tahsilat', grup: 'finans', modul: 'invoices', ad: 'Fatura Takip', simge: 'wallet', yapildi: true,
     aciklama: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi.' },
-  { id: 'cari', grup: 'finans', modul: 'invoices', ad: 'Cari hesap', simge: 'contract', yapildi: true,
-    aciklama: 'Firma bazında cari hesap ekstresi; yıl veya tarih aralığı seçimi ve Excel çıktısı.' },
+  { id: 'gelirler', grup: 'finans', modul: 'invoices', ad: 'Gelirler', simge: 'trend', yapildi: true,
+    aciklama: 'Ay bazında toplam gelir ve gelir kalemlerinin listesi.' },
   { id: 'giderler', grup: 'finans', modul: 'expenses', ad: 'Giderler', simge: 'receipt', yapildi: true,
     aciklama: 'Doğrudan ve ortak giderler; KDV hariç ve dahil tutarlar.' },
+  { id: 'cari', grup: 'finans', modul: 'invoices', ad: 'Cari hesap', simge: 'contract', yapildi: true,
+    aciklama: 'Firma bazında cari hesap ekstresi; yıl veya tarih aralığı seçimi ve Excel çıktısı.' },
   { id: 'personel-karlilik', grup: 'finans', modul: 'staff_profit', ad: 'Personel kârlılığı', simge: 'trend', yapildi: true,
     aciklama: 'Uzman ve hekim bazında gelir, maliyet ve katkı kârı.' },
   { id: 'firma-karlilik', grup: 'finans', modul: 'company_profit', ad: 'Firma kârlılığı', simge: 'bars', yapildi: true,

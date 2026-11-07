@@ -83,7 +83,7 @@ export function gelirAktarimKarti(app) {
     const s = d.sonuc;
     return html`<div class="notice ${s.atlanan.length ? 'notice-warn' : 'notice-ok'}" role="status" id="gelir-sonuc"><strong>${sayi(s.eklenen)}</strong> fatura eklendi${s.yeni_firma ? html`, <strong>${sayi(s.yeni_firma)}</strong> yeni firma oluşturuldu` : ''}${s.atlanan.length ? html`, ${sayi(s.atlanan.length)} fatura zaten kayıtlı olduğu için atlandı (${s.atlanan.map((a) => a.no).join(', ')})` : ''}.</div>
       ${d.sonucUnutulan}
-      <div class="modal-actions pad-t"><a class="btn btn-secondary" href="#/tahsilat">Gelirler ve tahsilatlara git</a><button type="button" class="btn btn-primary" data-action="gelir-yeni">Yeni yükleme</button></div>`;
+      <div class="modal-actions pad-t"><a class="btn btn-secondary" href="#/tahsilat">Fatura Takip'e git</a><button type="button" class="btn btn-primary" data-action="gelir-yeni">Yeni yükleme</button></div>`;
   };
 
   const govde = () => {
@@ -98,7 +98,7 @@ export function gelirAktarimKarti(app) {
   };
 
   const kart = () => html`<section class="card" id="gelir-karti"><div class="card-head"><div><h2 class="card-title">Aylık gelir (fatura) Excel'i</h2>
-    <p class="card-sub">Ay sonu fatura listesini yükleyin. Firma, faturanın açıklamasındaki addan bulunur; %20 ve %10 KDV ayrı kalemler olarak işlenir ve ortalama KDV gösterilir. Spot iş ve elden ödemeler için Gelirler ve tahsilatlar sayfasındaki "Gelir ekle" kullanılır.</p></div></div>
+    <p class="card-sub">Ay sonu fatura listesini yükleyin. Firma, faturanın açıklamasındaki addan bulunur; %20 ve %10 KDV ayrı kalemler olarak işlenir ve ortalama KDV gösterilir. Spot iş ve elden ödemeler için Fatura Takip sayfasındaki "Gelir ekle" kullanılır.</p></div></div>
     ${izin ? html`<div class="toolbar"><button type="button" class="btn btn-secondary btn-sm" data-action="gelir-sablon">${icon('upload', 16)} Boş şablonu indir (.xlsx)</button></div>
       <div class="pad">${d.sonuc ? '' : html`<div class="field"><label for="gelir-dosya">Gelir Excel dosyası (.xlsx, en çok 8 MB)</label><input id="gelir-dosya" type="file" accept=".xlsx,${XLSX_TUR}"></div>
       <p class="form-error" id="gelir-hata" role="alert" ${d.hata ? '' : html`hidden`}>${d.hata}</p>${d.dosyaAdi && !d.hata ? html`<p class="muted">${d.dosyaAdi}</p>` : ''}`}
