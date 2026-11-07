@@ -594,6 +594,32 @@ const rpcler = {
     Object.assign(imp, { row_count: eklenen, archived_count: eski.length, total_excl_vat: toplam });
     return { data: { import_id: imp.id, eklenen, arsivlenen: eski.length, yeni_kategori: yeniKat, negatif_atlanan: negatif } };
   },
+  isyeri_profil_esitle(a) {
+    if (!izinVar('companies', 'can_edit')) return { error: hata('Firma düzenleme yetkiniz yok.', 'P0001') };
+    const sl = tablo.company_sites.filter((x) => x.company_id === a.p_firma && x.is_active !== false && !x.archived_at && x.hazard_class);
+    if (!sl.length) return { data: { guncellendi: false } };
+    const sira = { az_tehlikeli: 1, tehlikeli: 2, cok_tehlikeli: 3 };
+    const toplam = sl.reduce((t, x) => t + (x.employee_count ?? 0), 0);
+    const tehlike = sl.reduce((m, x) => (sira[x.hazard_class] > sira[m] ? x.hazard_class : m), sl[0].hazard_class);
+    const sinif = [...new Set(sl.map((x) => x.hazard_class))].sort();
+    const dokum = sinif.length > 1 ? sinif.map((h) => ({ tehlike: h, calisan: sl.filter((x) => x.hazard_class === h).reduce((t, x) => t + (x.employee_count ?? 0), 0) })) : null;
+    const bas = `${bugun().slice(0, 7)}-01`;
+    const acik = tablo.company_profiles.find((p) => p.company_id === a.p_firma && !p.valid_to);
+    if (acik && acik.employee_count === toplam && acik.hazard_class === tehlike && JSON.stringify(acik.site_breakdown ?? null) === JSON.stringify(dokum)) return { data: { guncellendi: false } };
+    if (acik && acik.valid_from >= bas) Object.assign(acik, { employee_count: toplam, hazard_class: tehlike, site_breakdown: dokum });
+    else {
+      if (acik) acik.valid_to = new Date(new Date(`${bas}T00:00:00Z`).getTime() - 86400000).toISOString().slice(0, 10);
+      tablo.company_profiles.push({ id: uid(), organization_id: ORG, company_id: a.p_firma, employee_count: toplam, hazard_class: tehlike, valid_from: bas, valid_to: null, site_breakdown: dokum, note: 'İşyeri bilgilerinden güncellendi', created_at: new Date().toISOString() });
+    }
+    return { data: { guncellendi: true, calisan: toplam, tehlike } };
+  },
+  isyeri_firmaya_tasi(a) {
+    if (!izinVar('companies', 'can_edit')) return { error: hata('Firma düzenleme yetkiniz yok.', 'P0001') };
+    const x = tablo.company_sites.find((y) => y.id === a.p_site); if (!x) return { error: hata('İşyeri bulunamadı.', 'P0001') };
+    const eski = x.company_id; Object.assign(x, { company_id: a.p_firma, archived_at: null });
+    rpcler.isyeri_profil_esitle({ p_firma: a.p_firma }); if (eski !== a.p_firma) rpcler.isyeri_profil_esitle({ p_firma: eski });
+    return { data: { eski_firma: eski, yeni_firma: a.p_firma } };
+  },
   firma_tahsilati_gir(a) {
     if (!izinVar('invoices', 'can_create')) return { error: hata('Tahsilat girme yetkiniz yok.', 'P0001') };
     if (a.p_tarih > bugun()) return { error: hata('Tahsilat tarihi gelecekte olamaz.', 'P0001') };

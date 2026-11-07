@@ -2412,7 +2412,8 @@ await test('Elle işyeri: Katip dışı firmaya işyeri eklenir, takma ad ve ayr
   await modal(s).locator('#f-employee_count').fill('12'); await modal(s).locator('input[name="separate_invoice"]').check();
   await modal(s).locator('button[type=submit]').click();
   await s.waitForSelector('#isyeri-tablo');
-  const satir = await s.locator('#isyeri-tablo').innerText(); if (!satir.includes('Ukem') || !satir.includes('Elle girildi') || !satir.includes('12')) throw new Error(`tablo: ${satir}`);
+  const satir = await s.locator('#isyeri-tablo').innerText(); if (!satir.includes('Ukem') || !satir.includes('Elle girildi')) throw new Error(`tablo: ${satir}`);
+  esit(await s.locator('[data-isyeri-calisan]').first().inputValue(), '12', 'çalışan sayısı');
   esit(await s.locator('[data-isyeri-ad]').first().inputValue(), 'UKEM', 'takma ad'); esit(await s.locator('[data-isyeri-ayri]').first().isChecked(), true, 'ayrı fatura işareti');
   const kay = await s.evaluate(() => globalThis.__fake.tablo.company_sites.find((x) => x.is_manual));
   esit(`${kay.is_manual}/${kay.separate_invoice}/${/^EL[0-9A-Z]{6}$/.test(kay.sgk_no)}`, 'true/true/true', 'kayıt');
@@ -2420,6 +2421,49 @@ await test('Elle işyeri: Katip dışı firmaya işyeri eklenir, takma ad ve ayr
   await s.click('[data-isyeri-sil]'); await s.click('[data-ok]');
   await s.waitForFunction(() => !document.querySelector('#isyeri-tablo'));
   esit(await s.evaluate(() => globalThis.__fake.tablo.company_sites.filter((x) => !x.archived_at).length), 0, 'silindi (arşiv)');
+});
+
+await test('İşyerleri: tehlike sınıfı listede görünür, karma sınıf firma profiline yansır, düzenleme/silme ve mevcut işyerini ekleme', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Karma Sınıf A.Ş.', calisan: 5, tehlike: 'az_tehlikeli' }); await s.waitForSelector('.modal-overlay', { state: 'detached' }); await s.waitForTimeout(200);
+  await firmaEkle(s, { ad: 'Başka Firma Ltd.', calisan: 5, tehlike: 'az_tehlikeli' }); await s.waitForSelector('.modal-overlay', { state: 'detached' }); await s.waitForTimeout(200);
+  const idOf = (ad) => s.evaluate((a) => globalThis.__fake.tablo.companies.find((c) => c.name === a).id, ad);
+  const id = await idOf('Karma Sınıf A.Ş.'); const idB = await idOf('Başka Firma Ltd.');
+  await git(s, `#/firmalar/${idB}`); await s.waitForSelector('[data-sekme="isyerleri"]'); await s.click('[data-sekme="isyerleri"]');
+  await s.click('[data-action="isyeri-ekle"]');
+  await modal(s).locator('#f-site_name').fill('Taşınacak Şube'); await modal(s).locator('#f-employee_count').fill('8'); await modal(s).locator('#f-hazard_class').selectOption('cok_tehlikeli');
+  await modal(s).locator('button[type=submit]').click(); await s.waitForSelector('#isyeri-tablo');
+  await git(s, `#/firmalar/${id}`); await s.waitForSelector('[data-sekme="isyerleri"]'); await s.click('[data-sekme="isyerleri"]');
+  for (const [ad, n, h] of [['Şube Bir', '10', 'az_tehlikeli'], ['Şube İki', '20', 'tehlikeli']]) {
+    await s.click('[data-action="isyeri-ekle"]');
+    await modal(s).locator('#f-site_name').fill(ad); await modal(s).locator('#f-employee_count').fill(n); await modal(s).locator('#f-hazard_class').selectOption(h);
+    await modal(s).locator('button[type=submit]').click(); await s.waitForSelector(`#isyeri-tablo:has-text("${ad}")`);
+  }
+  const tablo = await s.locator('#isyeri-tablo').innerText();
+  esit(tablo.includes('Az tehlikeli') && tablo.includes('Tehlikeli'), true, 'listede tehlike sınıfı');
+  await var_(s.locator('#isyeri-ozet:has-text("Az tehlikeli 1 işyeri / 10 çalışan"):has-text("Tehlikeli 1 işyeri / 20 çalışan")'), 'hesap özeti');
+  let profil = await s.evaluate((i) => globalThis.__fake.tablo.company_profiles.find((p) => p.company_id === i && !p.valid_to), id);
+  esit(`${profil.employee_count}/${profil.hazard_class}/${profil.site_breakdown?.length}`, '30/tehlikeli/2', 'firma profili işyerlerinden');
+  await ekran(s, '79-isyerleri-tehlike');
+  // elle girilen işyerinin tehlike sınıfı düzenlenir
+  await s.locator('[data-isyeri-tehlike]').first().selectOption('tehlikeli');
+  await s.waitForSelector('.toast:has-text("İşyeri bilgisi kaydedildi")');
+  profil = await s.evaluate((i) => globalThis.__fake.tablo.company_profiles.find((p) => p.company_id === i && !p.valid_to), id);
+  esit(`${profil.employee_count}/${profil.hazard_class}/${profil.site_breakdown ?? 'tek'}`, '30/tehlikeli/tek', 'tek sınıfa düştü');
+  // mevcut işyerini (başka firmada) ekle
+  await s.click('[data-action="isyeri-mevcut"]');
+  await modal(s).locator('#f-site_id').selectOption(await s.evaluate(() => globalThis.__fake.tablo.company_sites.find((x) => x.site_name === 'Taşınacak Şube').id));
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#isyeri-tablo:has-text("Taşınacak Şube")');
+  profil = await s.evaluate((i) => globalThis.__fake.tablo.company_profiles.find((p) => p.company_id === i && !p.valid_to), id);
+  esit(`${profil.employee_count}/${profil.hazard_class}/${profil.site_breakdown?.length}`, '38/cok_tehlikeli/2', 'taşınan işyeri hesaba girdi');
+  // sil: listeden kalkar, hesap güncellenir
+  await s.locator('[data-isyeri-sil]').nth(0).click(); await s.click('[data-ok]');
+  await s.waitForSelector('.toast:has-text("İşyeri silindi")');
+  profil = await s.evaluate((i) => globalThis.__fake.tablo.company_profiles.find((p) => p.company_id === i && !p.valid_to), id);
+  esit(`${profil.employee_count}/${profil.hazard_class}`, '28/cok_tehlikeli', 'silinen işyeri hesaptan çıktı');
+  const kalan = await s.evaluate((i) => globalThis.__fake.tablo.company_sites.filter((x) => x.company_id === i && !x.archived_at).length, id);
+  esit(kalan, 2, 'bir işyeri silindi');
 });
 
 await test('İSG-Katip: izinsiz rol yükleme yapamaz; mobil 375px yatay taşma yok', async (s) => {
