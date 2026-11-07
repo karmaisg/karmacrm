@@ -30,7 +30,7 @@ export function giderAktarimKarti(app) {
   };
 
   const eslesme = () => html`<h3 class="card-title pad-t">Kalem eşleştirme</h3>
-    <p class="card-sub">Her satır bir gider kategorisine bağlanır; onayladığınız eşleşmeler hatırlanır. "Yönetime ödenen" yönetim olarak işaretli uzman/hekim maliyetidir; "Personel Giderleri" satırı gider olarak alınır; kişi bazlı personel maliyeti ayrıca girilir ve kârlılıkta çift sayılmaz.</p>
+    <p class="card-sub">Her satır bir gider kategorisine bağlanır; onayladığınız eşleşmeler hatırlanır. "Yönetime ödenen" yönetim olarak işaretli uzman/hekim maliyetidir; "Personel Giderleri" satırı gider olarak alınır; kârlılıkta tek personel maliyeti olarak kullanılır; personel kartındaki maliyetler yalnızca kişilere paylaştırma oranıdır.</p>
     <div class="table-wrap"><table class="table" id="gider-eslesme"><thead><tr><th scope="col">Dosyadaki kalem</th><th scope="col" class="num">Toplam (KDV hariç)</th><th scope="col">Kategori</th></tr></thead><tbody>
     ${d.tablo.satirlar.map((s) => html`<tr data-anahtar="${s.anahtar}" data-islem="${d.kararlar[s.anahtar].islem}"><td><strong>${s.etiket}</strong>${s.dolu ? '' : html`<small class="block muted">Tüm aylar boş — aktarılmaz</small>`}</td><td class="num">${para2(s.toplam)}</td><td>${kararSecimi(s)}</td></tr>`)}</tbody></table></div>`;
 

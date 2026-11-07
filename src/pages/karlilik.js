@@ -53,7 +53,7 @@ function firmaKpiDetayi(anahtar, r, durum, vergiOrani) {
   const i = r.isletme; const gider = i.personel + i.dogrudan + i.ortakHavuz; const ay = ayAdi(durum.ay); const yontem = MALIYET_YONTEMLERI[durum.yontem];
   if (anahtar === 'maliyet') {
     return hesapPenceresi('Toplam maliyet nasıl hesaplandı?', `${ay} · personel maliyeti yöntemi: ${yontem}`, html`<ul class="list">
-      ${satirKv('Personel maliyeti (tümü)', para2(i.personel), false, 'Personel kartındaki maliyet dönemlerinden (net maaş + SGK + elden). Maaş kategorisindeki gider kayıtları çift sayımı önlemek için eklenmez.')}
+      ${satirKv('Personel maliyeti (tümü)', para2(i.personel), false, i.excelPersonel > 0 ? 'Giderler menüsündeki (Excel) personel giderleri esas alınır; personel kartındaki maliyetler ayrıca eklenmez, yalnızca kişilere paylaştırma oranı olarak kullanılır.' : 'Bu ay Giderler menüsünde personel gideri yok; personel kartındaki maliyet dönemlerinden (net maaş + SGK + elden) hesaplandı.')}
       ${satirKv('firmalara yazılan', para2(i.personelFirmalara), false, durum.yontem === 'fiili' ? 'Fiilî çalışma süresi oranında.' : 'Görevlendirme payına göre teorik süre oranında.')}
       ${satirKv('boşta kapasite (hiçbir firmaya yazılmadı)', para2(i.bosta), false, 'Kapasiteden teorik yükü çıkan kısmın maliyeti.')}
       ${satirKv('Doğrudan giderler', para2(i.dogrudan), false, 'Bir firmaya veya personele bağlı girilen giderler.')}

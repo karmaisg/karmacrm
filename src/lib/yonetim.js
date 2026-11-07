@@ -22,7 +22,7 @@ export function sonAylar(ay, n = 12) {
  */
 export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
   const ay = String(veri.ay).slice(0, 7); const ayBasi = `${ay}-01`; const r = hesaplaKarlilik({ ...veri, yontem });
-  const i = r.isletme; const gider = k2(i.personel + i.dogrudan + i.ortakHavuz);
+  const i = r.isletme; const gider = k2(i.toplamGider); // = Giderler menüsünün KDV hariç toplamı (kurumlar vergisi kategorisi dahil)
 
   // tahsilat: ödeme tarihi seçili ayda olanlar (KDV dahil); alacak: seçili ayın faturalarının kalanı (KDV dahil)
   const aktifTahsilat = tahsilatlar.filter((p) => !p.archived_at);
@@ -94,7 +94,7 @@ export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
   const firmalar = r.firmalar.filter((f) => f.id !== null);
   return {
     ay: ayBasi, r,
-    kpi: { gelir: i.gelir, tahsilat, tahsilEdilmemis, gider, personel: i.personel, dogrudan: i.dogrudan, ortak: i.ortakHavuz, vergiOncesi: i.vergiOncesiKar, vergi: i.tahminiVergi, vergiSonrasi: i.vergiSonrasiKar,
+    kpi: { gelir: i.gelir, tahsilat, tahsilEdilmemis, gider, personel: i.personel, excelPersonel: i.excelPersonel, vergiGider: i.kayitliVergi, dogrudan: i.dogrudan, ortak: i.ortakHavuz, vergiOncesi: i.vergiOncesiKar, vergi: i.tahminiVergi, vergiSonrasi: i.vergiSonrasiKar,
       hizmetCalisan, kisiGelir, siniflanamayanGelir: k2(siniflanamayanGelir), aktifFirma: aktifFirmalar.length, uzman, hekim, teorikDk: uzmanDk + hekimDk, uzmanDk, hekimDk, fiiliDk, dkGelir: fiiliDk > 0 ? k2(i.gelir / fiiliDk) : null, dkMaliyet: fiiliDk > 0 ? k2(gider / fiiliDk) : null },
     dikkat: { atanmamisGelir, dagitilmayanOrtak: i.ortakDagitilmayan, bosta: i.bosta },
     sinifGelir,
@@ -112,7 +112,7 @@ export function aylikSeri({ veri, n = 12, yontem = 'teorik' }) {
   return sonAylar(veri.ay, n).map((ay) => {
     const r = hesaplaKarlilik({ ...veri, ay, atamalar: [], zaman: [], kayitliDagitim: [], yontem });
     const i = r.isletme;
-    return { ay, gelir: i.gelir, gider: k2(i.personel + i.dogrudan + i.ortakHavuz), vergiOncesi: i.vergiOncesiKar, vergiSonrasi: i.vergiSonrasiKar };
+    return { ay, gelir: i.gelir, gider: k2(i.toplamGider), vergiOncesi: i.vergiOncesiKar, vergiSonrasi: i.vergiSonrasiKar };
   });
 }
 

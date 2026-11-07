@@ -396,7 +396,7 @@ Excel'i yükleyip aktardıktan sonra **İSG-Katip aktarımı** sayfasında **"G�
 4. **KDV:** Dosyadaki tutarlar varsayılan olarak **KDV hariç** kabul edilir. KDV dahilse "KDV dahil" ve oranı seçin; tutar hariç + KDV olarak ayrılır.
 5. **Yerine geçme:** Her yükleme, dosyadaki aylar için daha önce **Excel'den aktarılmış** kayıtların yerine geçer; eski kayıtlar silinmez, **arşivlenir**. Elle girilen giderlere dokunulmaz. Dosyada olmayan aylara dokunulmaz. Hepsi tek işlemde yazılır, hata olursa hiçbir şey değişmez.
 6. **Yönetime ödenen:** Yönetim olarak işaretli uzman/hekim maliyetidir. Firma kârlılığında yönetim giderine yazılır ve o ay için, işaretli personelin kart maliyetinin yerine geçer (çift sayılmaz). O ay Excel'de yönetime ödenen yoksa eski hesap (personel kartı) sürer.
-7. **Personel giderleri:** Dosyadaki "Personel Giderleri" toplam satırı gider olarak alınır (Giderler sayfasında ve gider toplamlarında görünür). Firma kârlılığında personel kartındaki maliyetle çift sayılmaması için hesaba katılmaz; kişi bazlı personel maliyeti (personel kârlılığı) ayrıca, sonraki aşamada girilecektir.
+7. **Personel giderleri:** Dosyadaki "Personel Giderleri" toplam satırı gider olarak alınır (Giderler sayfasında ve gider toplamlarında görünür). (Not: Aşama 30'dan itibaren bu satır kârlılıkta tek personel maliyetidir; aşağıdaki "Gider tutarlılığı" bölümüne bakın.)
 8. **Sınırlar:** Geçmiş ödenmiş sayılır (içinde bulunulan aydan önceki aylar "ödendi"). Negatif tutarlar aktarılmaz (uyarı verilir). Kategoriye göre ortak gider dağıtımı daha önce kaydedilmiş bir ay yeniden yüklenirse dağıtım havuzu denetimi arşivlemeyi reddedebilir; önce o ayın dağıtımını sıfırlayın.
 
 ### Tek seferlik: faturaları toplu "tahsil edildi" yapma
@@ -521,3 +521,11 @@ Birkaç firmanın işyerleri tek firmaya bağlanınca (tek tahsilat/fatura için
 
 - Aylık personel grafiğinin altında **Toplam / Çok tehlikeli / Tehlikeli / Az tehlikeli** düğmeleri vardır; varsayılan Toplam'dır. Bir sınıfa tıklanınca grafik yalnızca o sınıftaki çalışanların aylık sayısını gösterir (karma sınıflı firmalarda çalışanlar sınıflarına göre ayrılır). Aynı düğmeler büyütme penceresinde de çalışır ve firma seçimiyle birlikte kullanılır.
 - Yönetici özetinde **Toplam tahsilat** ve **Tahsil edilmemiş alacak** tek kutuda birleşti (üstte tahsilat, altta alacak). Böylece ilk satır da üç kutucuktan oluşur ve tüm satırlar aynı düzende hizalanır.
+
+## Gider tutarlılığı (Aşama 30, veri tabanı değişikliği yok)
+
+- **Tek gider kaynağı Giderler menüsüdür.** Yönetici panelindeki "Toplam gider" ve aylık gelir-gider-kâr grafiğindeki gider, Giderler menüsündeki o ayın **KDV hariç toplamına** eşittir.
+- **Personel maliyeti çift hesaplanmaz.** Giderler menüsünde (Excel dahil) o ay için personel / SGK (maaş) kategorisinde gider varsa toplam personel maliyeti odur; personel kartındaki "Aylık maliyet" dönemleri ayrıca eklenmez, yalnızca bu tutarı kişilere paylaştırmak için **oran** olarak kullanılır (kartı olmayan kişilere eşit pay). O ay hiç personel gideri girilmemişse kart maliyetleri kullanılır.
+- Firma kârlılığı, personel kârlılığı, ortak gider dağıtımı ve yönetici paneli aynı hesabı kullanır.
+- Firmaya veya personele bağlanamamış "doğrudan" giderler artık düşmez; ortak gider havuzuna alınır ve dağıtılır.
+- Kurumlar vergisi kategorisindeki kayıtlar toplam gidere dahildir (menüyle aynı olsun diye) ama vergi öncesi kârı düşürmez; panelde not olarak belirtilir.

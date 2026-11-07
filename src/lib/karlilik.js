@@ -9,8 +9,11 @@
 //     "fiili"   : firmada fiilen harcanan hizmet dakikası oranında; kayıt yoksa maliyetin tamamı "boşta" kalır
 //  Doğrudan gider : firmaya bağlı doğrudan giderler
 //  Ortak gider    : kategori havuzu, kategorinin dağıtım ölçütüne göre firmalara bölünür (toplamı aşmaz)
-//  Çift sayım yok : maaş kategorisindeki giderler dahil edilmez (maliyet personel kartından gelir),
-//                   kurumlar vergisi kategorisi gider sayılmaz (vergi tahmininde ayrıca ele alınır).
+//  Tek gider kaynağı: Giderler menüsü (Excel dahil). Toplam gider = o ayın KDV hariç gider toplamı.
+//     * Personel/SGK (maaş) kategorisi girilmişse toplam personel maliyeti odur; personel kartındaki maliyet dönemleri
+//       ayrıca eklenmez, yalnızca bu tutarı kişilere paylaştırmak için oran olarak kullanılır. Hiç girilmemişse kart maliyeti kullanılır.
+//     * Kurumlar vergisi kategorisi toplam gidere dahildir ama vergi öncesi kârı düşürmez (vergi tahmininde ayrıca ele alınır).
+//     * Firmaya/personele bağlanamayan doğrudan giderler ortak havuza alınır (toplam giderden hiçbir kayıt düşmez).
 import { gecerliKayit, enBuyukKalanDagit, vergiSonrasiKar, kurus, tl } from './hesaplama.js';
 import { aktifMi, aktifAyda, ayAtamalari, ayBitisi, personelAyYuku, atamalariBagla } from './operasyon.js';
 import { profilleriGrupla, anaFirmaHaritasi } from './veri.js';
@@ -27,6 +30,9 @@ export const faturaAyi = (f) => ay7(f.service_period ?? f.invoice_date);
 // Ayın 1'inde geçerli kayıt yoksa ayın son gününde geçerli olan (ay içinde başlayan) kayıt kullanılır: ay içinde başlayan firma/görevlendirme/maliyet o aya dahil edilir.
 const gecerliVeyaNull = (liste, tarih) => { try { return gecerliKayit(liste, tarih) ?? gecerliKayit(liste, ayBitisi(tarih)); } catch { return null; } };
 export const YONETIM_KATEGORI = '__yonetim_personel';
+const PERSONEL_GENEL = '__personel_genel';
+const BAGSIZ_KISI = '__bagsiz_kisi';
+const SANAL_KATEGORILER = { [YONETIM_KATEGORI]: 'Yönetim personeli maliyeti', [PERSONEL_GENEL]: 'Dağıtılamayan personel gideri', [BAGSIZ_KISI]: 'Personel listesinde olmayan kişiye bağlı gider' };
 const topla = (m, k, v) => { m.set(k, (m.get(k) ?? 0) + v); };
 
 /**
@@ -70,21 +76,24 @@ export function hesaplaKarlilik(g) {
 
   // ---- giderlerin sınıflandırılması
   const havuz = new Map(); const dogrudanFirma = new Map(); const dogrudanKisi = new Map();
-  let vergiK = 0; let maasAtlanan = 0; let yonetimOdenenK = 0;
+  let vergiK = 0; let payrollK = 0; let yonetimOdenenK = 0;
   for (const x of giderler) {
     if (x.archived_at || ay7(x.expense_date) !== ayAnahtar) continue;
     const kat = katMap.get(x.category_id); const k = kurus(x.amount_excl_vat);
-    if (kat?.is_payroll) { if (!x.import_id) maasAtlanan += 1; continue; }   // Excel'den gelen toplu personel gideri uyarı gerektirmez
+    if (kat?.is_payroll) { payrollK += k; continue; }   // Giderler menüsündeki (Excel) personel giderleri: personel maliyetinin tek kaynağı; kart maliyeti ayrıca eklenmez
     if (kat?.is_income_tax) { vergiK += k; continue; }
     if (kat?.is_management_pay) { yonetimOdenenK += k; continue; }
     if (x.cost_type === 'ortak') topla(havuz, x.category_id, k);
     else if (x.company_id) topla(dogrudanFirma, anaOf(x.company_id), k);
     else if (x.employee_id) topla(dogrudanKisi, x.employee_id, k);
-    else uyarilar.push('Bir doğrudan gider firmaya veya personele bağlı değil; hesaba katılmadı.');
+    else { topla(havuz, x.category_id, k); uyarilar.push('Firmaya veya personele bağlı olmayan doğrudan gider, toplam giderle tutarlılık için ortak gider havuzuna alındı.'); }
   }
-  if (maasAtlanan) uyarilar.push(`Maaş kategorisindeki ${maasAtlanan} gider kaydı hesaba katılmadı: personel maliyeti personel kartındaki maliyet dönemlerinden alınır (çift sayımı önlemek için).`);
 
   // ---- personel maliyeti dağıtımı
+  // Personel maliyeti: Giderler menüsünde (Excel) personel/SGK giderleri girilmişse toplam personel maliyeti odur; personel kartındaki
+  // aylık maliyetler yalnızca bu tutarı kişilere paylaştırmak için oran olarak kullanılır (kartlar ayrıca eklenmez).
+  // Girilmemişse kart maliyetleri kullanılır.
+  const personelHesapla = (excelPay) => {
   const firmaPersonelK = new Map(); const personel = []; let yonetimPersonelK = 0;
   for (const e of personeller) {
     const atamaVar = atamalar.some((a) => a.employee_id === e.id && aktifAyda(a, ayAnahtar + '-01'));
@@ -95,7 +104,8 @@ export function hesaplaKarlilik(g) {
     const dogrudanK = dogrudanKisi.get(e.id) ?? 0;
     if ((e.archived_at || e.is_active === false) && !maliyetKaydi && !atamaVar && !kayitVar && !dogrudanK) continue;
     if (!maliyetKaydi && (atamaVar || kayitVar)) uyarilar.push(`${e.full_name} için ${ayAnahtar} döneminde geçerli maliyet kaydı yok; maliyeti 0 sayıldı.`);
-    const maliyetK = maliyetKaydi ? kurus(maliyetKaydi.total_monthly_cost ?? Number(maliyetKaydi.gross_salary) + Number(maliyetKaydi.employer_sgk) + Number(maliyetKaydi.other_benefits)) : 0;
+    const kartK = maliyetKaydi ? kurus(maliyetKaydi.total_monthly_cost ?? Number(maliyetKaydi.gross_salary) + Number(maliyetKaydi.employer_sgk) + Number(maliyetKaydi.other_benefits)) : 0;
+    const maliyetK = excelPay ? (e.is_management ? 0 : (excelPay.get(e.id) ?? 0)) : kartK;
     const toplamK = maliyetK + dogrudanK;
     if (e.is_management) {      // yönetim gideri: görevlendirmesi olsa bile firma kârlılığına değil genel gidere yazılır
       yonetimPersonelK += toplamK;
@@ -126,6 +136,18 @@ export function hesaplaKarlilik(g) {
     for (const fp of firmaPay) topla(firmaPersonelK, fp.companyId, fp.maliyetK);
     personel.push({ id: e.id, ad: e.full_name, tur: e.staff_type ?? null, rol: e.role_kind ?? null, yonetim: false, maliyetK, dogrudanK, toplamK, kapasite, teorikDk, fiiliDk, doluluk: kapasite > 0 ? teorikDk / kapasite : null, firmaPay, bostaK, eksik, gelirPayiK: 0, gelirKalemleri: [] });
   }
+  return { firmaPersonelK, personel, yonetimPersonelK };
+  };
+  let sonuc = personelHesapla(null);
+  if (payrollK > 0) {
+    const aday = sonuc.personel.filter((p) => !p.yonetim);
+    const agirlik = aday.map((p) => p.maliyetK);
+    const pay = aday.length ? enBuyukKalanDagit(payrollK, agirlik.some((x) => x > 0) ? agirlik : agirlik.map(() => 1)) : [];
+    sonuc = personelHesapla(new Map(aday.map((p, i) => [p.id, pay[i]])));
+    if (!aday.length) topla(havuz, PERSONEL_GENEL, payrollK);
+  }
+  const { firmaPersonelK, personel } = sonuc; let { yonetimPersonelK } = sonuc;
+  { const listelenen = new Set(personel.map((p) => p.id)); for (const [id, k] of dogrudanKisi) if (!listelenen.has(id)) topla(havuz, BAGSIZ_KISI, k); }
 
   // Excel'den gelen "Yönetime ödenen" varsa o ayın yönetim gideri odur (personel kartı maliyetiyle çift sayılmaz)
   if (yonetimOdenenK > 0) {
@@ -169,8 +191,8 @@ export function hesaplaKarlilik(g) {
   };
   const ortak = []; const firmaOrtakK = new Map();
   for (const [katId, havuzK] of havuz) {
-    const sanal = katId === YONETIM_KATEGORI;
-    const kat = sanal ? { name: 'Yönetim personeli maliyeti' } : katMap.get(katId);
+    const sanal = Object.hasOwn(SANAL_KATEGORILER, katId);
+    const kat = sanal ? { name: SANAL_KATEGORILER[katId] } : katMap.get(katId);
     const kural = sanal ? null : gecerliVeyaNull(dagitimKurallari.filter((r) => r.category_id === katId), ayBasi);
     const olcut = DAGITIM_OLCUTLERI[kural?.basis] ? kural.basis : VARSAYILAN_OLCUT;
     if (kural && !DAGITIM_OLCUTLERI[kural.basis]) uyarilar.push(`${kat?.name ?? 'Kategori'}: "${kural.basis}" ölçütü henüz hesaplanamıyor; gelir oranı kullanıldı.`);
@@ -220,7 +242,7 @@ export function hesaplaKarlilik(g) {
       gelirKalemleri: p.gelirKalemleri.map((f) => ({ ...f, gelir: tl(f.gelirK), ad: firmaAdi.get(f.companyId) ?? 'Firma' })) }))
       .sort((a, b) => b.katki - a.katki || String(a.ad).localeCompare(String(b.ad), 'tr')),
     ortak: ortak.map((o) => ({ ...o, havuz: tl(o.havuzK), dagitilmayan: tl(o.dagitilmayanK), dagitim: Object.fromEntries(Object.entries(o.dagitimK).map(([k, v]) => [k, tl(v)])) })),
-    isletme: { gelir: tl(gelirToplamK), personel: tl(personelToplamK), personelFirmalara: tl(personelToplamK - bostaK), bosta: tl(bostaK), dogrudan: tl(dogrudanToplamK), ortakHavuz: tl(ortakHavuzK), yonetimPersonel: tl(yonetimK),
+    isletme: { gelir: tl(gelirToplamK), toplamGider: tl(personelToplamK + dogrudanToplamK + ortakHavuzK + vergiK), excelPersonel: tl(payrollK), personel: tl(personelToplamK), personelFirmalara: tl(personelToplamK - bostaK), bosta: tl(bostaK), dogrudan: tl(dogrudanToplamK), ortakHavuz: tl(ortakHavuzK), yonetimPersonel: tl(yonetimK),
       ortakDagitilan: tl(ortakDagitilanK), ortakDagitilmayan: tl(ortakHavuzK - ortakDagitilanK), vergiOncesiKar: tl(vergiOncesiK), tahminiVergi: vergi.tahminiVergi, vergiSonrasiKar: tl(vergiOncesiK - kurus(vergi.tahminiVergi)), vergisizGelir: tl(vergisizGelirK),
       kayitliVergi: tl(vergiK), marj: gelirToplamK > 0 ? Math.round((vergiOncesiK / gelirToplamK) * 1000) / 10 : null },
     uyarilar: [...new Set(uyarilar)],

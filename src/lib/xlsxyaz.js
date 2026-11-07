@@ -109,7 +109,7 @@ export function giderSablonu(yil = new Date().getFullYear(), kalemler = null) {
       [b('Gider şablonu nasıl doldurulur?')],
       ['Her satır bir gider kalemi, her sütun bir aydır. Tutarlar aylık toplamdır; boş veya 0 bırakılan hücre aktarılmaz.'],
       ['"Yönetime Ödenen" satırı yönetim olarak işaretli uzman/hekim maliyetidir; firma kârlılığında yönetim giderine yazılır.'],
-      ['"Personel Giderleri" satırı toplam personel maliyetidir ve gider olarak alınır; firma kârlılığında personelin kart maliyetiyle çift sayılmaz. Kişi bazlı maliyet (personel kârlılığı için) ayrıca girilir.'],
+      ['"Personel Giderleri" satırı toplam personel maliyetidir ve gider olarak alınır; kârlılıkta tek personel maliyeti olarak kullanılır (personel kartı maliyeti ayrıca eklenmez). Personel kartındaki maliyetler, bu toplamı kişilere paylaştırmak için oran olarak kullanılır.'],
       ['Aylar tarih hücresi olmalıdır (01.01.2026 gibi). Yeni kalem eklemek için satır ekleyin; aktarım sırasında kategori eşleştirilir.'],
       ['Her yüklenen dosya, içindeki aylar için önceki Excel aktarımının yerine geçer (eski kayıtlar silinmez, arşivlenir). Elle girilen giderlere dokunulmaz.'],
     ] },

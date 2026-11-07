@@ -53,7 +53,7 @@ function icerik(o, seri) {
       <section class="card kpi kpi-cift" id="yon-tahsilat"><span class="kpi-ic">${icon('receipt', 22)}</span><div>
         <div class="kpi-l">Toplam tahsilat</div><div class="kpi-v">${para2(k.tahsilat)}</div><div class="kpi-s">Tahsilat tarihi bu ay olanlar (KDV dahil)</div>
         <div class="kpi-l kpi-ikinci">Tahsil edilmemiş alacak</div><div class="kpi-v">${para2(k.tahsilEdilmemis)}</div><div class="kpi-s">Bu ay faturaları · KDV dahil</div></div></section>
-      ${kutu('Toplam gider', para2(k.gider), `Personel ${para2(k.personel)} · doğrudan ${para2(k.dogrudan)} · ortak ${para2(k.ortak)}`, 'bars', 't-gider')}
+      ${kutu('Toplam gider', para2(k.gider), `Giderler menüsüyle aynı (KDV hariç) · personel ${para2(k.personel)} · doğrudan ${para2(k.dogrudan)} · ortak ${para2(k.ortak)}${k.vergiGider > 0 ? ` · vergi kaydı ${para2(k.vergiGider)} (kâra dahil edilmez)` : ''}`, 'bars', 't-gider')}
     </div>
     <div class="kpi-grid yon-grup" id="yon-kar">
       ${kutu('Vergi öncesi tahmini kâr', para2(k.vergiOncesi), 'Gelir − gider', 'trend', 't-kar')}
