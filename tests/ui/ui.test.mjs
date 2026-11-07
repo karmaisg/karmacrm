@@ -248,14 +248,14 @@ await test('yetki: satış rolü menüsü ve kullanıcılar sayfasına erişim',
   await var_(s.locator('.nav-item:has-text("Firmalar")'), 'firmalar');
   await var_(s.locator('.nav-item:has-text("Teklifler")'), 'teklifler');
   esit(await s.locator('.nav-item:has-text("Kullanıcılar ve yetkiler")').count(), 0, 'kullanıcılar menüde olmamalı');
-  esit(await s.locator('.nav-item:has-text("Gelirler ve tahsilatlar")').count(), 0, 'finans menüde olmamalı');
+  esit(await s.locator('.nav-item:has-text("Fatura Takip")').count(), 0, 'finans menüde olmamalı');
   await git(s, '#/kullanicilar');
   await var_(s.locator('h3:has-text("Bu sayfayı görme izniniz yok")'), 'erişim engeli');
 });
 
 await test('yetki: finans ve uzman/hekim rolleri', async (s, ctx) => {
   await girisYap(s, 'finans@test.com');
-  await var_(s.locator('.nav-item:has-text("Gelirler ve tahsilatlar")'), 'finans menüsü');
+  await var_(s.locator('.nav-item:has-text("Fatura Takip")'), 'finans menüsü');
   esit(await s.locator('.nav-item:has-text("Kişiler")').count(), 0, 'finans kişileri görmemeli');
   await s.click('.user-btn'); await s.click('[data-kmenu="cikis"]');
   await s.waitForSelector('#f-email');
@@ -2635,6 +2635,18 @@ await test('gelir ekle: firma dışı spot iş adıyla girilir (KDV 0 dahil); li
   esit(i.company_id, null, 'firmasız'); esit(Number(i.vat_amount), 0, 'KDV 0'); esit(i.customer_name, 'Ahmet Yılmaz', 'müşteri'); esit(i.income_kind, 'spot', 'tür');
   await s.waitForSelector('tr:has-text("Sağlık raporu")'); const satir = await s.locator('tr:has-text("Sağlık raporu")').first().innerText();
   if (!satir.includes('Ahmet Yılmaz') || !satir.includes('firma dışı')) throw new Error(`satır: ${satir}`);
+});
+
+// ---------------------------------------------------------------- Menü düzeni: Fatura Takip, Gelirler
+await test('menü: Fatura Takip, Gelirler, Giderler, Cari sırası; Satış grubu Finans\'tan sonra; Gelirler sayfası ay toplamı', async (s) => {
+  await girisYap(s);
+  const gruplar = (await s.locator('.nav-grup-ad').allTextContents()).map((x) => x.trim());
+  if (gruplar.indexOf('Satış') < gruplar.indexOf('Finans') || gruplar.indexOf('Finans') < 0) throw new Error(`grup sırası: ${gruplar}`);
+  const fin = await s.evaluate(() => [...document.querySelectorAll('.nav-grup')].find((g) => g.querySelector('.nav-grup-ad').textContent.trim() === 'Finans').textContent);
+  const sira = ['Fatura Takip', 'Gelirler', 'Giderler', 'Cari hesap'].map((x) => fin.indexOf(x));
+  if (sira.some((x) => x < 0) || sira.join() !== [...sira].sort((a, b) => a - b).join()) throw new Error(`finans menü sırası: ${fin}`);
+  await git(s, '#/gelirler'); await s.waitForSelector('h1:has-text("Gelirler")'); await s.waitForSelector('#gelir-ozet .kpi');
+  await s.selectOption('#gelir-ay', { index: 3 });
 });
 
 // ---------------------------------------------------------------- Bağlı firmalar (Aşama 28)
