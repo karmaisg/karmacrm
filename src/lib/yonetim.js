@@ -92,8 +92,28 @@ export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
   const kisiGelir = hizmetCalisan > 0 ? k2(i.gelir / hizmetCalisan) : null;
 
   const firmalar = r.firmalar.filter((f) => f.id !== null);
+  // Hesap dökümü (kutucuklara tıklayınca): Giderler menüsündeki kategori toplamları + kartlardan gelen kalemler
+  const katMap = new Map((veri.kategoriler ?? []).map((k) => [k.id, k]));
+  const kategoriToplam = new Map();
+  for (const g of veri.giderler ?? []) {
+    if (g.archived_at || ay7(g.expense_date) !== ay) continue;
+    const e = kategoriToplam.get(g.category_id) ?? { k: 0, n: 0, ortak: 0, dogrudan: 0 }; e.k += Math.round(Number(g.amount_excl_vat) * 100); e.n += 1;
+    if (g.cost_type === 'ortak') e.ortak += 1; else e.dogrudan += 1; kategoriToplam.set(g.category_id, e);
+  }
+  const giderSatirlari = [...kategoriToplam].map(([id, e]) => {
+    const k = katMap.get(id);
+    const tur = k?.is_payroll ? 'Personel (Giderler menüsü / Excel)' : k?.is_income_tax ? 'Vergi kaydı (vergi öncesi kârı düşürmez)' : k?.is_management_pay ? 'Yönetime ödenen' : e.ortak >= e.dogrudan ? 'Ortak gider' : 'Doğrudan gider';
+    return { ad: k?.name ?? 'Kategori', tur, kayit: e.n, tutar: k2(e.k / 100) };
+  }).sort((a, b) => b.tutar - a.tutar);
+  if (!(i.excelPersonel > 0) && i.personel > 0) giderSatirlari.push({ ad: 'Personel maliyeti (personel kartlarındaki aylık maliyet)', tur: 'Personel (kart)', kayit: null, tutar: i.personel });
+  if (i.yonetimPersonel > 0 && ![...kategoriToplam.keys()].some((id) => katMap.get(id)?.is_management_pay)) giderSatirlari.push({ ad: 'Yönetim personeli maliyeti (personel kartlarındaki maliyet)', tur: 'Yönetim (kart)', kayit: null, tutar: i.yonetimPersonel });
+  const giderFarki = k2(gider - giderSatirlari.reduce((t, x) => t + x.tutar, 0));
+  if (Math.abs(giderFarki) >= 0.01) giderSatirlari.push({ ad: 'Diğer (firmaya/personele bağlanamayan kalemler)', tur: 'Ortak gider', kayit: null, tutar: giderFarki });
+  const vergisizGelir = i.vergisizGelir; const matrah = k2(i.gelir - vergisizGelir - i.personel - i.dogrudan - i.ortakHavuz);
+  const dokum = { giderSatirlari, gider, gelir: i.gelir, personel: i.personel, personelKaynak: i.excelPersonel > 0 ? 'excel' : 'kart', dogrudan: i.dogrudan, ortak: i.ortakHavuz, yonetim: i.yonetimPersonel, vergiKaydi: i.kayitliVergi,
+    vergiOncesi: i.vergiOncesiKar, vergisizGelir, matrah, vergiOrani: Number(veri.vergiOrani ?? 25), vergi: i.tahminiVergi, vergiSonrasi: i.vergiSonrasiKar };
   return {
-    ay: ayBasi, r,
+    ay: ayBasi, r, dokum,
     kpi: { gelir: i.gelir, tahsilat, tahsilEdilmemis, gider, personel: i.personel, excelPersonel: i.excelPersonel, vergiGider: i.kayitliVergi, dogrudan: i.dogrudan, ortak: i.ortakHavuz, vergiOncesi: i.vergiOncesiKar, vergi: i.tahminiVergi, vergiSonrasi: i.vergiSonrasiKar,
       hizmetCalisan, kisiGelir, siniflanamayanGelir: k2(siniflanamayanGelir), aktifFirma: aktifFirmalar.length, uzman, hekim, teorikDk: uzmanDk + hekimDk, uzmanDk, hekimDk, fiiliDk, dkGelir: fiiliDk > 0 ? k2(i.gelir / fiiliDk) : null, dkMaliyet: fiiliDk > 0 ? k2(gider / fiiliDk) : null },
     dikkat: { atanmamisGelir, dagitilmayanOrtak: i.ortakDagitilmayan, bosta: i.bosta },

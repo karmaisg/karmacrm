@@ -15,7 +15,7 @@ const aySecenekleri = (bugunStr) => {
   for (let i = 0; i < 24; i += 1) { const t = new Date(y, mo - 1 - i, 1); l.push(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-01`); }
   return l;
 };
-const kutu = (etiket, deger, alt, simge, ton = '') => html`<section class="card kpi"><span class="kpi-ic">${icon(simge, 22)}</span><div><div class="kpi-l">${etiket}</div><div class="kpi-v ${ton}">${deger}</div><div class="kpi-s">${alt}</div></div></section>`;
+const kutu = (etiket, deger, alt, simge, ton = '', detay = '') => html`<section class="card kpi${detay ? ' card-buyut' : ''}" ${detay ? html`data-detay="${detay}" title="Hesap detayı için tıklayın"` : ''}><span class="kpi-ic">${icon(simge, 22)}</span><div><div class="kpi-l">${etiket}</div><div class="kpi-v ${ton}">${deger}</div><div class="kpi-s">${alt}</div></div></section>`;
 const ton = (n) => (n > 0 ? 'pos' : n < 0 ? 'neg' : '');
 const SINIF_AD = { cok_tehlikeli: 'Çok tehlikeli', tehlikeli: 'Tehlikeli', az_tehlikeli: 'Az tehlikeli' };
 
@@ -53,12 +53,12 @@ function icerik(o, seri) {
       <section class="card kpi kpi-cift" id="yon-tahsilat"><span class="kpi-ic">${icon('receipt', 22)}</span><div>
         <div class="kpi-l">Toplam tahsilat</div><div class="kpi-v">${para2(k.tahsilat)}</div><div class="kpi-s">Tahsilat tarihi bu ay olanlar (KDV dahil)</div>
         <div class="kpi-l kpi-ikinci">Tahsil edilmemiş alacak</div><div class="kpi-v">${para2(k.tahsilEdilmemis)}</div><div class="kpi-s">Bu ay faturaları · KDV dahil</div></div></section>
-      ${kutu('Toplam gider', para2(k.gider), `Giderler menüsüyle aynı (KDV hariç) · personel ${para2(k.personel)} · doğrudan ${para2(k.dogrudan)} · ortak ${para2(k.ortak)}${k.vergiGider > 0 ? ` · vergi kaydı ${para2(k.vergiGider)} (kâra dahil edilmez)` : ''}`, 'bars', 't-gider')}
+      ${kutu('Toplam gider', para2(k.gider), `Giderler menüsüyle aynı (KDV hariç) · personel ${para2(k.personel)} · doğrudan ${para2(k.dogrudan)} · ortak ${para2(k.ortak)}${k.vergiGider > 0 ? ` · vergi kaydı ${para2(k.vergiGider)} (kâra dahil edilmez)` : ''}`, 'bars', 't-gider', 'gider')}
     </div>
     <div class="kpi-grid yon-grup" id="yon-kar">
-      ${kutu('Vergi öncesi tahmini kâr', para2(k.vergiOncesi), 'Gelir − gider', 'trend', 't-kar')}
+      ${kutu('Vergi öncesi tahmini kâr', para2(k.vergiOncesi), 'Gelir − gider', 'trend', 't-kar', 'oncesi')}
       ${kutu('Tahmini kurumlar vergisi', para2(k.vergi), k.vergiOncesi > 0 ? `Vergiye tabi kâr üzerinden · KDV 0 gelir hariç` : 'Zarar olduğu için 0', 'file')}
-      ${kutu('Vergi sonrası tahmini kâr', para2(k.vergiSonrasi), 'Vergi öncesi − tahmini vergi', 'check', 't-kar')}
+      ${kutu('Vergi sonrası tahmini kâr', para2(k.vergiSonrasi), 'Vergi öncesi − tahmini vergi', 'check', 't-kar', 'sonrasi')}
     </div>
     <div class="kpi-grid yon-grup" id="yon-operasyon">
       ${kutu('Hizmet verilen toplam personel', sayi(k.hizmetCalisan), 'Sözleşmesi geçerli veya faturası kesilen firmaların çalışanları', 'users')}
@@ -96,7 +96,8 @@ export const yeniDurum = () => ({ ay: ayBasi(bugun()), sayac: 0 });
 export function yonetimOzetiBaglan(kok, app, durum, ciz) {
   const hedef = kok.querySelector('#yon-icerik'); let tahsilatlar = null; let son = null;
   ipucuBagla(document.body);
-  hedef.addEventListener('click', (e) => { if (!son || e.target.closest('a, button, select, input')) return; const k = e.target.closest('[data-buyut]'); if (k) buyut(k.dataset.buyut, son.o, son.seri); });
+  hedef.addEventListener('click', (e) => { if (!son || e.target.closest('a, button, select, input')) return; const d = e.target.closest('[data-detay]'); if (d) return hesapDetayi(d.dataset.detay, son.o);
+    const k = e.target.closest('[data-buyut]'); if (k) buyut(k.dataset.buyut, son.o, son.seri); });
   const yukle = async () => {
     const sira = ++durum.sayac; hedef.innerHTML = html`<p class="muted">Aylık özet hesaplanıyor…</p>`.s;
     try {
@@ -132,4 +133,35 @@ function buyut(tur, o, seri) {
   const [ad, seriler, cizim] = tur === 'kar' ? ['Aylık kâr eğilimi (son 12 ay)', kar, cizgiGrafik] : ['Aylık gelir, gider ve kâr (son 12 ay)', gelirGider, cubukGrafik];
   openModal({ baslik: ad, altBaslik: 'Çubukların veya noktaların üzerine gelince o ayın tutarı görünür.', boyut: 'xl',
     govde: html`<div class="grafik-buyuk">${cizim({ ad, etiketler, seriler, buyuk: true })}</div>${lejant(seriler)}` });
+}
+
+/** Toplam gider / vergi öncesi kâr / vergi sonrası kâr kutucuklarının hesap detayı. */
+function hesapDetayi(tur, o) {
+  const d = o.dokum; const ay = ayAdi(o.ay);
+  const satir = (ad, tutar, { kalin = false, isaret = '', not = '' } = {}) => html`<tr class="${kalin ? 'toplam-satir' : ''}"><td>${isaret ? html`<span class="isaret">${isaret}</span> ` : ''}${ad}${not ? html`<small class="block muted">${not}</small>` : ''}</td><td class="num">${para2(tutar === 0 ? 0 : tutar)}</td></tr>`;
+  const tablo = (satirlar) => html`<div class="table-wrap"><table class="table hesap-tablo"><tbody>${satirlar}</tbody></table></div>`;
+  if (tur === 'gider') {
+    return openModal({ baslik: `Toplam gider — ${ay}`, altBaslik: 'Giderler menüsündeki kayıtların KDV hariç toplamı', boyut: 'lg', govde: html`
+      <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Kategori</th><th scope="col">Tür</th><th scope="col" class="num">Kayıt</th><th scope="col" class="num">Tutar (KDV hariç)</th></tr></thead><tbody>
+      ${d.giderSatirlari.map((x) => html`<tr><td>${x.ad}</td><td>${x.tur}</td><td class="num">${x.kayit === null ? '—' : sayi(x.kayit)}</td><td class="num">${para2(x.tutar)}</td></tr>`)}
+      <tr class="toplam-satir"><td colspan="3"><strong>Toplam gider</strong></td><td class="num"><strong>${para2(d.gider)}</strong></td></tr></tbody></table></div>
+      <p class="fine">Dağılım: personel ${para2(d.personel)} (${d.personelKaynak === 'excel' ? 'Giderler menüsü / Excel' : 'personel kartları'}) · doğrudan ${para2(d.dogrudan)} · ortak ${para2(d.ortak)}${d.vergiKaydi > 0 ? ` · vergi kaydı ${para2(d.vergiKaydi)}` : ''}.
+      ${d.personelKaynak === 'excel' ? 'Bu ay Giderler menüsünde personel gideri olduğu için personel kartlarındaki maliyet ayrıca eklenmedi.' : 'Bu ay Giderler menüsünde personel gideri yok; personel maliyeti personel kartlarından alındı.'}</p>` });
+  }
+  if (tur === 'oncesi') {
+    return openModal({ baslik: `Vergi öncesi tahmini kâr — ${ay}`, altBaslik: 'Gelir − gider (KDV hariç)', boyut: 'md', govde: html`${tablo(html`
+      ${satir('Toplam hizmet geliri (KDV hariç)', d.gelir, { isaret: '' })}
+      ${satir(`Personel maliyeti (${d.personelKaynak === 'excel' ? 'Giderler menüsü / Excel' : 'personel kartları'})`, -d.personel, { isaret: '−' })}
+      ${satir('Doğrudan giderler (firma / personele bağlı)', -d.dogrudan, { isaret: '−' })}
+      ${satir('Ortak giderler' + (d.yonetim > 0 ? ' (yönetim dahil)' : ''), -d.ortak, { isaret: '−' })}
+      ${satir('Vergi öncesi tahmini kâr', d.vergiOncesi, { kalin: true, isaret: '=' })}`)}
+      <p class="fine">${d.vergiKaydi > 0 ? `Giderler menüsündeki ${para2(d.vergiKaydi)} tutarındaki kurumlar vergisi kaydı toplam gidere dahildir ama vergi öncesi kârdan düşülmez. ` : ''}Bu bir yönetim tahminidir; resmî muhasebe sonucu değildir.</p>` });
+  }
+  return openModal({ baslik: `Vergi sonrası tahmini kâr — ${ay}`, altBaslik: 'Vergi öncesi kâr − tahmini kurumlar vergisi', boyut: 'md', govde: html`${tablo(html`
+    ${satir('Vergi öncesi tahmini kâr', d.vergiOncesi, { isaret: '' })}
+    ${satir('Vergiye tabi olmayan gelir (KDV\'siz spot / elden gelirler)', -d.vergisizGelir, { isaret: '−', not: 'Bu tutar vergi matrahının dışında tutulur.' })}
+    ${satir('Vergiye esas tahmini kâr (matrah)', d.matrah, { kalin: true, isaret: '=' })}
+    ${satir(`Tahmini kurumlar vergisi (%${sayi(d.vergiOrani)})`, -d.vergi, { isaret: '−', not: d.matrah > 0 ? 'Matrah × vergi oranı' : 'Matrah pozitif olmadığı için vergi 0' })}
+    ${satir('Vergi sonrası tahmini kâr', d.vergiSonrasi, { kalin: true, isaret: '=' })}`)}
+    <p class="fine">Vergi sonrası kâr = vergi öncesi kâr − tahmini vergi. Vergi oranı Ayarlar'daki kurumlar vergisi oranıdır. Basitleştirilmiş yönetim tahminidir.</p>` });
 }

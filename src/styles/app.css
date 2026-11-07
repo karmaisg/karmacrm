@@ -483,3 +483,9 @@ svg.grafik rect[data-ipucu]:hover, svg.grafik circle[data-ipucu]:hover { opacity
 .kpi-cift .kpi-ikinci { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .p-sinif { margin: 8px 0 4px; }
 .chip[aria-pressed="true"] { background: var(--primary-50); border-color: var(--primary); color: var(--primary); font-weight: 700; }
+
+.kpi.card-buyut { cursor: pointer; } .kpi.card-buyut:hover { box-shadow: var(--shadow-md, 0 6px 20px rgba(0,0,0,.12)); }
+.hesap-tablo td.num, .table td.num { font-variant-numeric: tabular-nums; }
+.toplam-satir td { border-top: 2px solid var(--border); font-weight: 800; }
+.isaret { display: inline-block; width: 1.1em; color: var(--text-3); font-weight: 700; }
+.hesap-tablo td.num { white-space: nowrap; }
