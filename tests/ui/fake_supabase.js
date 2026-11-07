@@ -617,7 +617,18 @@ const rpcler = {
     if (!izinVar('companies', 'can_edit')) return { error: hata('Firma düzenleme yetkiniz yok.', 'P0001') };
     const x = tablo.company_sites.find((y) => y.id === a.p_site); if (!x) return { error: hata('İşyeri bulunamadı.', 'P0001') };
     const eski = x.company_id; Object.assign(x, { company_id: a.p_firma, archived_at: null });
-    rpcler.isyeri_profil_esitle({ p_firma: a.p_firma }); if (eski !== a.p_firma) rpcler.isyeri_profil_esitle({ p_firma: eski });
+    rpcler.isyeri_profil_esitle({ p_firma: a.p_firma });
+    if (eski !== a.p_firma) {
+      rpcler.isyeri_profil_esitle({ p_firma: eski });
+      if (!tablo.company_sites.some((y) => y.company_id === eski && !y.archived_at && y.is_active !== false && y.hazard_class)) {
+        const acik = tablo.company_profiles.find((p) => p.company_id === eski && !p.valid_to);
+        if (acik && acik.employee_count > 0) {
+          const bas = `${bugun().slice(0, 7)}-01`;
+          if (acik.valid_from >= bas) Object.assign(acik, { employee_count: 0, site_breakdown: null });
+          else { acik.valid_to = new Date(new Date(`${bas}T00:00:00Z`).getTime() - 86400000).toISOString().slice(0, 10); tablo.company_profiles.push({ id: uid(), organization_id: ORG, company_id: eski, employee_count: 0, hazard_class: acik.hazard_class, valid_from: bas, valid_to: null, site_breakdown: null, note: 'İşyerlerinin tamamı başka firmaya bağlandı', created_at: new Date().toISOString() }); }
+        }
+      }
+    }
     return { data: { eski_firma: eski, yeni_firma: a.p_firma } };
   },
   firma_tahsilati_gir(a) {

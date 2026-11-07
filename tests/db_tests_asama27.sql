@@ -75,3 +75,8 @@ select tst.ok('Firma B profili işyerinden oluştu (20 çalışan tehlikeli)', (
 select tst.ok('Firma A tehlike sınıfı yine az tehlikeli', (select hazard_class = 'az_tehlikeli' from company_profiles where company_id = 'aaaaaaaa-1111-0000-0000-000000000001' and valid_to is null));
 select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222',false);
 select tst.fails('Yetkisiz rol eşitleyemez', $$select public.isyeri_profil_esitle('aaaaaaaa-1111-0000-0000-000000000001')$$);
+-- Aşama 27 düzeltmesi: işyerlerinin tamamı taşınınca eski firma profili 0 çalışana iner
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',false);
+select tst.works('Firma A son işyerini taşır', $$select public.isyeri_firmaya_tasi((select id from company_sites where sgk_no = 'EL0001'), 'aaaaaaaa-1111-0000-0000-000000000002')$$);
+select tst.ok('Firma A açık profili 0 çalışan', (select employee_count = 0 from company_profiles where company_id = 'aaaaaaaa-1111-0000-0000-000000000001' and valid_to is null));
+select tst.ok('Firma B tüm işyerlerini toplar (30 çalışan, 2 sınıf)', (select employee_count = 30 and jsonb_array_length(site_breakdown) = 2 from company_profiles where company_id = 'aaaaaaaa-1111-0000-0000-000000000002' and valid_to is null));

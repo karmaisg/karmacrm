@@ -198,3 +198,27 @@ test('ayrılış tarihi girilmemiş pasif personel hiç listelenmez', () => {
   const r = hesaplaKarlilik({ ...temel, personeller: [...personeller, pasif], maliyetler: [...maliyetler, maliyet('u3', 9999)] });
   assert.equal(r.personel.find((p) => p.id === 'u3'), undefined);
 });
+
+test('bağlı firma: gelir, çalışan ve görevlendirme ana firmada tek firma gibi toplanır', () => {
+  // f2 ve f3, f1'e bağlı: f1 = 50+25+25 = 100 çalışan; uzman ihtiyacı 2000 dk
+  const bagli = firmalar.map((f) => (f.id === 'f1' ? f : { ...f, parent_company_id: 'f1' }));
+  const r = hesaplaKarlilik({ ...temel, firmalar: bagli });
+  const satirlar = r.firmalar.filter((f) => f.id !== null);
+  assert.equal(satirlar.length, 1);
+  assert.equal(satirlar[0].id, 'f1');
+  assert.match(satirlar[0].ad, /\+2 bağlı firma/);
+  assert.equal(satirlar[0].gelir, 40000);
+  // toplam kâr bağlanmadan aynı kalır (yalnız satırlar birleşir)
+  const ayri = hesaplaKarlilik(temel);
+  assert.equal(r.isletme.gelir, ayri.isletme.gelir);
+  assert.equal(r.isletme.personel, ayri.isletme.personel);
+});
+
+test('bağlı firma: pasif bağlı firmanın çalışan sayısı ana firmaya eklenir', () => {
+  const bagli = [{ id: 'f1', name: 'Alfa' }, { id: 'f2', name: 'Beta', parent_company_id: 'f1', customer_status: 'eski_musteri' }];
+  const r = hesaplaKarlilik({ ...temel, firmalar: bagli, profiller: [profil('f1', 50), profil('f2', 25)], faturalar: [fat('i1', 'f1', 20000), fat('i2', 'f2', 10000)],
+    atamalar: [atama('a1', 'f1', 'u1', 'is_guvenligi_uzmani', 100), atama('a2', 'f2', 'u1', 'is_guvenligi_uzmani', 100)] });
+  const f1 = r.firmalar.find((f) => f.id === 'f1');
+  assert.equal(f1.gelir, 30000);
+  assert.ok(!r.firmalar.some((f) => f.id === 'f2'));
+});

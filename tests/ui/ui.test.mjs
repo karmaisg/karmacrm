@@ -2457,6 +2457,8 @@ await test('İşyerleri: tehlike sınıfı listede görünür, karma sınıf fir
   await s.waitForSelector('#isyeri-tablo:has-text("Taşınacak Şube")');
   profil = await s.evaluate((i) => globalThis.__fake.tablo.company_profiles.find((p) => p.company_id === i && !p.valid_to), id);
   esit(`${profil.employee_count}/${profil.hazard_class}/${profil.site_breakdown?.length}`, '38/cok_tehlikeli/2', 'taşınan işyeri hesaba girdi');
+  const profilB = await s.evaluate((i) => globalThis.__fake.tablo.company_profiles.find((p) => p.company_id === i && !p.valid_to), idB);
+  esit(profilB.employee_count, 0, 'tüm işyerleri taşınan firma yükü sıfırlandı');
   // sil: listeden kalkar, hesap güncellenir
   await s.locator('[data-isyeri-sil]').nth(0).click(); await s.click('[data-ok]');
   await s.waitForSelector('.toast:has-text("İşyeri silindi")');
@@ -2633,6 +2635,27 @@ await test('gelir ekle: firma dışı spot iş adıyla girilir (KDV 0 dahil); li
   esit(i.company_id, null, 'firmasız'); esit(Number(i.vat_amount), 0, 'KDV 0'); esit(i.customer_name, 'Ahmet Yılmaz', 'müşteri'); esit(i.income_kind, 'spot', 'tür');
   await s.waitForSelector('tr:has-text("Sağlık raporu")'); const satir = await s.locator('tr:has-text("Sağlık raporu")').first().innerText();
   if (!satir.includes('Ahmet Yılmaz') || !satir.includes('firma dışı')) throw new Error(`satır: ${satir}`);
+});
+
+// ---------------------------------------------------------------- Bağlı firmalar (Aşama 28)
+await test('ana firma: bağlı firma ana firmaya bağlanır, kartlarda görünür', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Ana Grup A.Ş.', vergi: '7777777771', calisan: 10, tehlike: 'az_tehlikeli' });
+  await s.waitForSelector('.company-head h1:has-text("Ana Grup")'); const anaHash = hashOf(s.url());
+  await firmaEkle(s, { ad: 'Bagli Sube Ltd', vergi: '7777777772', calisan: 5, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head h1:has-text("Bagli Sube")'); const bagliHash = hashOf(s.url());
+  await s.locator('[data-action="duzenle"]').click();
+  await modal(s).locator('select[name="parent_company_id"]').waitFor();
+  const secenek = await modal(s).locator('select[name="parent_company_id"] option').allInnerTexts();
+  if (!secenek.some((x) => x.includes('Ana Grup'))) throw new Error(`ana firma seçeneği yok: ${secenek}`);
+  await modal(s).locator('select[name="parent_company_id"]').selectOption({ label: 'Ana Grup A.Ş.' });
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('#firma-ana-notu');
+  const anaId = await s.evaluate(() => globalThis.__fake.tablo.companies.find((c) => c.name === 'Ana Grup A.Ş.').id);
+  esit(await s.evaluate(() => globalThis.__fake.tablo.companies.find((c) => c.name === 'Bagli Sube Ltd').parent_company_id), anaId, 'parent_company_id');
+  await git(s, anaHash); await s.waitForSelector('#firma-bagli-notu');
+  if (!(await s.locator('#firma-bagli-notu').innerText()).includes('Bagli Sube')) throw new Error('bağlı firma adı yok');
+  void bagliHash;
 });
 
 // ---------------------------------------------------------------- Firmayı kalıcı sil, pasife al (Aşama 18)
