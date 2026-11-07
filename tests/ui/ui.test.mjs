@@ -2637,6 +2637,43 @@ await test('gelir ekle: firma dışı spot iş adıyla girilir (KDV 0 dahil); li
   if (!satir.includes('Ahmet Yılmaz') || !satir.includes('firma dışı')) throw new Error(`satır: ${satir}`);
 });
 
+// ---------------------------------------------------------------- Aşama 29: firma dışı kişiler, panel ilçe/sektör grafikleri
+await test('kişiler: mülk sahibi firmasız eklenir, türe göre süzülür; firma yetkilisi firmasız eklenemez', async (s) => {
+  await girisYap(s);
+  await git(s, '#/kisiler'); await s.waitForSelector('[data-action="yeni-kisi"]');
+  await s.click('[data-action="yeni-kisi"]');
+  let m = modal(s);
+  await m.locator('#f-full_name').fill('Veli Mülk'); await m.locator('button[type=submit]').click();
+  await m.locator('.field-error, [data-error], .field-hata').first().waitFor({ timeout: 3000 }).catch(() => {});
+  esit(await s.evaluate(() => globalThis.__fake.tablo.contacts.filter((c) => c.full_name === 'Veli Mülk').length), 0, 'firma yetkilisi firmasız kaydedilmemeli');
+  await m.locator('#f-contact_type').selectOption('mulk_sahibi');
+  await m.locator('#f-phone').fill('0532 111 22 33'); await m.locator('#f-email').fill('veli@ornek.com');
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('tr:has-text("Veli Mülk")');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.contacts.find((c) => c.full_name === 'Veli Mülk').contact_type), 'mulk_sahibi', 'tür');
+  if (!(await s.locator('tr:has-text("Veli Mülk")').innerText()).includes('Mülk sahibi')) throw new Error('tür rozeti yok');
+  await s.selectOption('#kisi-tur', 'avukat'); await s.waitForTimeout(150);
+  esit(await s.locator('tr:has-text("Veli Mülk")').count(), 0, 'avukat süzgecinde mülk sahibi yok');
+  await s.selectOption('#kisi-tur', 'mulk_sahibi'); await s.waitForTimeout(150);
+  esit(await s.locator('tr:has-text("Veli Mülk")').count(), 1, 'mülk sahibi süzgeci');
+});
+
+await test('panel: ilçe ve sektör dağılım grafikleri', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Grafik Bir A.Ş.', vergi: '6666666661', calisan: 10, tehlike: 'tehlikeli' }); await s.waitForSelector('.company-head h1:has-text("Grafik Bir")');
+  await firmaEkle(s, { ad: 'Grafik Iki A.Ş.', vergi: '6666666662', calisan: 10, tehlike: 'tehlikeli' }); await s.waitForSelector('.company-head h1:has-text("Grafik Iki")');
+  await firmaEkle(s, { ad: 'Grafik Uc A.Ş.', vergi: '6666666663', calisan: 10, tehlike: 'tehlikeli' }); await s.waitForSelector('.company-head h1:has-text("Grafik Uc")');
+  await s.evaluate(() => {
+    const t = globalThis.__fake.tablo.companies;
+    const g = (ad, ilce, sektor) => { const c = t.find((x) => x.name === ad); c.district = ilce; c.sector = sektor; c.city = 'Muğla'; };
+    g('Grafik Bir A.Ş.', 'Bodrum', 'Turizm'); g('Grafik Iki A.Ş.', 'bodrum', 'Turizm'); g('Grafik Uc A.Ş.', 'Milas', 'İnşaat');
+  });
+  await git(s, '#/panel'); await s.waitForSelector('#ilce-dagilim .bars');
+  const ilce = await s.locator('#ilce-dagilim').innerText(); const sek = await s.locator('#sektor-dagilim').innerText();
+  if (!/Bodrum\s*2/.test(ilce) || !/Milas\s*1/.test(ilce)) throw new Error(`ilçe: ${ilce}`);
+  if (!/Turizm\s*2/.test(sek) || !/İnşaat\s*1/.test(sek)) throw new Error(`sektör: ${sek}`);
+});
+
 // ---------------------------------------------------------------- Menü düzeni: Fatura Takip, Gelirler
 await test('menü: Fatura Takip, Gelirler, Giderler, Cari sırası; Satış grubu Finans\'tan sonra; Gelirler sayfası ay toplamı', async (s) => {
   await girisYap(s);
