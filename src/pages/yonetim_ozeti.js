@@ -50,8 +50,9 @@ function icerik(o, seri) {
   return html`
     <div class="kpi-grid" id="yon-finans">
       ${kutu('Toplam hizmet geliri', para2(k.gelir), 'KDV hariç · fatura esaslı', 'wallet', 't-gelir')}
-      ${kutu('Toplam tahsilat', para2(k.tahsilat), 'Tahsilat tarihi bu ay olanlar (KDV dahil)', 'receipt')}
-      ${kutu('Tahsil edilmemiş alacak', para2(k.tahsilEdilmemis), 'Bu ay faturaları · KDV dahil', 'clock')}
+      <section class="card kpi kpi-cift" id="yon-tahsilat"><span class="kpi-ic">${icon('receipt', 22)}</span><div>
+        <div class="kpi-l">Toplam tahsilat</div><div class="kpi-v">${para2(k.tahsilat)}</div><div class="kpi-s">Tahsilat tarihi bu ay olanlar (KDV dahil)</div>
+        <div class="kpi-l kpi-ikinci">Tahsil edilmemiş alacak</div><div class="kpi-v">${para2(k.tahsilEdilmemis)}</div><div class="kpi-s">Bu ay faturaları · KDV dahil</div></div></section>
       ${kutu('Toplam gider', para2(k.gider), `Personel ${para2(k.personel)} · doğrudan ${para2(k.dogrudan)} · ortak ${para2(k.ortak)}`, 'bars', 't-gider')}
     </div>
     <div class="kpi-grid yon-grup" id="yon-kar">

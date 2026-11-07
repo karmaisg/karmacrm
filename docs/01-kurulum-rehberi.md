@@ -516,3 +516,8 @@ Birkaç firmanın işyerleri tek firmaya bağlanınca (tek tahsilat/fatura için
 - Yönetici paneli → Müşteri portföyü bölümünde, "Tahsilat durumu" kutusundan sonra iki kutu genişliğinde yeni bir kutu eklendi: **Hizmet verilen toplam personel — aylık** (son 12 ay, sütun grafik). Her ay, o ayda sözleşmesi geçerli müşteri firmaların o aydaki çalışan sayıları toplanır; bağlı firmalar ana firmada sayılır.
 - Sütunların üzerine gelince kişi sayısı görünür.
 - Grafiğe tıklayınca açılan pencerede **Firma** seçilebilir; seçilen firmanın aylık çalışan sayısı ve aydan aya değişimi (+/−) grafik ve tabloyla görünür. "Tüm firmalar (toplam)" seçeneği genel toplamı gösterir.
+
+## Panel: personel grafiğinde tehlike sınıfı düğmeleri, birleşik tahsilat kutusu
+
+- Aylık personel grafiğinin altında **Toplam / Çok tehlikeli / Tehlikeli / Az tehlikeli** düğmeleri vardır; varsayılan Toplam'dır. Bir sınıfa tıklanınca grafik yalnızca o sınıftaki çalışanların aylık sayısını gösterir (karma sınıflı firmalarda çalışanlar sınıflarına göre ayrılır). Aynı düğmeler büyütme penceresinde de çalışır ve firma seçimiyle birlikte kullanılır.
+- Yönetici özetinde **Toplam tahsilat** ve **Tahsil edilmemiş alacak** tek kutuda birleşti (üstte tahsilat, altta alacak). Böylece ilk satır da üç kutucuktan oluşur ve tüm satırlar aynı düzende hizalanır.

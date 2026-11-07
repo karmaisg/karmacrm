@@ -137,7 +137,8 @@ export async function panelSayfasi(app) {
   const pSeri = personelSeri({ firmalar, profiller, sozlesmeler, aylar: seriAylari });
   const personelKarti = () => html`<section class="card card-genis card-buyut" id="personel-grafik" data-buyut-personel title="Firma seçerek aylık değişimi görmek için tıklayın">
     <h2 class="card-title">Hizmet verilen toplam personel — aylık <span class="buyut-ipucu">Firma seç</span></h2>
-    ${pSeri.toplam.some((n) => n > 0) ? html`${cubukGrafik({ ad: 'Hizmet verilen toplam personel (aylık)', etiketler: seriAylari, seriler: [{ ad: 'Hizmet verilen personel', sinif: 'personel', degerler: pSeri.toplam }], birim: 'kisi', buyuk: 'genis' })}
+    ${pSeri.toplam.some((n) => n > 0) ? html`<div id="personel-grafik-alan">${personelGrafigi(pSeri, '', '', 'genis')}</div>
+      ${sinifDugmeleri('')}
       <p class="fine">Her ay, o ayda sözleşmesi geçerli müşteri firmaların çalışan sayıları toplanır (bağlı firmalar ana firmada). Ayrıntı ve firma bazında değişim için grafiğe tıklayın.</p>` : html`<p class="muted">Sözleşmeli firma ve çalışan sayısı girildikçe aylık grafik burada görünür.</p>`}
   </section>`;
   const acikGorev = gorevler.filter((g) => !g.archived_at && (g.status === 'acik' || g.status === 'devam_ediyor'));
@@ -192,7 +193,11 @@ export async function panelSayfasi(app) {
       const ciz = (k) => k.querySelectorAll('.bars-fill[data-w]').forEach((e) => { e.style.width = `${e.dataset.w}%`; });
       ciz(kok);
       ipucuBagla(document.body);
-      kok.querySelector('[data-buyut-personel]')?.addEventListener('click', (e) => { if (!e.target.closest('a, button, select')) personelPenceresi(pSeri); });
+      kok.querySelector('[data-buyut-personel]')?.addEventListener('click', (e) => {
+        const d = e.target.closest('[data-psinif]');
+        if (d) { kok.querySelectorAll('#personel-grafik [data-psinif]').forEach((b) => b.setAttribute('aria-pressed', String(b === d))); kok.querySelector('#personel-grafik-alan').innerHTML = personelGrafigi(pSeri, d.dataset.psinif, '', 'genis').s; return; }
+        if (!e.target.closest('a, button, select')) personelPenceresi(pSeri);
+      });
       if (ozetVar && firmalar.length) yonetimOzetiBaglan(kok, app, ozetDurum, ciz);
     },
   };
@@ -200,16 +205,28 @@ export async function panelSayfasi(app) {
 
 /** Aylık personel grafiğinin büyük penceresi: tüm firmalar (toplam) veya seçilen firmanın aylık çalışan sayısı ve değişimi. */
 function personelPenceresi(seri) {
-  const ciz = (id) => {
-    const s = id ? seri.firmalar.find((f) => f.id === id) : null;
-    const degerler = s ? s.degerler : seri.toplam; const ad = s ? s.ad : 'Tüm firmalar (toplam)';
+  const durum = { firma: '', sinif: '' };
+  const ciz = () => {
+    const f = durum.firma ? seri.firmalar.find((x) => x.id === durum.firma) : null;
+    const degerler = f ? (durum.sinif ? f.siniflar[durum.sinif] : f.degerler) : (durum.sinif ? seri.siniflar[durum.sinif] : seri.toplam);
     const satirlar = seri.aylar.map((a, i) => ({ ay: a, n: degerler[i], fark: i ? degerler[i] - degerler[i - 1] : null }));
-    return html`<div class="grafik-buyuk">${cubukGrafik({ ad: `Aylık personel — ${ad}`, etiketler: seri.aylar, seriler: [{ ad: 'Personel', sinif: 'personel', degerler }], buyuk: true, birim: 'kisi' })}</div>
+    return html`<div class="grafik-buyuk">${personelGrafigi(seri, durum.sinif, durum.firma, true)}</div>${sinifDugmeleri(durum.sinif)}
       <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Ay</th><th scope="col" class="num">Personel</th><th scope="col" class="num">Değişim</th></tr></thead><tbody>
       ${satirlar.map((r) => html`<tr><td>${ayAdi(r.ay)}</td><td class="num">${sayi(r.n)}</td><td class="num ${r.fark > 0 ? 'pos' : r.fark < 0 ? 'neg' : ''}">${r.fark === null ? '—' : `${r.fark > 0 ? '+' : ''}${sayi(r.fark)}`}</td></tr>`)}</tbody></table></div>`;
   };
-  openModal({ baslik: 'Hizmet verilen personel — aylık değişim', altBaslik: 'Firma seçerek o firmanın aylık çalışan sayısını görebilirsiniz; çubukların üzerine gelince kişi sayısı görünür.', boyut: 'xl',
-    govde: html`<label class="field"><span class="field-label">Firma</span><select id="personel-firma"><option value="">Tüm firmalar (toplam)</option>${seri.firmalar.map((f) => html`<option value="${f.id}">${f.ad}</option>`)}</select></label><div id="personel-icerik">${ciz('')}</div>` });
+  openModal({ baslik: 'Hizmet verilen personel — aylık değişim', altBaslik: 'Firma ve tehlike sınıfı seçerek aylık çalışan sayısını görebilirsiniz; çubukların üzerine gelince kişi sayısı görünür.', boyut: 'xl',
+    govde: html`<label class="field"><span class="field-label">Firma</span><select id="personel-firma"><option value="">Tüm firmalar (toplam)</option>${seri.firmalar.map((f) => html`<option value="${f.id}">${f.ad}</option>`)}</select></label><div id="personel-icerik">${ciz()}</div>` });
   const sec = document.querySelector('#personel-firma'); const icerik = document.querySelector('#personel-icerik');
-  sec?.addEventListener('change', () => { icerik.innerHTML = ciz(sec.value).s; });
+  sec?.addEventListener('change', () => { durum.firma = sec.value; icerik.innerHTML = ciz().s; });
+  icerik?.addEventListener('click', (e) => { const d = e.target.closest('[data-psinif]'); if (d) { durum.sinif = d.dataset.psinif; icerik.innerHTML = ciz().s; } });
+}
+
+const P_SINIF = [['', 'Toplam'], ['cok_tehlikeli', 'Çok tehlikeli'], ['tehlikeli', 'Tehlikeli'], ['az_tehlikeli', 'Az tehlikeli']];
+const sinifDugmeleri = (secili) => html`<div class="chips p-sinif" role="group" aria-label="Tehlike sınıfına göre personel">${P_SINIF.map(([k, ad]) => html`<button type="button" class="chip" data-psinif="${k}" aria-pressed="${k === secili ? 'true' : 'false'}">${ad}</button>`)}</div>`;
+/** Aylık personel grafiği: sinif '' = toplam, aksi hâlde o tehlike sınıfındaki çalışanlar; firmaId boşsa tüm firmalar. */
+function personelGrafigi(seri, sinif, firmaId, boyut) {
+  const f = firmaId ? seri.firmalar.find((x) => x.id === firmaId) : null;
+  const degerler = f ? (sinif ? f.siniflar[sinif] : f.degerler) : (sinif ? seri.siniflar[sinif] : seri.toplam);
+  const ad = (P_SINIF.find((x) => x[0] === sinif) ?? P_SINIF[0])[1];
+  return html`${cubukGrafik({ ad: `Aylık personel — ${f ? f.ad : 'tüm firmalar'} — ${ad}`, etiketler: seri.aylar, seriler: [{ ad: sinif ? `${ad} sınıf personeli` : 'Hizmet verilen personel', sinif: 'personel', degerler }], birim: 'kisi', buyuk: boyut })}`;
 }

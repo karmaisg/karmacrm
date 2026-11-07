@@ -124,21 +124,25 @@ export function personelSeri({ firmalar, profiller, sozlesmeler, aylar }) {
   const anaMap = anaFirmaHaritasi(firmalar); const anaOf = (id) => anaMap.get(id) ?? id;
   const harita = profilleriGrupla(profiller, firmalar);
   const musteri = firmalar.filter((f) => !f.archived_at && (f.customer_status ?? 'musteri') === 'musteri' && !f.parent_company_id);
-  const satirlar = musteri.map((f) => ({ id: f.id, ad: f.name, degerler: [] }));
-  const toplam = [];
+  const SIN = ['cok_tehlikeli', 'tehlikeli', 'az_tehlikeli'];
+  const satirlar = musteri.map((f) => ({ id: f.id, ad: f.name, degerler: [], siniflar: Object.fromEntries(SIN.map((x) => [x, []])) }));
+  const toplam = []; const toplamSinif = Object.fromEntries(SIN.map((x) => [x, []]));
   for (const a of aylar) {
     const ay = ay7(a); const bas = `${ay}-01`;
     const soz = new Set(sozlesmeler.filter((c) => !c.archived_at && ['aktif', 'yenilendi', 'sona_erdi'].includes(c.status) && ay7(c.start_date) <= ay && ay7(c.end_date) >= ay).map((c) => anaOf(c.company_id)));
-    let t = 0;
+    let t = 0; const ts = Object.fromEntries(SIN.map((x) => [x, 0]));
     for (const s of satirlar) {
-      let n = 0;
+      let n = 0; const sn = Object.fromEntries(SIN.map((x) => [x, 0]));
       if (soz.has(s.id)) {
         const p = (harita.get(s.id) ?? []).find((x) => x.valid_from <= ayBitisi(bas) && (!x.valid_to || x.valid_to >= bas));
         n = Number(p?.employee_count) || 0;
+        const parcalar = Array.isArray(p?.site_breakdown) && p.site_breakdown.length > 1 ? p.site_breakdown.map((d) => ({ sinif: d.tehlike, calisan: Number(d.calisan) || 0 })) : (p ? [{ sinif: p.hazard_class, calisan: n }] : []);
+        for (const x of parcalar) if (x.sinif in sn) sn[x.sinif] += x.calisan;
       }
       s.degerler.push(n); t += n;
+      for (const x of SIN) { s.siniflar[x].push(sn[x]); ts[x] += sn[x]; }
     }
-    toplam.push(t);
+    toplam.push(t); for (const x of SIN) toplamSinif[x].push(ts[x]);
   }
-  return { aylar, toplam, firmalar: satirlar.filter((s) => s.degerler.some((n) => n > 0)).sort((x, y) => x.ad.localeCompare(y.ad, 'tr')) };
+  return { aylar, toplam, siniflar: toplamSinif, firmalar: satirlar.filter((s) => s.degerler.some((n) => n > 0)).sort((x, y) => x.ad.localeCompare(y.ad, 'tr')) };
 }
