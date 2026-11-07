@@ -529,3 +529,10 @@ Birkaç firmanın işyerleri tek firmaya bağlanınca (tek tahsilat/fatura için
 - Firma kârlılığı, personel kârlılığı, ortak gider dağıtımı ve yönetici paneli aynı hesabı kullanır.
 - Firmaya veya personele bağlanamamış "doğrudan" giderler artık düşmez; ortak gider havuzuna alınır ve dağıtılır.
 - Kurumlar vergisi kategorisindeki kayıtlar toplam gidere dahildir (menüyle aynı olsun diye) ama vergi öncesi kârı düşürmez; panelde not olarak belirtilir.
+
+## Panel: hesap detayı (veri tabanı değişikliği yok)
+
+Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Vergi sonrası tahmini kâr** kutucuklarına tıklayınca hesap detayı açılır:
+- *Toplam gider:* Giderler menüsündeki kategori toplamları (tür ve kayıt sayısıyla); personel kartından gelen kalemler ayrı satır olarak görünür. Satırların toplamı kutudaki tutara eşittir.
+- *Vergi öncesi kâr:* Gelir − personel − doğrudan − ortak giderler.
+- *Vergi sonrası kâr:* Vergi öncesi kâr, vergiye tabi olmayan gelir düşülerek matrah, matrah × vergi oranı = tahmini vergi, sonuç.
