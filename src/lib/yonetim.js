@@ -121,11 +121,11 @@ export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
   for (const g of veri.giderler ?? []) {
     if (g.archived_at || ay7(g.expense_date) !== ay) continue;
     const e = kategoriToplam.get(g.category_id) ?? { k: 0, n: 0, ortak: 0, dogrudan: 0 }; e.k += Math.round(Number(g.amount_excl_vat) * 100); e.n += 1;
-    if (g.cost_type === 'ortak') e.ortak += 1; else e.dogrudan += 1; kategoriToplam.set(g.category_id, e);
+    if (g.cost_type === 'ortak') e.ortak += 1; else if (g.cost_type === 'personel') e.personel = (e.personel ?? 0) + 1; else e.dogrudan += 1; kategoriToplam.set(g.category_id, e);
   }
   const giderSatirlari = [...kategoriToplam].map(([id, e]) => {
     const k = katMap.get(id);
-    const tur = k?.is_payroll ? 'Personel (Giderler menüsü / Excel)' : k?.is_income_tax ? 'Vergi kaydı (vergi öncesi kârı düşürmez)' : k?.is_management_pay ? 'Yönetime ödenen' : e.ortak >= e.dogrudan ? 'Ortak gider' : 'Doğrudan gider';
+    const tur = k?.is_payroll || (e.personel ?? 0) > 0 ? 'Personel (Giderler menüsü / Excel)' : k?.is_income_tax ? 'Vergi kaydı (vergi öncesi kârı düşürmez)' : k?.is_management_pay ? 'Yönetime ödenen' : e.ortak >= e.dogrudan ? 'Ortak gider' : 'Doğrudan gider';
     return { ad: k?.name ?? 'Kategori', tur, kayit: e.n, tutar: k2(e.k / 100) };
   }).sort((a, b) => b.tutar - a.tutar);
   if (!(i.excelPersonel > 0) && i.personel > 0) giderSatirlari.push({ ad: 'Personel maliyeti (personel kartlarındaki aylık maliyet)', tur: 'Personel (kart)', kayit: null, tutar: i.personel });

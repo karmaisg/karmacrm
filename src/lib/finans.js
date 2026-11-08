@@ -6,7 +6,7 @@ export const ODEME_DURUMLARI = {
   tahsil_edilmedi: 'Tahsil edilmedi', kismi_tahsilat: 'Kısmi tahsilat', tahsil_edildi: 'Tahsil edildi', itirazli: 'İtirazlı', takip_gerekiyor: 'Takip gerekiyor',
 };
 export const ODEME_TON = { tahsil_edilmedi: 'neutral', kismi_tahsilat: 'info', tahsil_edildi: 'success', itirazli: 'danger', takip_gerekiyor: 'warning' };
-export const GIDER_TURU = { dogrudan: 'Doğrudan', ortak: 'Ortak' };
+export const GIDER_TURU = { dogrudan: 'Doğrudan', ortak: 'Ortak', personel: 'Personel' };
 export const ODEME_YONTEMLERI = ['Havale / EFT', 'Nakit', 'Kredi kartı', 'Çek / senet', 'Diğer'];
 
 const kurus = (x) => Math.round(Number(x ?? 0) * 100);

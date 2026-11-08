@@ -39,7 +39,7 @@ export async function giderFormuAc(app, { kayit = null, kategoriler = null, onDo
       ${field({ ad: 'vat_mode', etiket: 'Tutar KDV', deger: 'kdv_haric', secenekler: Object.entries(KDV_MODU).map(([deger, etiket]) => ({ deger, etiket })) })}
       ${field({ ad: 'vat_rate', etiket: 'KDV oranı (%)', tur: 'number', min: 0, max: 100, adim: '0.01', deger: oran })}
       ${field({ ad: 'cost_type', etiket: 'Gider türü', zorunlu: true, deger: v('cost_type', 'ortak'), secenekler: Object.entries(GIDER_TURU).map(([deger, etiket]) => ({ deger, etiket })),
-        ipucu: 'Doğrudan: bir firmaya veya personele ait. Ortak: tüm işletmeye ait; sonra firmalara dağıtılır.' })}
+        ipucu: 'Doğrudan: bir firmaya veya personele ait. Ortak: tüm işletmeye ait; sonra firmalara dağıtılır. Personel: personel maliyeti (maaş vb.); personel kartındaki maliyet ayrıca eklenmez.' })}
       <div class="field field-full" id="gider-bilgi" aria-live="polite"></div>
       ${field({ ad: 'company_id', etiket: 'Firma (doğrudan gider)', deger: v('company_id'), secenekler: [{ deger: '', etiket: 'Seçilmedi' }].concat(firmalar.filter((f) => !f.archived_at || f.id === kayit?.company_id).sort((a, b) => trSirala(a.name, b.name)).map((f) => ({ deger: f.id, etiket: f.name }))) })}
       ${field({ ad: 'employee_id', etiket: 'Personel (doğrudan gider)', deger: v('employee_id'), secenekler: [{ deger: '', etiket: 'Seçilmedi' }].concat(personel.filter((p) => !p.archived_at || p.id === kayit?.employee_id).sort((a, b) => trSirala(a.full_name, b.full_name)).map((p) => ({ deger: p.id, etiket: p.full_name }))) })}
@@ -101,6 +101,20 @@ function kategoriFormuAc(app, onDone) {
   });
 }
 
+function personelYapAc(app, kategoriler, onDone) {
+  openFormModal({
+    baslik: 'Kategoriyi personel gideri yap', altBaslik: 'Seçilen kategorideki ortak giderler "Personel" türüne çevrilir; yeni girişlerde ve Excel aktarımında da personel gideri sayılır.',
+    govde: html`${field({ ad: 'kategori', etiket: 'Kategori', zorunlu: true, secenekler: [{ deger: '', etiket: 'Seçiniz' }].concat(kategoriler.map((k) => ({ deger: k.id, etiket: k.name }))) })}`,
+    async onSubmit(fd) {
+      const id = String(fd.get('kategori') ?? '').trim();
+      if (!id) return { errors: { kategori: 'Kategoriyi seçin.' } };
+      const n = await app.api.kategoriTuruDegistir(id, 'personel');
+      toast(`${n} gider kaydı personel gideri yapıldı.`);
+    },
+    onDone,
+  });
+}
+
 export async function giderlerSayfasi(app) {
   const bugunStr = bugun();
   const [giderler, kategoriler, firmalar, personel] = await Promise.all([
@@ -143,12 +157,13 @@ export async function giderlerSayfasi(app) {
   return {
     baslik: 'Giderler', altBaslik: 'Doğrudan ve ortak giderler; tutarlar KDV hariç esas alınır, KDV dahil tutar da gösterilir',
     eylemler: html`${app.can('settings', 'create') ? html`<button type="button" class="btn btn-secondary" data-action="yeni-kategori">${icon('plus', 18)} Kategori ekle</button>` : ''}
+      ${app.can('payroll', 'edit') && app.can('expenses', 'edit') ? html`<button type="button" class="btn btn-secondary" data-action="personel-yap">${icon('briefcase', 18)} Kategoriyi personel gideri yap</button>` : ''}
       ${olusturabilir ? html`<button type="button" class="btn btn-primary" data-action="yeni-gider">${icon('plus', 18)} Gider ekle</button>` : ''}`,
     govde: html`<div id="gider-ozet">${ozet()}</div>
       <section class="card card-flush"><div class="toolbar">
         <label class="select-inline"><span class="sr-only">Ay</span><select id="gider-ay">${aySecenekleri(bugunStr).map((a) => html`<option value="${a}" ${a === durum.ay ? html`selected` : ''}>${ayAdi(a)}</option>`)}</select></label>
         <label class="select-inline"><span class="sr-only">Kategori</span><select id="gider-kategori"><option value="">Tüm kategoriler</option>${kategoriler.map((k) => html`<option value="${k.id}">${k.name}</option>`)}</select></label>
-        <label class="select-inline"><span class="sr-only">Tür</span><select id="gider-tur"><option value="">Tüm türler</option><option value="dogrudan">Doğrudan</option><option value="ortak">Ortak</option></select></label>
+        <label class="select-inline"><span class="sr-only">Tür</span><select id="gider-tur"><option value="">Tüm türler</option><option value="dogrudan">Doğrudan</option><option value="ortak">Ortak</option><option value="personel">Personel</option></select></label>
         <label class="check"><input type="checkbox" id="gider-odenmemis"> <span>Yalnız ödenmemişler</span></label>
       </div><div id="gider-tablo">${tablo()}</div></section>
       <p class="fine pad">Ortak giderlerin firmalara ve personele dağıtımı ile kârlılık Aşama 7'de eklenecek. Maaş ve personel maliyeti giderlerini yalnızca maaş yetkisi olanlar görür.</p>`,
@@ -164,6 +179,7 @@ export async function giderlerSayfasi(app) {
         const a = e.target.closest('[data-action]');
         if (a?.dataset.action === 'yeni-gider') { giderFormuAc(app, { kategoriler }); return; }
         if (a?.dataset.action === 'yeni-kategori') { kategoriFormuAc(app, yenileVeri); return; }
+        if (a?.dataset.action === 'personel-yap') { personelYapAc(app, kategoriler, yenileVeri); return; }
         const sf = e.target.closest('[data-sayfa]'); if (sf && !sf.disabled) { durum.sayfa = Number(sf.dataset.sayfa); ciz(); return; }
         const d = e.target.closest('[data-gider-eylem]'); if (!d) return;
         const g = giderler.find((x) => x.id === d.dataset.id); if (!g) return;

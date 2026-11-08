@@ -191,6 +191,7 @@ export function faturaBakiyesi(fatura, tahsilatlar, bugun = new Date()) {
 export function giderleriAyir(giderler) {
   const dogrudan = giderler.filter((g) => g.cost_type === 'dogrudan');
   const ortak = giderler.filter((g) => g.cost_type === 'ortak');
+  const personel = giderler.filter((g) => g.cost_type === 'personel');
   const topla = (liste) => liste.reduce((t, g) => t + kurus(g.amount_excl_vat), 0);
   const firmaBazli = {};
   for (const g of dogrudan) {
@@ -200,7 +201,8 @@ export function giderleriAyir(giderler) {
   return {
     dogrudanToplam: tl(topla(dogrudan)),
     ortakHavuz: tl(topla(ortak)),
-    toplamGider: tl(topla(dogrudan) + topla(ortak)),
+    personelToplam: tl(topla(personel)),
+    toplamGider: tl(topla(dogrudan) + topla(ortak) + topla(personel)),
     firmaBazliDogrudan: Object.fromEntries(Object.entries(firmaBazli).map(([k, v]) => [k, tl(v)])),
   };
 }

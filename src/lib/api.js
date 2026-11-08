@@ -395,6 +395,7 @@ export function createApi(db) {
       p_id: k.id ?? null, p_kategori: k.kategori, p_tarih: k.tarih, p_tutar: k.tutar, p_kdv_modu: k.kdvModu, p_kdv_orani: k.kdvOrani,
       p_tur: k.tur, p_firma: k.firma ?? null, p_personel: k.personel ?? null, p_odendi: !!k.odendi, p_aciklama: k.aciklama ?? null,
     })),
+    kategoriTuruDegistir: (kategori, tur) => bir(db.rpc('gider_kategori_turu_degistir', { p_kategori: kategori, p_tur: tur })),
     archiveExpense: (id) => bir(T('expenses').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
 
     // ----- kârlılık

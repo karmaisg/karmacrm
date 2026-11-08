@@ -80,7 +80,7 @@ export function hesaplaKarlilik(g) {
   for (const x of giderler) {
     if (x.archived_at || ay7(x.expense_date) !== ayAnahtar) continue;
     const kat = katMap.get(x.category_id); const k = kurus(x.amount_excl_vat);
-    if (kat?.is_payroll) { payrollK += k; continue; }   // Giderler menüsündeki (Excel) personel giderleri: personel maliyetinin tek kaynağı; kart maliyeti ayrıca eklenmez
+    if (kat?.is_payroll || x.cost_type === 'personel') { payrollK += k; continue; }   // Giderler menüsündeki (Excel) personel giderleri: personel maliyetinin tek kaynağı; kart maliyeti ayrıca eklenmez
     if (kat?.is_income_tax) { vergiK += k; continue; }
     if (kat?.is_management_pay) { yonetimOdenenK += k; continue; }
     if (x.cost_type === 'ortak') topla(havuz, x.category_id, k);
