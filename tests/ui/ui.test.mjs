@@ -2872,6 +2872,75 @@ await test('İdari İşler: menü finans altında; yalnız yetkili roller görü
   if (!(await s.locator('#sayfa').innerText()).toLowerCase().includes('yetki')) throw new Error('yetkisiz mesajı yok');
 });
 
+await test('Yıllık Bütçe: fiyat, yüzde↔fiyat, kabul edilen bedel, beklenen gelir, durum renkleri, toplamlar, elle/otomatik ortalama', async (s) => {
+  await girisYap(s); await firmaEkle(s, { ad: 'Alfa Ltd', calisan: 20, tehlike: 'tehlikeli' }); await s.waitForFunction(() => globalThis.__fake.tablo.companies.some((c) => c.name === 'Alfa Ltd')); await firmaEkle(s, { ad: 'Beta Ltd', calisan: 10, tehlike: 'tehlikeli' }); await s.waitForFunction(() => globalThis.__fake.tablo.companies.some((c) => c.name === 'Beta Ltd'));
+  await s.evaluate(() => {
+    const t = globalThis.__fake.tablo; const alfa = t.companies.find((c) => c.name === 'Alfa Ltd'); const yil = new Date().getFullYear();
+    [[`${yil}-01-15`, 1000], [`${yil}-02-15`, 3000], [`${yil - 1}-12-15`, 9999]].forEach(([d, h], i) => t.invoices.push({ id: `bf${i}`, organization_id: alfa.organization_id, company_id: alfa.id, invoice_no: `B${i}`, invoice_date: d, due_date: d, amount_excl_vat: h, vat_amount: h * 0.2, amount_incl_vat: h * 1.2, status: 'kesildi', income_kind: 'fatura', archived_at: null }));
+  });
+  await git(s, '#/butce'); await s.waitForSelector('.butce-tablo');
+  const satir = (ad) => s.locator('tr[data-firma]', { has: s.locator(`a:text-is("${ad}")`) });
+  const alfa = satir('Alfa Ltd');
+  const gir = async (alan, v) => { await alfa.locator(`[data-alan="${alan}"]`).fill(v); await alfa.locator(`[data-alan="${alan}"]`).press('Tab'); };
+  const metin = async (c) => (await alfa.locator(`[data-c="${c}"]`).innerText()).replace(/\s+/g, ' ').trim();
+  // otomatik ortalama: (1000 + 3000) / 2 ay = 2000
+  if (!(await alfa.locator('[data-c="ortKaynak"]').innerText()).includes('otomatik · 2 ay')) throw new Error('otomatik ortalama kaynağı');
+  esit(await alfa.locator('[data-alan="prev_avg_income"]').getAttribute('placeholder'), '2000', 'otomatik ortalama');
+  await gir('unit_price', '1000');
+  await s.waitForFunction(() => globalThis.__fake.tablo.budget_lines.length === 1);
+  if (!(await metin('oncekiAylik')).includes('1.000')) throw new Error(`aylık fiyat: ${await metin('oncekiAylik')}`);
+  // yüzde → fiyat
+  await gir('increase_pct', '20');
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-alan="increase_price"]').value === '1200');
+  // fiyat → yüzde
+  await gir('increase_price', '1500');
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-alan="increase_pct"]').value === '50');
+  // kabul edilen bedel → gerçekleşen artış ve beklenen gelir (2000 × 1,2)
+  await gir('accepted_price', '1200');
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="beklenen"]')?.innerText.includes('2.400'));
+  if (!(await metin('artis')).includes('%20')) throw new Error(`artış: ${await metin('artis')}`);
+  // durum renkleri
+  const ad = alfa.locator('.butce-ad');
+  await alfa.locator('[data-alan="status"]').selectOption('kabul');
+  await s.waitForFunction(() => document.querySelector('.butce-ad.yesil'));
+  await alfa.locator('[data-alan="status"]').selectOption('bilgi_verildi');
+  await s.waitForFunction(() => document.querySelector('.butce-ad.turuncu'));
+  await alfa.locator('[data-alan="status"]').selectOption('gorusme_bilgi_yok');
+  await s.waitForFunction(() => document.querySelector('.butce-ad.turuncu'));
+  await alfa.locator('[data-alan="status"]').selectOption('sona_erdi');
+  await s.waitForFunction(() => document.querySelector('.butce-ad.kirmizi'));
+  if (!(await metin('beklenen')).includes('0,00')) throw new Error('sona eren firmanın beklenen geliri 0 olmalı');
+  await alfa.locator('[data-alan="status"]').selectOption('kabul');
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="beklenen"]')?.innerText.includes('2.400'));
+  const renk = await ad.evaluate((el) => getComputedStyle(el).fontWeight);
+  if (Number(renk) < 700) throw new Error('firma ünvanı kalın olmalı');
+  // toplamlar
+  const toplam = (await s.locator('#butce-toplam').innerText()).replace(/\s+/g, ' ');
+  if (!toplam.includes('2.000,00') || !toplam.includes('2.400,00') || !toplam.includes('%20')) throw new Error(`toplam satırı: ${toplam}`);
+  // elle ortalama ve otomatiğe dönüş
+  await gir('prev_avg_income', '3.000,50');
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="ortKaynak"]')?.innerText.includes('elle girildi'));
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="beklenen"]')?.innerText.includes('3.600,60'));
+  await alfa.locator('[data-oto-sifirla]').click();
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="ortKaynak"]')?.innerText.includes('otomatik'));
+  // geçersiz giriş reddedilir
+  await gir('accepted_price', 'abc');
+  esit(await alfa.locator('[data-alan="accepted_price"]').inputValue(), '1200', 'geçersiz giriş geri alınır');
+  // kişi başı fiyat
+  await alfa.locator('[data-alan="price_type"]').selectOption('kisi_basi');
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-alan="employee_count"]').value === '20');
+  await gir('unit_price', '100');
+  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="oncekiAylik"]')?.innerText.includes('2.000'));
+  await gir('note', 'Müdürle görüşüldü');
+  await s.waitForFunction(() => globalThis.__fake.tablo.budget_lines[0].note === 'Müdürle görüşüldü');
+  const k = await s.evaluate(() => globalThis.__fake.tablo.budget_lines[0]);
+  esit(k.price_type, 'kisi_basi', 'tür'); esit(Number(k.unit_price), 100, 'birim'); esit(k.status, 'kabul', 'durum'); esit(k.prev_avg_income, null, 'otomatiğe dönüldü');
+  // kalıcılık: sayfa yenilenince veriler geri gelir
+  await git(s, '#/panel'); await git(s, '#/butce'); await s.waitForSelector('.butce-tablo');
+  esit(await satir('Alfa Ltd').locator('[data-alan="note"]').inputValue(), 'Müdürle görüşüldü', 'not kalıcı');
+  esit(await s.locator('.butce-tablo tbody tr').count(), 2, 'iki firma');
+});
+
 await test('Firma sözleşmeler: imzalı sözleşme kaydet (PDF/resim), geçersiz dosya, listele, aç, arşivle', async (s) => {
   await girisYap(s); await firmaEkle(s, { ad: 'İmza A.Ş.' });
   await s.waitForSelector('.company-head, #firma-tablo tbody tr a');

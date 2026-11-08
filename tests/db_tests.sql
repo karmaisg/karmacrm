@@ -194,8 +194,8 @@ select tst.fails('Girişsiz kullanıcı firma listesini okuyamaz', $$select * fr
 reset role;
 
 -- Seed doğrulaması
-select tst.ok('Seed: 6 rol x 22 modül (Aşama 21: İdari işler dahil) = 132 yetki satırı / kurum',
-  (select count(*) from role_permissions rp join roles r on r.id=rp.role_id where r.organization_id='aaaaaaaa-0000-0000-0000-000000000001') = 132);
+select tst.ok('Seed: 6 rol x 23 modül (Aşama 21: İdari işler, Aşama 33: Yıllık bütçe dahil) = 138 yetki satırı / kurum',
+  (select count(*) from role_permissions rp join roles r on r.id=rp.role_id where r.organization_id='aaaaaaaa-0000-0000-0000-000000000001') = 138);
 select tst.ok('Seed: 6 hizmet süresi kuralı', (select count(*) from service_time_rules where organization_id='aaaaaaaa-0000-0000-0000-000000000001') = 6);
 select tst.ok('Seed: 17 gider kategorisi', (select count(*) from expense_categories where organization_id='aaaaaaaa-0000-0000-0000-000000000001') = 17);
 select tst.fails('Hizmet süresi kuralı dönemleri çakışamaz',
