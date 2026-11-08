@@ -252,6 +252,17 @@ function faturaYaz(a, id) {
 }
 
 const rpcler = {
+  katip_aylik_calisan() {
+    const en = new Map();   // (dönem, sicil) → en son aktarımdaki satır
+    for (const r of tablo.katip_rows) {
+      const imp = tablo.katip_imports.find((i) => i.id === r.import_id); const site = tablo.company_sites.find((x) => x.id === r.site_id); if (!imp || !site?.company_id) continue;
+      const k = `${imp.period}|${r.sgk_no}`; const o = en.get(k);
+      if (!o || String(imp.created_at) >= String(o.at)) en.set(k, { at: imp.created_at, period: imp.period, company_id: site.company_id, hazard_class: r.hazard_class, employee_count: r.employee_count });
+    }
+    const t = new Map();
+    for (const x of en.values()) { const k = `${x.period}|${x.company_id}|${x.hazard_class}`; const e = t.get(k) ?? { period: x.period, company_id: x.company_id, hazard_class: x.hazard_class, employee_count: 0 }; e.employee_count += x.employee_count; t.set(k, e); }
+    return { data: [...t.values()] };
+  },
   kurum_kullanicilari: () => tablo.users.map((u) => ({ id: u.id, full_name: u.full_name, is_active: u.is_active })),
   firma_olustur({ p_firma, p_calisan_sayisi, p_tehlike, p_baslangic }) {
     const vn = p_firma.tax_no;

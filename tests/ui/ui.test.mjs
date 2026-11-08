@@ -2732,6 +2732,28 @@ await test('panel: aylık hizmet verilen personel grafiği, tıklayınca firma s
   if (!(await s.locator('.modal #personel-icerik svg.grafik').getAttribute('aria-label')).includes('Az tehlikeli')) throw new Error('pencerede sınıf düğmesi çalışmadı');
 });
 
+await test('panel: aylık personel grafiği İSG-Katip aktarımlarından beslenir', async (s) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Katip Grafik A.Ş.', vergi: '5555555551', calisan: 5, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head h1:has-text("Katip Grafik")');
+  await s.evaluate((bugun) => {
+    const t = globalThis.__fake.tablo; const f = t.companies.find((c) => c.name === 'Katip Grafik A.Ş.');
+    const ay = (n) => { const d = new Date(`${bugun.slice(0, 7)}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() - n); return d.toISOString().slice(0, 10); };
+    const site = { id: 'st1', organization_id: f.organization_id, company_id: f.id, sgk_no: '99999', site_name: 'Şube', employee_count: 0, hazard_class: 'tehlikeli' }; t.company_sites.push(site);
+    [[2, 30], [1, 34], [0, 37]].forEach(([n, c], i) => {
+      const imp = { id: `im${i}`, organization_id: f.organization_id, period: ay(n), file_name: `k${i}.xlsx`, created_at: new Date(Date.now() - (5 - i) * 86400000).toISOString() }; t.katip_imports.push(imp);
+      t.katip_rows.push({ id: `kr${i}`, organization_id: f.organization_id, import_id: imp.id, site_id: 'st1', sgk_no: '99999', site_name: 'Şube', employee_count: c, hazard_class: 'tehlikeli', staff_type: 'is_guvenligi_uzmani', person_name: 'U', minutes_per_month: 600 });
+    });
+  }, await gunOf(s, 0));
+  await git(s, '#/panel'); await s.waitForSelector('#personel-grafik svg.grafik');
+  const ozet = await s.locator('#personel-grafik svg.grafik').getAttribute('aria-label');
+  const ipucu = await s.evaluate(() => [...document.querySelectorAll('#personel-grafik rect[data-ipucu]')].map((r) => r.dataset.ipucu).filter((x) => /30|34|37/.test(x)));
+  if (ipucu.length < 3) throw new Error(`Katip aylık verisi grafikte yok: ${ipucu} / ${ozet}`);
+  await s.locator('#personel-grafik .card-title').click(); await s.waitForSelector('.modal #personel-firma');
+  await s.selectOption('#personel-firma', { label: 'Katip Grafik A.Ş.' });
+  if (!(await s.locator('.modal #personel-icerik tbody').innerText()).includes('37')) throw new Error('firma tablosunda 37 yok');
+});
+
 // ---------------------------------------------------------------- Menü düzeni: Fatura Takip, Gelirler
 await test('menü: Fatura Takip, Gelirler, Giderler, Cari sırası; Satış grubu Finans\'tan sonra; Gelirler sayfası ay toplamı', async (s) => {
   await girisYap(s);

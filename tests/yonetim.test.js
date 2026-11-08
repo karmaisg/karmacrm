@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aylikOzet, aylikSeri, sonAylar, personelSeri } from '../src/lib/yonetim.js';
+import { aylikOzet, aylikSeri, sonAylar, personelSeri, katipAyHaritasi } from '../src/lib/yonetim.js';
 
 const veri = {
   ay: '2026-10-01',
@@ -102,4 +102,17 @@ test('hesap dökümü: personel gideri girilmemişse kart maliyeti satırı ekle
   assert.equal(d.personelKaynak, 'kart');
   assert.ok(d.giderSatirlari.some((x) => x.tur === 'Personel (kart)'));
   assert.equal(Math.round(d.giderSatirlari.reduce((t, x) => t + x.tutar, 0) * 100) / 100, d.gider);
+});
+
+test('İSG-Katip aylık çalışan: o ayın aktarımı esas, aktarımsız ay önceki aktarımı kullanır; bağlı firma ana firmada toplanır', () => {
+  const firmalar = [{ id: 'f1', name: 'Alfa', customer_status: 'musteri' }, { id: 'f2', name: 'Beta', customer_status: 'musteri', parent_company_id: 'f1' }];
+  const katip = [
+    { period: '2026-08-01', company_id: 'f1', hazard_class: 'tehlikeli', employee_count: 40 },
+    { period: '2026-10-01', company_id: 'f1', hazard_class: 'tehlikeli', employee_count: 50 }, { period: '2026-10-01', company_id: 'f2', hazard_class: 'az_tehlikeli', employee_count: 10 }];
+  assert.equal(katipAyHaritasi(katip, firmalar, '2026-07-01'), null);                       // ilk aktarımdan önce: profil verisine dönülür
+  assert.deepEqual(katipAyHaritasi(katip, firmalar, '2026-09-01').get('f1'), [{ sinif: 'tehlikeli', calisan: 40 }]);   // eylül aktarımı yok → ağustos
+  assert.deepEqual(katipAyHaritasi(katip, firmalar, '2026-10-01').get('f1'), [{ sinif: 'tehlikeli', calisan: 50 }, { sinif: 'az_tehlikeli', calisan: 10 }]);
+  const r = personelSeri({ firmalar, profiller: [], sozlesmeler: [], aylar: ['2026-07-01', '2026-08-01', '2026-09-01', '2026-10-01'], katip });
+  assert.deepEqual(r.toplam, [0, 40, 40, 60]);
+  assert.deepEqual(r.siniflar.az_tehlikeli, [0, 0, 0, 10]); assert.deepEqual(r.firmalar.find((f) => f.id === 'f1').degerler, [0, 40, 40, 60]);
 });
