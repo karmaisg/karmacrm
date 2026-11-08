@@ -236,3 +236,13 @@ test('bağlı firma: pasif bağlı firmanın çalışan sayısı ana firmaya ekl
   assert.equal(f1.gelir, 30000);
   assert.ok(!r.firmalar.some((f) => f.id === 'f2'));
 });
+
+test('Gider türü "personel": ortak havuza girmez, kart maliyeti ayrıca eklenmez (kategori personel olmasa da)', () => {
+  const r = hesaplaKarlilik({ ...temel, giderler: [gider('p', 'k-kira', 40000, { cost_type: 'personel' }), gider('o', 'k-kira', 3000)] });
+  assert.equal(r.isletme.personel, 40000);                       // kartlardaki 70.000 değil
+  assert.equal(r.isletme.excelPersonel, 40000);
+  assert.equal(r.isletme.ortakHavuz, 3000);                      // yalnız gerçek ortak gider
+  assert.equal(r.isletme.toplamGider, 43000);                    // Giderler menüsü toplamı, çift sayım yok
+  const u = r.personel.find((p) => p.id === 'u1'); const h = r.personel.find((p) => p.id === 'h1');
+  assert.equal(u.maliyet + h.maliyet, 40000);
+});

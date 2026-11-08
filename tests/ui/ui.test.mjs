@@ -2689,6 +2689,22 @@ await test('gider tutarlılığı: panel gideri = Giderler menüsü toplamı; Ex
   if (!panel.includes('11.000')) throw new Error(`beklenen 3.000 kira + 8.000 Excel personel = 11.000; bulunan ${panel}`);
 });
 
+await test('gider türü Personel: ortak kategoride bile personel sayılır, panel gideri Giderler menüsüyle aynı, çift personel yok', async (s) => {
+  await karlilikHazirla(s);
+  await s.evaluate((bugun) => {
+    const t = globalThis.__fake.tablo; const kira = t.expense_categories.find((k) => !k.is_payroll && !k.is_income_tax);
+    t.expenses.push({ id: 'gp1', organization_id: t.expenses[0].organization_id, category_id: kira.id, expense_date: bugun, amount_excl_vat: 8000, vat_amount: 0, amount_incl_vat: 8000, cost_type: 'personel', company_id: null, employee_id: null, paid: true, archived_at: null, description: 'Excel maaş' });
+  }, await gunOf(s, 0));
+  await git(s, '#/giderler'); await s.waitForSelector('.kpi:has-text("Toplam gider")');
+  const secenek = await s.locator('#gider-tur option').allInnerTexts();
+  if (!secenek.includes('Personel')) throw new Error('tür filtresinde Personel yok');
+  const menu = (await s.locator('.kpi:has-text("Toplam gider") .kpi-v').first().innerText()).trim();
+  await git(s, '#/panel'); await s.waitForSelector('#yon-finans .t-gider');
+  const panel = (await s.locator('#yon-finans .t-gider').innerText()).trim();
+  esit(panel.replace(',00', ''), menu.replace(',00', ''), 'panel gideri Giderler menüsüyle aynı olmalı');
+  if (!panel.includes('11.000')) throw new Error(`beklenen 3.000 kira + 8.000 personel = 11.000 (kart maliyeti eklenmemeli); bulunan ${panel}`);
+});
+
 await test('panel: gider, vergi öncesi ve vergi sonrası kâr kutucukları hesap detayı açar', async (s) => {
   await karlilikHazirla(s);
   await git(s, '#/panel'); await s.waitForSelector('#yon-finans [data-detay="gider"]');
