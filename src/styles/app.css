@@ -489,3 +489,16 @@ svg.grafik rect[data-ipucu]:hover, svg.grafik circle[data-ipucu]:hover { opacity
 .toplam-satir td { border-top: 2px solid var(--border); font-weight: 800; }
 .isaret { display: inline-block; width: 1.1em; color: var(--text-3); font-weight: 700; }
 .hesap-tablo td.num { white-space: nowrap; }
+
+/* Yıllık Bütçe (Aşama 33) */
+.butce-tablo { min-width: 1500px; }
+.butce-tablo th, .butce-tablo td { padding: 8px 10px; vertical-align: top; }
+.butce-tablo .butce-firma { min-width: 200px; text-align: left; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--text); background: transparent; }
+.butce-in { width: 120px; min-height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 8px; font: inherit; }
+.butce-in.butce-dar { width: 96px; }
+.butce-in.butce-not { width: 240px; }
+.butce-in:disabled { opacity: .7; }
+.butce-ad { font-weight: 600; }
+.butce-ad.yesil { color: var(--success); font-weight: 800; }
+.butce-ad.kirmizi { color: var(--danger); font-weight: 800; }
+.butce-ad.turuncu { color: var(--warning); font-weight: 800; }

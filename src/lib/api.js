@@ -418,6 +418,11 @@ export function createApi(db) {
       if (error) throw wrap(error);
       return data.signedUrl;
     },
+    // ----- yıllık bütçe (Aşama 33)
+    listBudgetLines: (yil) => hepsiniOku(() => T('budget_lines').select('*').eq('budget_year', yil).order('id')),
+    createBudgetLine: (d) => bir(T('budget_lines').insert(d).select().single()),
+    updateBudgetLine: (id, d) => bir(T('budget_lines').update(d).eq('id', id).select().single()),
+    listAllContractPrices: () => hepsiniOku(() => T('contract_prices').select('*').order('id')),
     // ----- imzalı sözleşmeler (Aşama 32)
     listSignedContracts: () => hepsiniOku(() => T('signed_contracts').select('*').order('created_at', { ascending: false })),
     /** Dosyayı özel kovaya yükler, ardından kaydı ekler; kayıt eklenemezse dosya geri silinir. */

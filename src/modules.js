@@ -25,6 +25,7 @@ export const MODUL_ADLARI = {
   users: 'Kullanıcılar ve yetkiler',
   settings: 'Sistem ayarları',
   admin_affairs: 'İdari işler (özlük, izin, araç, şirket belgeleri)',
+  budget: 'Yıllık bütçe (fiyat artışı çalışması)',
 };
 
 export const MODUL_SIRASI = Object.keys(MODUL_ADLARI);
@@ -94,6 +95,8 @@ export const MENU = [
   { id: 'firma-karlilik', grup: 'finans', modul: 'company_profit', ad: 'Firma kârlılığı', simge: 'bars', yapildi: true,
     aciklama: 'Firma bazında katkı kârı, ortak gider payı ve vergi öncesi kâr katkısı.' },
 
+  { id: 'butce', grup: 'finans', modul: 'budget', ad: 'Yıllık Bütçe', simge: 'trend', yapildi: true,
+    aciklama: 'Firma bazında gelecek yıl hizmet bedeli artışı, görüşme durumu ve beklenen aylık gelir.' },
   { id: 'idari', grup: 'finans', modul: 'admin_affairs', ad: 'İdari İşler', simge: 'folder', yapildi: true,
     aciklama: 'Özlük belgeleri, personel izinleri, şirket araçları ve şirket belgeleri.' },
 
