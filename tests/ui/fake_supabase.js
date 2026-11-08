@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
+for (const ad of ['signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -861,7 +861,7 @@ export function createClient() {
     storage: { from: (kova) => ({
       async upload(yol, dosya, secenek) {
         if (globalThis.__depoHata) return { data: null, error: { message: 'Storage hatası', statusCode: '500' } };
-        if (kova !== 'idari-belgeler' || !izinVar('admin_affairs', 'can_create')) return { data: null, error: { message: 'new row violates row-level security policy', statusCode: '403' } };
+        if (!((kova === 'idari-belgeler' && izinVar('admin_affairs', 'can_create')) || (kova === 'imzali-sozlesmeler' && izinVar('contracts', 'can_create')))) return { data: null, error: { message: 'new row violates row-level security policy', statusCode: '403' } };
         if (depo.has(yol)) return { data: null, error: { message: 'The resource already exists', statusCode: '409' } };
         depo.set(yol, { tur: secenek?.contentType, boyut: dosya.size }); return { data: { path: yol }, error: null };
       },

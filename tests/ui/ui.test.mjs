@@ -2872,6 +2872,37 @@ await test('İdari İşler: menü finans altında; yalnız yetkili roller görü
   if (!(await s.locator('#sayfa').innerText()).toLowerCase().includes('yetki')) throw new Error('yetkisiz mesajı yok');
 });
 
+await test('Firma sözleşmeler: imzalı sözleşme kaydet (PDF/resim), geçersiz dosya, listele, aç, arşivle', async (s) => {
+  await girisYap(s); await firmaEkle(s, { ad: 'İmza A.Ş.' });
+  await s.waitForSelector('.company-head, #firma-tablo tbody tr a');
+  if (!(await s.locator('.company-head').count())) { await s.click('#firma-tablo tbody tr a'); await s.waitForSelector('.company-head'); }
+  await s.click('[data-sekme="sozlesmeler"]');
+  await s.waitForSelector('[data-action="imzali-yeni"]');
+  if (!(await s.locator('#sekme-govde').innerText()).includes('Henüz imzalı sözleşme yüklenmedi')) throw new Error('boş durum yok');
+  await s.click('[data-action="imzali-yeni"]');
+  await modal(s).locator('#f-file').setInputFiles({ name: 'x.exe', mimeType: 'application/x-msdownload', buffer: Buffer.alloc(100) });
+  await modal(s).locator('button[type=submit]').click();
+  if (!(await modal(s).innerText()).includes('Yalnızca PDF')) throw new Error('exe reddedilmeli');
+  await modal(s).locator('#f-title').fill('2026 hizmet sözleşmesi');
+  await modal(s).locator('#f-signed_date').fill('2026-10-01');
+  await modal(s).locator('#f-file').setInputFiles(pdfDosya('imzali.pdf'));
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('[data-imzali-ac]');
+  const kayit = await s.evaluate(() => globalThis.__fake.tablo.signed_contracts[0]);
+  esit(kayit.title, '2026 hizmet sözleşmesi', 'ad'); esit(kayit.mime_type, 'application/pdf', 'mime'); esit(kayit.signed_date, '2026-10-01', 'tarih');
+  if (!kayit.storage_path.includes('/sozlesme/') || !kayit.storage_path.endsWith('.pdf')) throw new Error(`yol: ${kayit.storage_path}`);
+  // resim de yüklenebilir
+  await s.click('[data-action="imzali-yeni"]');
+  await modal(s).locator('#f-file').setInputFiles({ name: 'foto.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(500, 'b') });
+  await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelectorAll('[data-imzali-ac]').length === 2);
+  // arşivle
+  await s.locator('[data-imzali-arsiv]').first().click();
+  await s.locator('[data-ok]').click();
+  await s.waitForFunction(() => document.querySelectorAll('[data-imzali-ac]').length === 1);
+  esit(await s.evaluate(() => globalThis.__fake.tablo.signed_contracts.filter((d) => d.archived_at).length), 1, 'arşivde 1');
+});
+
 await test('İdari İşler: özlük belgesi yükle, eksik/yüklü, başka belge adı, geçersiz dosya, arşivle', async (s) => {
   await girisYap(s); await calisanTohumu(s, [{ full_name: 'Ayşe Demir', start_date: '2020-03-15', birth_date: '1990-01-01' }]);
   await git(s, '#/idari'); await s.waitForSelector('[data-belge-tur="kimlik"]');
