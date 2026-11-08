@@ -550,3 +550,11 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 2. **Giderler → Gider ekle** formunda *Gider türü* artık **Ortak / Doğrudan / Personel**'dir. Personel türünde firma ya da personel seçilmez.
 3. **Personel** olarak işaretli gider, o ayın personel maliyetinin **tek kaynağıdır**: ortak giderlere girmez, personel kartındaki aylık maliyet ayrıca **eklenmez** (kartlar yalnızca firmalara/personele paylaştırma ağırlığıdır). Yönetici paneli, firma kârlılığı, personel kârlılığı ve gider dağıtımı aynı kuralı kullanır.
 4. **Mevcut Excel kayıtlarını düzeltmek için:** Giderler sayfasında **Kategoriyi personel gideri yap** düğmesine basın, Excel'deki personel gideri kategorisini seçin. O kategorideki ortak kayıtlar personel türüne çevrilir; kategorinin varsayılan türü de Personel olur, böylece **sonraki Excel aktarımları** otomatik personel gideri olarak gelir. (Dağıtımı yapılmış ortak giderler için önce dağıtımı iptal etmeniz gerekebilir.)
+
+## İmzalı sözleşmeler (Aşama 32) — `supabase/33_asama32.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `33_asama32.sql` dosyasını çalıştırın (yeni tablo ve özel dosya kovası ekler; tekrar çalıştırılabilir).
+2. **Firmalar → bir firma → Sözleşmeler** sekmesinde **İmzalı sözleşmeler** bölümü ve **İmzalı sözleşme kaydet** düğmesi vardır. PDF veya resim (JPG, PNG, WEBP; en çok 10 MB) yüklenir; isteğe bağlı olarak belge adı, ilgili sözleşme dönemi, imza tarihi ve açıklama girilir.
+3. Yüklenen dosyalar listelenir; satırdaki düğmeyle açılır/indirilir (bağlantı 2 dakika geçerlidir) veya arşive alınır (dosya silinmez).
+4. Dosyalar herkese açık değildir; yalnızca sözleşme (contracts) görüntüleme yetkisi olanlar görür, yüklemek için sözleşme oluşturma yetkisi gerekir.
+5. SQL çalıştırılmadıysa sayfa hata vermez, bölüm boş görünür ve yükleme çalışmaz.
