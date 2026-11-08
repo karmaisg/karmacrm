@@ -558,3 +558,17 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 3. Yüklenen dosyalar listelenir; satırdaki düğmeyle açılır/indirilir (bağlantı 2 dakika geçerlidir) veya arşive alınır (dosya silinmez).
 4. Dosyalar herkese açık değildir; yalnızca sözleşme (contracts) görüntüleme yetkisi olanlar görür, yüklemek için sözleşme oluşturma yetkisi gerekir.
 5. SQL çalıştırılmadıysa sayfa hata vermez, bölüm boş görünür ve yükleme çalışmaz.
+
+## Yıllık Bütçe (Aşama 33) — `supabase/34_asama33.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `34_asama33.sql` dosyasını çalıştırın (yeni tablo ve "Yıllık bütçe" yetkisi ekler; tekrar çalıştırılabilir). Varsayılan olarak yalnızca **sistem yöneticisi** ve **işletme sahibi** görür; diğer roller için *Kullanıcılar ve yetkiler* ekranından açılabilir.
+2. **Finans → Yıllık Bütçe** menüsünde üstten bütçe yılı seçilir (varsayılan: gelecek yıl). Müşteri durumundaki tüm firmalar alfabetik listelenir; bağlı firmalar ana firmanın içinde sayılır. Her hücre değiştiğinde satır **otomatik kaydedilir**.
+3. Sütunlar:
+   - **Fiyat türü ve önceki yıl fiyatı:** *Sabit fiyat* (aylık tutar) veya *Kişi başı fiyat* (çalışan sayısıyla çarpılır; çalışan sayısı firmanın güncel sayısından gelir, değiştirilebilir). **Aylık hizmet fiyatı** otomatik hesaplanır.
+   - **Önceki yıl aylık ort. gelir:** boş bırakılırsa, önceki yıl kesilen "fatura" türü faturaların (KDV hariç, spot ve elden gelirler hariç) aylık ortalaması otomatik alınır (toplam ÷ fatura kesilen ay sayısı). Elle bir tutar girerseniz o kullanılır; "otomatik yap" bağlantısı elle girişi kaldırır.
+   - **Talep edilen artış % / fiyat:** biri girilince diğeri hesaplanır (yüzde girerseniz fiyat, fiyat girerseniz yüzde).
+   - **Kabul edilen bedel** ve **gerçekleşen artış** (% ve aylık TL fark): kabul edilen bedelin önceki yıl fiyatına oranı.
+   - **Beklenen aylık gelir** = önceki yıl aylık ort. gelir × (1 + gerçekleşen artış oranı). Kabul edilen bedel girilmemişse boş kalır; durum **Sözleşme sona erdi** ise 0 sayılır.
+   - **Durum:** Kabul edildi (firma adı kalın yeşil) · Sözleşme sona erdi (kalın kırmızı) · Görüşme yapıldı – bilgi verilemedi / Bilgi verildi – dönüş bekleniyor (kalın turuncu). **Açıklama** sütununa görüşme notları yazılır.
+4. Tablonun altında önceki yıl aylık ortalama gelir toplamı, beklenen aylık gelir toplamı ve artış oranı bulunur (aynı bilgi üstte kutucuklarda da var). Artış oranı yalnızca beklenen geliri hesaplanabilen firmalar üzerinden bulunur; bedeli henüz belli olmayan firma sayısı kutucukta yazar.
+5. **Sözleşme fiyatlarından doldur** düğmesi, önceki yıl fiyatı boş olan firmalar için sözleşmedeki fiyatı (KDV hariç; sabit/kişi başı) otomatik girer; dolu olanlara dokunmaz.
