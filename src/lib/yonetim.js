@@ -20,6 +20,27 @@ export function sonAylar(ay, n = 12) {
  * @param veri  karlilik sayfasındaki girdiYukle çıktısı (seçili ay için)
  * @param tahsilatlar  tüm tahsilat kayıtları
  */
+/**
+ * İSG-Katip aylık çalışan verisi: [{ period, company_id, hazard_class, employee_count }] → ay → ana firma → [{ sinif, calisan }].
+ * İstenen ayda aktarım yoksa, ondan önceki en son aktarım kullanılır; hiç yoksa null (profil verisine dönülür).
+ */
+export function katipAyHaritasi(katip, firmalar, ayBasiStr) {
+  if (!katip?.length) return null;
+  const anaMap = anaFirmaHaritasi(firmalar); const ay = String(ayBasiStr).slice(0, 7);
+  const aylar = [...new Set(katip.map((x) => String(x.period).slice(0, 7)))].sort();
+  const secilen = aylar.includes(ay) ? ay : [...aylar].reverse().find((a) => a < ay);
+  if (!secilen) return null;
+  const harita = new Map();
+  for (const x of katip) {
+    if (String(x.period).slice(0, 7) !== secilen) continue;
+    const id = anaMap.get(x.company_id) ?? x.company_id;
+    const l = harita.get(id) ?? []; const e = l.find((y) => y.sinif === x.hazard_class);
+    if (e) e.calisan += Number(x.employee_count) || 0; else l.push({ sinif: x.hazard_class, calisan: Number(x.employee_count) || 0 });
+    harita.set(id, l);
+  }
+  return harita;
+}
+
 export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
   const ay = String(veri.ay).slice(0, 7); const ayBasi = `${ay}-01`; const r = hesaplaKarlilik({ ...veri, yontem });
   const i = r.isletme; const gider = k2(i.toplamGider); // = Giderler menüsünün KDV hariç toplamı (kurumlar vergisi kategorisi dahil)
@@ -71,15 +92,17 @@ export function aylikOzet({ veri, tahsilatlar = [], yontem = 'teorik' }) {
   // Çalışan sayısı ve tehlike sınıfı o ayın profilinden; karma sınıflı firmada gelir, sınıfların çalışan sayısı oranında bölünür.
   const SINIFLAR = ['cok_tehlikeli', 'tehlikeli', 'az_tehlikeli'];
   const sinifToplam = Object.fromEntries(SINIFLAR.map((s) => [s, { sinif: s, gelir: 0, calisan: 0, firma: 0 }]));
+  const katipAy = katipAyHaritasi(veri.katipAylik, veri.firmalar, ayBasi);
   let hizmetCalisan = 0; let siniflanamayanGelir = 0;
   for (const f of musteri) {
     const g = gelirFirma.get(f.id) ?? 0;
     if (!sozlesmeli.has(f.id) && !(g > 0)) continue;
     const profil = (harita.get(f.id) ?? []).find((p) => p.valid_from <= ayBitisi(ayBasi) && (!p.valid_to || p.valid_to >= ayBasi));
-    if (!profil || !profil.hazard_class) { siniflanamayanGelir += g; continue; }
-    const parcalar = Array.isArray(profil.site_breakdown) && profil.site_breakdown.length > 1
+    const kp = katipAy?.get(f.id);      // İSG-Katip'teki o ay (veya önceki en son) aktarım, varsa esas alınır
+    if (!kp && (!profil || !profil.hazard_class)) { siniflanamayanGelir += g; continue; }
+    const parcalar = kp ?? (Array.isArray(profil.site_breakdown) && profil.site_breakdown.length > 1
       ? profil.site_breakdown.map((d) => ({ sinif: d.tehlike, calisan: Number(d.calisan) || 0 }))
-      : [{ sinif: profil.hazard_class, calisan: Number(profil.employee_count) || 0 }];
+      : [{ sinif: profil.hazard_class, calisan: Number(profil.employee_count) || 0 }]);
     const toplamCalisan = parcalar.reduce((t, x) => t + x.calisan, 0);
     hizmetCalisan += toplamCalisan;
     for (const x of parcalar) {
@@ -140,7 +163,7 @@ export function aylikSeri({ veri, n = 12, yontem = 'teorik' }) {
  * Aylık hizmet verilen personel (çalışan) sayısı: o ayda sözleşmesi geçerli müşteri firmaların, o ayki profildeki çalışan sayıları.
  * Dönen: { aylar, toplam:[n], firmalar:[{ id, ad, degerler:[n] }] } (bağlı firmalar ana firmada toplanır).
  */
-export function personelSeri({ firmalar, profiller, sozlesmeler, aylar }) {
+export function personelSeri({ firmalar, profiller, sozlesmeler, aylar, katip = [] }) {
   const anaMap = anaFirmaHaritasi(firmalar); const anaOf = (id) => anaMap.get(id) ?? id;
   const harita = profilleriGrupla(profiller, firmalar);
   const musteri = firmalar.filter((f) => !f.archived_at && (f.customer_status ?? 'musteri') === 'musteri' && !f.parent_company_id);
@@ -151,9 +174,12 @@ export function personelSeri({ firmalar, profiller, sozlesmeler, aylar }) {
     const ay = ay7(a); const bas = `${ay}-01`;
     const soz = new Set(sozlesmeler.filter((c) => !c.archived_at && ['aktif', 'yenilendi', 'sona_erdi'].includes(c.status) && ay7(c.start_date) <= ay && ay7(c.end_date) >= ay).map((c) => anaOf(c.company_id)));
     let t = 0; const ts = Object.fromEntries(SIN.map((x) => [x, 0]));
+    const kay = katipAyHaritasi(katip, firmalar, bas);   // İSG-Katip aktarımı varsa o ayın (yoksa önceki en son aktarımın) verisi
     for (const s of satirlar) {
       let n = 0; const sn = Object.fromEntries(SIN.map((x) => [x, 0]));
-      if (soz.has(s.id)) {
+      if (kay) {
+        for (const x of kay.get(s.id) ?? []) { n += x.calisan; if (x.sinif in sn) sn[x.sinif] += x.calisan; }
+      } else if (soz.has(s.id)) {
         const p = (harita.get(s.id) ?? []).find((x) => x.valid_from <= ayBitisi(bas) && (!x.valid_to || x.valid_to >= bas));
         n = Number(p?.employee_count) || 0;
         const parcalar = Array.isArray(p?.site_breakdown) && p.site_breakdown.length > 1 ? p.site_breakdown.map((d) => ({ sinif: d.tehlike, calisan: Number(d.calisan) || 0 })) : (p ? [{ sinif: p.hazard_class, calisan: n }] : []);

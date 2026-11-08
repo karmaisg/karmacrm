@@ -18,14 +18,14 @@ const tutar = (n) => html`<span class="${renk(n)}">${para2(n)}</span>`;
 
 export async function girdiYukle(app, ay) {
   const bit = ayBitisi(ay);
-  const [firmalar, profiller, kurallar, ayarlar, faturalar, giderler, kategoriler, sozlesmeler, maliyetler, dagitimKurallari, kayitliDagitim, girdi] = await Promise.all([
+  const [firmalar, profiller, kurallar, ayarlar, faturalar, giderler, kategoriler, sozlesmeler, maliyetler, dagitimKurallari, kayitliDagitim, girdi, katipAylik] = await Promise.all([
     app.api.listCompanies(), app.api.listAllProfiles(), app.api.listServiceRules(), app.api.listSettings(),
     app.api.listInvoices(), app.api.listExpenses(), app.api.listExpenseCategories(),
     app.can('contracts', 'view') ? app.api.listContracts() : [],
-    app.api.listAllEmployeeCosts(), app.api.listAllocationRules(), app.api.listAllocations(ay, bit), app.api.getProfitInputs(ay),
+    app.api.listAllEmployeeCosts(), app.api.listAllocationRules(), app.api.listAllocations(ay, bit), app.api.getProfitInputs(ay), app.api.listKatipAylik(),
   ]);
   return {
-    ay, firmalar, profiller, kurallar, faturalar, giderler, kategoriler, sozlesmeler, maliyetler, dagitimKurallari, kayitliDagitim,
+    ay, katipAylik, firmalar, profiller, kurallar, faturalar, giderler, kategoriler, sozlesmeler, maliyetler, dagitimKurallari, kayitliDagitim,
     atamalar: girdi.atamalar, zaman: girdi.zaman, personeller: girdi.personeller,
     kapasiteVarsayilan: kapasiteDakika(ayarlar, ay), vergiOrani: Number(ayarDegeri(ayarlar, 'kurumlar_vergisi_orani', ay, 25)) || 25,
   };

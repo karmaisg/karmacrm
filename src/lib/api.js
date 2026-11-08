@@ -175,6 +175,7 @@ export function createApi(db) {
     updateSite: (id, degerler) => bir(T('company_sites').update(degerler).eq('id', id).select().single()),
     listKatipImports: () => bir(T('katip_imports').select('id,period,file_name,row_count,site_count,new_company_count,summary,created_at').order('created_at', { ascending: false }).limit(24)),
     listKatipRows: (importId) => hepsiniOku(() => T('katip_rows').select('*').eq('import_id', importId).order('id')),
+    listKatipAylik: async () => { try { return (await bir(db.rpc('katip_aylik_calisan'))) ?? []; } catch { return []; } },   // 31_asama30.sql; yoksa/yetki yoksa boş
     applyKatip: (paket) => bir(db.rpc('katip_uygula', { p_paket: paket })),
     applyGorevlendirme: (paket) => bir(db.rpc('katip_gorevlendir', { p_paket: paket })),
 

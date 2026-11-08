@@ -28,7 +28,7 @@ export async function panelSayfasi(app) {
     };
   }
 
-  const [firmalar, profiller, kurallar, ayarlar, firsatlar, gorevler, adaylar, teklifler, sozlesmeler, sozlesmeFiyatlari, faturalar, tahsilatlar, yanitlar] = await Promise.all([
+  const [firmalar, profiller, kurallar, ayarlar, firsatlar, gorevler, adaylar, teklifler, sozlesmeler, sozlesmeFiyatlari, faturalar, tahsilatlar, yanitlar, katipAylik] = await Promise.all([
     app.api.listCompanies(), app.api.listAllProfiles(), app.api.listServiceRules(), app.api.listSettings(),
     app.can('opportunities', 'view') ? app.api.listOpportunities() : [],
     app.can('tasks', 'view') ? app.api.listTasks() : [],
@@ -39,6 +39,7 @@ export async function panelSayfasi(app) {
     app.can('invoices', 'view') ? app.api.listInvoices() : [],
     app.can('invoices', 'view') ? app.api.listPayments() : [],
     app.can('offers', 'view') ? app.api.listOfferResponses().catch(() => []) : [],
+    app.api.listKatipAylik(),
   ]);
   const bugunStr = bugun();
   const ay = ayBasi(bugunStr);
@@ -134,7 +135,7 @@ export async function panelSayfasi(app) {
     <li><a class="link" href="#/tahsilat">Bu ay tahsilat</a><strong>${para2(fin.buAyTahsilat)}</strong></li>
   </ul></section>`);
   const seriAylari = sonAylar(ay, 12).map((a) => a.slice(0, 7) + '-01');
-  const pSeri = personelSeri({ firmalar, profiller, sozlesmeler, aylar: seriAylari });
+  const pSeri = personelSeri({ firmalar, profiller, sozlesmeler, aylar: seriAylari, katip: katipAylik });
   const personelKarti = () => html`<section class="card card-genis card-buyut" id="personel-grafik" data-buyut-personel title="Firma seçerek aylık değişimi görmek için tıklayın">
     <h2 class="card-title">Hizmet verilen toplam personel — aylık <span class="buyut-ipucu">Firma seç</span></h2>
     ${pSeri.toplam.some((n) => n > 0) ? html`<div id="personel-grafik-alan">${personelGrafigi(pSeri, '', '', 'genis')}</div>
