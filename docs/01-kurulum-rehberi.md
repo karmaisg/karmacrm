@@ -543,3 +543,10 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 2. Panelde **Hizmet verilen toplam personel — aylık** grafiği ve "Hizmet verilen toplam personel" / "Tehlike sınıfına göre ort. kişi bazlı gelir" kutuları artık her ayın **İSG-Katip aktarımındaki** çalışan sayılarını kullanır: işyeri (SGK sicil) başına bir kez sayılır (uzman ve hekim satırları çiftlenmez), firma ve tehlike sınıfına göre toplanır, bağlı firmalar ana firmada toplanır. Aynı ay birden fazla yüklendiyse en son yükleme esas alınır.
 3. İstenen ayda aktarım yoksa o aydan önceki en son aktarım kullanılır; ilk aktarımdan önceki aylarda eski yöntem (firma profili + sözleşme) devreye girer. Bu yüzden her ay İSG-Katip Excel'ini yüklemeniz grafiğin doğruluğunu artırır.
 4. Fonksiyon yoksa (SQL çalıştırılmadıysa) sistem hata vermez, eski yönteme döner.
+
+## Gider türü "Personel" (Aşama 31) — `supabase/32_asama31.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `32_asama31.sql` dosyasını **tek başına** çalıştırın (gider türüne "personel" ekler; tekrar çalıştırılabilir).
+2. **Giderler → Gider ekle** formunda *Gider türü* artık **Ortak / Doğrudan / Personel**'dir. Personel türünde firma ya da personel seçilmez.
+3. **Personel** olarak işaretli gider, o ayın personel maliyetinin **tek kaynağıdır**: ortak giderlere girmez, personel kartındaki aylık maliyet ayrıca **eklenmez** (kartlar yalnızca firmalara/personele paylaştırma ağırlığıdır). Yönetici paneli, firma kârlılığı, personel kârlılığı ve gider dağıtımı aynı kuralı kullanır.
+4. **Mevcut Excel kayıtlarını düzeltmek için:** Giderler sayfasında **Kategoriyi personel gideri yap** düğmesine basın, Excel'deki personel gideri kategorisini seçin. O kategorideki ortak kayıtlar personel türüne çevrilir; kategorinin varsayılan türü de Personel olur, böylece **sonraki Excel aktarımları** otomatik personel gideri olarak gelir. (Dağıtımı yapılmış ortak giderler için önce dağıtımı iptal etmeniz gerekebilir.)
