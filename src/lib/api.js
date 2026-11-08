@@ -4,6 +4,7 @@
 
 import { depoYolu } from './idari.js';
 const IDARI_KOVA = 'idari-belgeler';
+const IMZALI_KOVA = 'imzali-sozlesmeler';
 
 // ---------------------------------------------------------------- hata çevirisi
 export class AppError extends Error {
@@ -414,6 +415,23 @@ export function createApi(db) {
     archiveAdminDocument: (id) => bir(T('admin_documents').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
     async adminDocumentUrl(yol) {
       const { data, error } = await db.storage.from(IDARI_KOVA).createSignedUrl(yol, 120);
+      if (error) throw wrap(error);
+      return data.signedUrl;
+    },
+    // ----- imzalı sözleşmeler (Aşama 32)
+    listSignedContracts: () => hepsiniOku(() => T('signed_contracts').select('*').order('created_at', { ascending: false })),
+    /** Dosyayı özel kovaya yükler, ardından kaydı ekler; kayıt eklenemezse dosya geri silinir. */
+    async uploadSignedContract({ kurum, dosya, tur, alanlar }) {
+      const yol = depoYolu(kurum, 'sozlesme', globalThis.crypto.randomUUID(), tur);
+      const { error: ue } = await db.storage.from(IMZALI_KOVA).upload(yol, dosya, { contentType: tur, upsert: false });
+      if (ue) throw wrap(ue);
+      const { data, error } = await T('signed_contracts').insert({ ...alanlar, storage_path: yol, file_name: dosya.name, mime_type: tur, size_bytes: dosya.size }).select().single();
+      if (error) { await db.storage.from(IMZALI_KOVA).remove([yol]).catch(() => {}); throw wrap(error); }
+      return data;
+    },
+    archiveSignedContract: (id) => bir(T('signed_contracts').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
+    async signedContractUrl(yol) {
+      const { data, error } = await db.storage.from(IMZALI_KOVA).createSignedUrl(yol, 120);
       if (error) throw wrap(error);
       return data.signedUrl;
     },

@@ -5,6 +5,7 @@ import { avatar, pill, emptyState, field, checkbox, openFormModal, confirmDialog
 import { FIYATLAMA, KDV_MODU, SOZLESME_DURUMLARI, SOZLESME_TON, bitisDurumu, guncelFiyat, fiyatAylikHaric } from '../lib/ticari.js';
 import { ayarDegeri, bosIseNull, guncelProfil, profilleriGrupla } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
+import { KABUL, dosyaDogrula, dosyaTuru, boyutMetni } from '../lib/idari.js';
 
 const SAYFA_BASI = 25;
 export const sozlesmePill = (d) => pill(SOZLESME_DURUMLARI[d] ?? d, SOZLESME_TON[d] ?? 'neutral');
@@ -324,4 +325,53 @@ export function firmaSozlesmeleri(app, sozlesmeler) {
   }
   return html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Dönem</th><th scope="col">Bitişe kalan</th><th scope="col">Durum</th></tr></thead><tbody>
     ${liste.map((c) => html`<tr><td><a class="link" href="#/sozlesmeler/${c.id}"><strong>${tarih(c.start_date)} – ${tarih(c.end_date)}</strong></a></td><td>${bitisRozeti(c, bugunStr)}</td><td>${sozlesmePill(c.status)}</td></tr>`)}</tbody></table></div>`;
+}
+
+// ---------------------------------------------------------------- imzalı sözleşmeler (PDF / resim)
+export function imzaliSozlesmeFormuAc(app, { companyId, sozlesmeler = [] }) {
+  const liste = sozlesmeler.filter((c) => !c.archived_at).sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)));
+  openFormModal({
+    baslik: 'İmzalı sözleşme kaydet', altBaslik: 'İmzalı sözleşmenin PDF veya resmini (JPG, PNG, WEBP) yükleyin; en çok 10 MB.', boyut: 'md', gonderEtiketi: 'İmzalı sözleşmeyi kaydet',
+    govde: html`${field({ ad: 'title', etiket: 'Belge adı (isteğe bağlı)', maksUzunluk: 200, tam: true })}
+      ${liste.length ? field({ ad: 'contract_id', etiket: 'İlgili sözleşme (isteğe bağlı)', secenekler: [{ deger: '', etiket: 'Seçilmedi' }].concat(liste.map((c) => ({ deger: c.id, etiket: `${tarih(c.start_date)} – ${tarih(c.end_date)}` }))) }) : ''}
+      ${field({ ad: 'signed_date', etiket: 'İmza tarihi', tur: 'date' })}
+      ${field({ ad: 'description', etiket: 'Açıklama', tur: 'textarea', tam: true, maksUzunluk: 2000 })}
+      ${field({ ad: 'file', etiket: 'Dosya', tur: 'file', zorunlu: true, kabul: KABUL, tam: true })}`,
+    async onSubmit(fd) {
+      const g = (k) => String(fd.get(k) ?? '').trim();
+      const dosya = fd.get('file'); const hata = dosyaDogrula(dosya);
+      if (hata) return { errors: { file: hata } };
+      await app.api.uploadSignedContract({
+        kurum: app.ctx.org.id, dosya, tur: dosyaTuru(dosya),
+        alanlar: { company_id: companyId, contract_id: bosIseNull(g('contract_id')), title: bosIseNull(g('title')), signed_date: bosIseNull(g('signed_date')), description: bosIseNull(g('description')) },
+      });
+      toast('İmzalı sözleşme kaydedildi.');
+    },
+    onDone: () => app.yenile(),
+  });
+}
+
+export function firmaImzaliSozlesmeler(app, imzalilar, sozlesmeler = []) {
+  const liste = imzalilar.filter((d) => !d.archived_at);
+  const yaz = app.can('contracts', 'create'); const arsivle = app.can('contracts', 'archive');
+  const donem = new Map(sozlesmeler.map((c) => [c.id, `${tarih(c.start_date)} – ${tarih(c.end_date)}`]));
+  if (!liste.length) return emptyState({ simge: 'contract', baslik: 'Henüz imzalı sözleşme yüklenmedi', metin: 'İmzalı sözleşmenin PDF veya resmini kaydedin.' });
+  return html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Belge</th><th scope="col" class="hide-sm">İlgili sözleşme</th><th scope="col">İmza tarihi</th><th scope="col"><span class="sr-only">İşlem</span></th></tr></thead><tbody>
+    ${liste.map((d) => html`<tr><td><strong>${d.title ?? d.file_name}</strong><small class="block muted">${d.file_name} · ${boyutMetni(d.size_bytes)}${d.description ? html` · ${d.description}` : ''}</small></td>
+      <td class="hide-sm">${d.contract_id ? (donem.get(d.contract_id) ?? '—') : '—'}</td><td>${d.signed_date ? tarih(d.signed_date) : '—'}</td>
+      <td class="actions"><button type="button" class="icon-btn" data-imzali-ac="${d.id}" aria-label="Dosyayı aç" title="Aç / indir">${icon('upload', 16)}</button>
+        ${arsivle || yaz ? html`<button type="button" class="icon-btn" data-imzali-arsiv="${d.id}" aria-label="Arşivle" title="Arşivle">${icon('archive', 16)}</button>` : ''}</td></tr>`)}</tbody></table></div>`;
+}
+
+export async function imzaliSozlesmeAc(app, d) {
+  try {
+    const url = await app.api.signedContractUrl(d.storage_path);
+    const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.download = d.file_name;
+    document.body.append(a); a.click(); a.remove();
+  } catch (e) { toast(humanError(e), 'hata'); }
+}
+
+export async function imzaliSozlesmeArsivle(app, d) {
+  if (!(await confirmDialog({ baslik: 'İmzalı sözleşmeyi arşivle', onayEtiketi: 'Arşivle', tehlikeli: true, mesaj: 'Kayıt listeden kalkar; dosya silinmez, arşivde tutulur.' }))) return;
+  try { await app.api.archiveSignedContract(d.id); toast('İmzalı sözleşme arşive alındı.'); app.yenile(); } catch (e) { toast(humanError(e), 'hata'); }
 }

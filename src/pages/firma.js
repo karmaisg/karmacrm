@@ -16,7 +16,7 @@ import { MENU } from '../modules.js';
 import { gorusmeFormuAc, zamanCizelgesi, gorusmeArsivle } from './gorusmeler.js';
 import { firsatFormuAc, asamaPill } from './firsatlar.js';
 import { teklifFormuAc, teklifPill } from './teklifler.js';
-import { sozlesmeFormuAc, firmaTeklifleri, firmaSozlesmeleri } from './sozlesmeler.js';
+import { sozlesmeFormuAc, firmaTeklifleri, firmaSozlesmeleri, imzaliSozlesmeFormuAc, firmaImzaliSozlesmeler, imzaliSozlesmeAc, imzaliSozlesmeArsivle } from './sozlesmeler.js';
 import { gorevFormuAc } from './gorevler.js';
 import { gorevlendirmeFormuAc, gorevlendirmeDurumu, gorevlendirmeEylemleri, gorevlendirmeEylemiYurut } from './gorevlendirmeler.js';
 import { PERSONEL_TURU, aktifMi, kapsamPayi, sureMetni } from '../lib/operasyon.js';
@@ -42,7 +42,7 @@ const bilgi = (etiket, deger) => html`<div class="kv"><dt>${etiket}</dt><dd>${de
 const hatirla = { id: null, sekme: 'genel' };
 
 export async function firmaSayfasi(app, id) {
-  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler, gorusmeler, tumFirsatlar, tumTeklifler, tumSozlesmeler, tumAtamalar, personelListesi, tumFaturalar, tumTahsilatlar] = await Promise.all([
+  const [firma, profiller, kisiler, kurallar, ayarlar, uyeler, gorusmeler, tumFirsatlar, tumTeklifler, tumSozlesmeler, tumAtamalar, personelListesi, tumFaturalar, tumTahsilatlar, tumImzalilar] = await Promise.all([
     app.api.getCompany(id),
     app.api.listProfiles(id),
     app.can('contacts', 'view') ? app.api.listContactsByCompany(id) : Promise.resolve([]),
@@ -57,6 +57,7 @@ export async function firmaSayfasi(app, id) {
     app.can('assignments', 'view') ? app.api.listStaff().catch(() => []) : Promise.resolve([]),
     app.can('invoices', 'view') ? app.api.listInvoices() : Promise.resolve([]),
     app.can('invoices', 'view') ? app.api.listPayments() : Promise.resolve([]),
+    app.can('contracts', 'view') ? app.api.listSignedContracts().catch(() => []) : Promise.resolve([]),   // SQL (33_asama32) çalıştırılmadıysa boş
   ]);
   const tumFirmalar = firma ? ((await app.api.listCompanies().catch(() => [])) ?? []) : [];
   const anaFirma = firma?.parent_company_id ? tumFirmalar.find((c) => c.id === firma.parent_company_id) : null;
@@ -164,7 +165,10 @@ export async function firmaSayfasi(app, id) {
     ${firmaTeklifleri(app, tumTeklifler.filter((o) => o.company_id === id), teklifPill)}</section>`;
   const sozlesmeSekmesi = () => html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Sözleşmeler</h2>
     ${app.can('contracts', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="sozlesme-yeni">${icon('plus', 16)} Sözleşme ekle</button>` : ''}</div>
-    ${firmaSozlesmeleri(app, tumSozlesmeler.filter((c) => c.company_id === id))}</section>`;
+    ${firmaSozlesmeleri(app, tumSozlesmeler.filter((c) => c.company_id === id))}</section>
+    <section class="card card-flush"><div class="card-head"><h2 class="card-title">İmzalı sözleşmeler</h2>
+    ${app.can('contracts', 'create') && !firma.archived_at ? html`<button type="button" class="btn btn-primary btn-sm" data-action="imzali-yeni">${icon('upload', 16)} İmzalı sözleşme kaydet</button>` : ''}</div>
+    ${firmaImzaliSozlesmeler(app, tumImzalilar.filter((d) => d.company_id === id), tumSozlesmeler.filter((c) => c.company_id === id))}</section>`;
 
   const firmaFaturalariListesi = tumFaturalar.filter((f) => f.company_id === id);
   const faturaSekmesi = () => {
@@ -480,12 +484,15 @@ export async function firmaSayfasi(app, id) {
           else if (eylem === 'firsat-ekle') firsatFormuAc(app, { companyId: firma.id });
           else if (eylem === 'teklif-yeni') teklifFormuAc(app, { companyId: firma.id });
           else if (eylem === 'sozlesme-yeni') sozlesmeFormuAc(app, { companyId: firma.id });
+          else if (eylem === 'imzali-yeni') imzaliSozlesmeFormuAc(app, { companyId: firma.id, sozlesmeler: tumSozlesmeler.filter((c) => c.company_id === id) });
           else if (eylem === 'gorev-ekle') gorevFormuAc(app, { companyId: firma.id });
           else if (eylem === 'fatura-yeni') faturaFormuAc(app, { companyId: firma.id });
           else if (eylem === 'firma-tahsilat') firmaTahsilatFormuAc(app, { firma, faturalar: firmaFaturalariListesi, tahsilatlar: tumTahsilatlar.filter((p) => firmaFaturalariListesi.some((f) => f.id === p.invoice_id)) });
           else if (eylem === 'gv-yeni') gorevlendirmeFormuAc(app, { companyId: firma.id });
           return;
         }
+        const iz = e.target.closest('[data-imzali-ac], [data-imzali-arsiv]');
+        if (iz) { const d = tumImzalilar.find((x) => x.id === (iz.dataset.imzaliAc ?? iz.dataset.imzaliArsiv)); if (d) { if (iz.dataset.imzaliAc) await imzaliSozlesmeAc(app, d); else await imzaliSozlesmeArsivle(app, d); } return; }
         const fd = e.target.closest('[data-fatura-detay]');
         if (fd) { const f = firmaFaturalariListesi.find((x) => x.id === fd.dataset.faturaDetay); if (f) faturaDetayAc(app, f, { firmaAdi: firma.name }); return; }
         const gv = e.target.closest('[data-gv-eylem]');
