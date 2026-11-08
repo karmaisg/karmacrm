@@ -536,3 +536,10 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 - *Toplam gider:* Giderler menüsündeki kategori toplamları (tür ve kayıt sayısıyla); personel kartından gelen kalemler ayrı satır olarak görünür. Satırların toplamı kutudaki tutara eşittir.
 - *Vergi öncesi kâr:* Gelir − personel − doğrudan − ortak giderler.
 - *Vergi sonrası kâr:* Vergi öncesi kâr, vergiye tabi olmayan gelir düşülerek matrah, matrah × vergi oranı = tahmini vergi, sonuç.
+
+## Aylık personel verisi İSG-Katip'ten (Aşama 30) — `supabase/31_asama30.sql` çalıştırılmalı
+
+1. Supabase → SQL Editor'de `31_asama30.sql` dosyasını çalıştırın (yalnızca okuma yapan bir fonksiyon ekler; tekrar çalıştırılabilir).
+2. Panelde **Hizmet verilen toplam personel — aylık** grafiği ve "Hizmet verilen toplam personel" / "Tehlike sınıfına göre ort. kişi bazlı gelir" kutuları artık her ayın **İSG-Katip aktarımındaki** çalışan sayılarını kullanır: işyeri (SGK sicil) başına bir kez sayılır (uzman ve hekim satırları çiftlenmez), firma ve tehlike sınıfına göre toplanır, bağlı firmalar ana firmada toplanır. Aynı ay birden fazla yüklendiyse en son yükleme esas alınır.
+3. İstenen ayda aktarım yoksa o aydan önceki en son aktarım kullanılır; ilk aktarımdan önceki aylarda eski yöntem (firma profili + sözleşme) devreye girer. Bu yüzden her ay İSG-Katip Excel'ini yüklemeniz grafiğin doğruluğunu artırır.
+4. Fonksiyon yoksa (SQL çalıştırılmadıysa) sistem hata vermez, eski yönteme döner.
