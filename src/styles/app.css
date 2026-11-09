@@ -490,15 +490,41 @@ svg.grafik rect[data-ipucu]:hover, svg.grafik circle[data-ipucu]:hover { opacity
 .isaret { display: inline-block; width: 1.1em; color: var(--text-3); font-weight: 700; }
 .hesap-tablo td.num { white-space: nowrap; }
 
-/* Yıllık Bütçe (Aşama 33) */
-.butce-tablo { min-width: 1500px; }
+/* Yıllık Bütçe (Aşama 33-34) */
+.butce-kap { max-height: 68vh; overflow: auto; position: relative; border-top: 1px solid var(--border); }
+.butce-kap-dar { max-height: 70vh; }
+.butce-tablo { min-width: 1900px; border-collapse: separate; border-spacing: 0; }
+.butce-gider { min-width: 760px; }
 .butce-tablo th, .butce-tablo td { padding: 8px 10px; vertical-align: top; }
-.butce-tablo .butce-firma { min-width: 200px; text-align: left; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--text); background: transparent; }
-.butce-in { width: 120px; min-height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 8px; font: inherit; }
-.butce-in.butce-dar { width: 96px; }
-.butce-in.butce-not { width: 240px; }
-.butce-in:disabled { opacity: .7; }
+.butce-tablo td.num, .butce-tablo th.num { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+/* başlık satırı yukarıda, firma sütunu solda sabit kalır */
+.butce-tablo thead th { position: sticky; top: 0; z-index: 3; background: var(--surface-2, var(--surface)); box-shadow: 0 1px 0 var(--border); white-space: normal; }
+.butce-tablo tbody th.butce-firma, .butce-tablo thead th:first-child, .butce-tablo tfoot th:first-child { position: sticky; left: 0; background: var(--surface); }
+.butce-tablo tbody th.butce-firma { z-index: 2; min-width: 210px; max-width: 260px; text-align: left; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--text); box-shadow: 1px 0 0 var(--border); }
+.butce-tablo thead th:first-child { z-index: 4; }
+.butce-tablo tfoot th, .butce-tablo tfoot td { position: sticky; bottom: 0; z-index: 3; background: var(--surface-2, var(--surface)); box-shadow: 0 -1px 0 var(--border); }
+.butce-tablo tfoot th:first-child { z-index: 4; }
+.butce-tablo tbody tr:hover td, .butce-tablo tbody tr:hover th.butce-firma { background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
+.butce-tablo tbody tr:hover th.butce-firma { box-shadow: inset 3px 0 0 var(--primary), 1px 0 0 var(--border); }
+.butce-in { width: 130px; min-height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 8px; font: inherit; }
+.butce-in.butce-sayi { text-align: right; font-variant-numeric: tabular-nums; min-width: 120px; }
+.butce-in.butce-dar { width: 118px; }
+.butce-in.butce-not { width: 260px; }
+.butce-in:disabled { opacity: .75; }
 .butce-ad { font-weight: 600; }
 .butce-ad.yesil { color: var(--success); font-weight: 800; }
 .butce-ad.kirmizi { color: var(--danger); font-weight: 800; }
 .butce-ad.turuncu { color: var(--warning); font-weight: 800; }
+.butce-kalem-ust { font-weight: 800; }
+.butce-cocuk .butce-ad { font-weight: 500; }
+.butce-cocuk th.butce-firma { padding-left: 28px; }
+.butce-girinti { color: var(--muted); }
+/* özet kutuları: büyük tutarlar kutudan taşmasın */
+.butce-kpi .kpi { min-width: 0; }
+.butce-kpi .kpi > div { min-width: 0; }
+.butce-kpi .kpi-v { font-size: clamp(1.05rem, 1.7vw, 1.55rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.butce-kar th, .butce-kar td { padding: 10px 14px; }
+.butce-kar-satir th, .butce-kar-satir td { font-size: 1.05rem; font-weight: 800; background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+.butce-arti { color: var(--success); }
+.butce-eksi { color: var(--danger); }
+.butce-not-alt { padding: 4px 16px 14px; }

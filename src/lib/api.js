@@ -316,6 +316,12 @@ export function createApi(db) {
       if (error) throw wrap(error);
       return data;
     },
+    deleteBudgetLine: (id) => bir(T('budget_lines').delete().eq('id', id)),
+    listBudgetExpenses: (yil) => hepsiniOku(() => T('budget_expense_lines').select('*').eq('budget_year', yil).order('sort_order').order('created_at')),
+    createBudgetExpenses: (liste) => T('budget_expense_lines').insert(liste).select().then(({ data, error }) => { if (error) throw wrap(error); return data; }),
+    createBudgetExpense: (d) => bir(T('budget_expense_lines').insert(d).select().single()),
+    updateBudgetExpense: (id, d) => bir(T('budget_expense_lines').update(d).eq('id', id).select().single()),
+    deleteBudgetExpense: (id) => bir(T('budget_expense_lines').delete().eq('id', id)),
     listAllContractPrices: () => hepsiniOku(() => T('contract_prices').select('*').order('id')),
     listContractPrices: (contractId) => bir(T('contract_prices').select('*').eq('contract_id', contractId).order('valid_from', { ascending: false })),
     createContract: (k) => bir(db.rpc('sozlesme_olustur', {

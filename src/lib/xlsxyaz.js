@@ -12,11 +12,19 @@ const excelSeri = (iso) => { const [y, m, d] = iso.split('-').map(Number); retur
 // Adlandırılmış hücre stilleri (cari ekstre gibi biçimli çıktılar için): { st: 'ad', v: değer }
 const STIL_NO = { etiket: 4, deger: 5, baslik: 6, tarih: 7, sayi: 8, kirmizi: 9, italik: 10, topSayi: 11, topKirmizi: 12, topEtiket: 13, buyuk: 14, orta: 15, kalin: 1, solKalin: 16 };
 
-function sayfaXml(satirlar, genislikler, birlesik = [], resim = null, satirYuk = {}) {
+function sayfaXml(satirlar, genislikler, birlesik = [], resim = null, satirYuk = {}, ozelNo = new Map(), sec = {}) {
   const cols = genislikler?.length ? `<cols>${genislikler.map((g, i) => `<col min="${i + 1}" max="${i + 1}" width="${g}" customWidth="1"/>`).join('')}</cols>` : '';
   const govde = satirlar.map((satir, r) => `<row r="${r + 1}"${satirYuk[r] ? ` ht="${satirYuk[r]}" customHeight="1"` : ''}>${satir.map((h, c) => {
     if (h === null || h === undefined) return '';
     const ref = `${sutunHarfi(c)}${r + 1}`;
+    if (typeof h === 'object' && h.o) {                       // özel (xlsxYaz ikinci parametresindeki) stil; isteğe bağlı formül: f
+      const no = ozelNo.get(h.o) ?? 0;
+      const f = h.f ? `<f>${xmlKac(h.f)}</f>` : '';
+      if (typeof h.v === 'number') return `<c r="${ref}" s="${no}">${f}<v>${h.v}</v></c>`;
+      if (f && (h.v === null || h.v === undefined)) return `<c r="${ref}" s="${no}">${f}</c>`;
+      if (h.v === null || h.v === undefined || h.v === '') return `<c r="${ref}" s="${no}"/>`;
+      return `<c r="${ref}" t="inlineStr" s="${no}"><is><t xml:space="preserve">${xmlKac(h.v)}</t></is></c>`;
+    }
     if (typeof h === 'object' && h.st) {
       const no = STIL_NO[h.st] ?? 0;
       if (h.v === null || h.v === undefined || h.v === '') return `<c r="${ref}" s="${no}"/>`;
@@ -30,8 +38,10 @@ function sayfaXml(satirlar, genislikler, birlesik = [], resim = null, satirYuk =
     const kalin = typeof h === 'object' && h.kalin; const metin = typeof h === 'object' ? h.v : h;
     return `<c r="${ref}" t="inlineStr"${kalin ? ' s="1"' : ''}><is><t xml:space="preserve">${xmlKac(metin)}</t></is></c>`;
   }).join('')}</row>`).join('');
+  const d = sec.dondur;
+  const gorunum = d || sec.izgaraGizle ? `<sheetViews><sheetView workbookViewId="0"${sec.izgaraGizle ? ' showGridLines="0"' : ''}>${d ? `<pane${d.x ? ` xSplit="${d.x}"` : ''}${d.y ? ` ySplit="${d.y}"` : ''} topLeftCell="${sutunHarfi(d.x ?? 0)}${(d.y ?? 0) + 1}" activePane="${d.x && d.y ? 'bottomRight' : d.y ? 'bottomLeft' : 'topRight'}" state="frozen"/>` : ''}</sheetView></sheetViews>` : '';
   const bir = birlesik.length ? `<mergeCells count="${birlesik.length}">${birlesik.map((b) => `<mergeCell ref="${b}"/>`).join('')}</mergeCells>` : '';
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>${cols}<sheetData>${govde}</sheetData>${bir}<pageSetup paperSize="9" fitToWidth="1" fitToHeight="0"/>${resim ? '<drawing r:id="rId1"/>' : ''}</worksheet>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>${gorunum}${cols}<sheetData>${govde}</sheetData>${bir}<pageSetup paperSize="9" orientation="${sec.yatay ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="0"/>${resim ? '<drawing r:id="rId1"/>' : ''}</worksheet>`;
 }
 
 const emu = (px) => Math.round(px * 9525);
@@ -39,15 +49,56 @@ const cizimXml = (r) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
 const STIL = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd\\.mm\\.yyyy"/></numFmts><fonts count="7"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><i/><sz val="11"/><name val="Calibri"/></font><font><i/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFE02020"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font><font><sz val="13"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="17"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="right"/></xf><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="4" fontId="4" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/><xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/><xf numFmtId="4" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
 
+
+/** Özel stilleri (anahtar → { font:{b,i,sz,renk}, dolgu:'RRGGBB', kenar:'ince'|'alt'|'ust', bicim:'tl'|'yuzde'|'tam', yatay, dikey, saril }) styles.xml'e ekler. */
+function ozelStilleriEkle(stil, tanimlar) {
+  const no = new Map(); if (!tanimlar) return { xml: stil, no };
+  const say = (etiket) => Number(new RegExp(`<${etiket} count="(\\d+)"`).exec(stil)[1]);
+  let nf = say('numFmts'); let fo = say('fonts'); let fi = say('fills'); let bo = say('borders'); const xf0 = say('cellXfs');
+  const biciml = { tl: [165, '#,##0.00\\ &quot;₺&quot;'], yuzde: [166, '0.00%'], tam: [167, '0'] };
+  const yeniFmt = []; const fontlar = []; const dolgular = []; const kenarlar = []; const xfler = [];
+  const kenarKodu = new Map(); const dolguKodu = new Map(); const fontKodu = new Map(); const fmtKodu = new Map();
+  const ince = '<color rgb="FFBFC5CE"/>';
+  for (const [anahtar, t] of Object.entries(tanimlar)) {
+    let fontNo = 0; let fillNo = 0; let borderNo = 0; let fmtNo = 0;
+    if (t.font) {
+      const f = `<font>${t.font.b ? '<b/>' : ''}${t.font.i ? '<i/>' : ''}<sz val="${t.font.sz ?? 11}"/>${t.font.renk ? `<color rgb="FF${t.font.renk}"/>` : ''}<name val="Calibri"/></font>`;
+      if (!fontKodu.has(f)) { fontKodu.set(f, fo + fontlar.length); fontlar.push(f); } fontNo = fontKodu.get(f);
+    }
+    if (t.dolgu) {
+      const d = `<fill><patternFill patternType="solid"><fgColor rgb="FF${t.dolgu}"/><bgColor indexed="64"/></patternFill></fill>`;
+      if (!dolguKodu.has(d)) { dolguKodu.set(d, fi + dolgular.length); dolgular.push(d); } fillNo = dolguKodu.get(d);
+    }
+    if (t.kenar) {
+      const k = t.kenar === 'alt' ? `<border><left/><right/><top/><bottom style="medium"><color rgb="FF1F2937"/></bottom><diagonal/></border>`
+        : t.kenar === 'ust' ? `<border><left/><right/><top style="medium"><color rgb="FF1F2937"/></top><bottom/><diagonal/></border>`
+        : `<border><left style="thin">${ince}</left><right style="thin">${ince}</right><top style="thin">${ince}</top><bottom style="thin">${ince}</bottom><diagonal/></border>`;
+      if (!kenarKodu.has(k)) { kenarKodu.set(k, bo + kenarlar.length); kenarlar.push(k); } borderNo = kenarKodu.get(k);
+    }
+    if (t.bicim && biciml[t.bicim]) {
+      const [id, kod] = biciml[t.bicim];
+      if (!fmtKodu.has(id)) { fmtKodu.set(id, true); yeniFmt.push(`<numFmt numFmtId="${id}" formatCode="${kod}"/>`); } fmtNo = id;
+    }
+    const hiza = `<alignment${t.yatay ? ` horizontal="${t.yatay}"` : ''} vertical="${t.dikey ?? 'center'}"${t.saril ? ' wrapText="1"' : ''}/>`;
+    xfler.push(`<xf numFmtId="${fmtNo}" fontId="${fontNo}" fillId="${fillNo}" borderId="${borderNo}" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">${hiza}</xf>`);
+    no.set(anahtar, xf0 + xfler.length - 1);
+  }
+  let x = stil;
+  const ekle = (etiket, adet0, liste) => { if (!liste.length) return; x = x.replace(new RegExp(`<${etiket} count="\\d+">`), `<${etiket} count="${adet0 + liste.length}">`).replace(`</${etiket}>`, `${liste.join('')}</${etiket}>`); };
+  ekle('numFmts', nf, yeniFmt); ekle('fonts', fo, fontlar); ekle('fills', fi, dolgular); ekle('borders', bo, kenarlar); ekle('cellXfs', xf0, xfler);
+  return { xml: x, no };
+}
+
 /** sayfalar: [{ ad, satirlar: [[hücre,...]], genislikler?: [sayı,...] }] -> Uint8Array (.xlsx) */
-export function xlsxYaz(sayfalar) {
+export function xlsxYaz(sayfalar, ozel = null) {
+  const { xml: stilXml, no: ozelNo } = ozelStilleriEkle(STIL, ozel?.stiller);
   const dosyalar = [
     ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sayfalar.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}${sayfalar.map((sf, i) => (sf.resim ? `<Override PartName="/xl/drawings/drawing${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>` : '')).join('')}</Types>`],
     ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
     ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sayfalar.map((s, i) => `<sheet name="${xmlKac(s.ad).slice(0, 31)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`],
     ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sayfalar.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sayfalar.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
-    ['xl/styles.xml', STIL],
-    ...sayfalar.map((s, i) => [`xl/worksheets/sheet${i + 1}.xml`, sayfaXml(s.satirlar, s.genislikler, s.birlesik, s.resim, s.satirYuksekligi)]),
+    ['xl/styles.xml', stilXml],
+    ...sayfalar.map((s, i) => [`xl/worksheets/sheet${i + 1}.xml`, sayfaXml(s.satirlar, s.genislikler, s.birlesik, s.resim, s.satirYuksekligi, ozelNo, s)]),
     ...sayfalar.flatMap((s, i) => (s.resim ? [
       [`xl/worksheets/_rels/sheet${i + 1}.xml.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${i + 1}.xml"/></Relationships>`],
       [`xl/drawings/drawing${i + 1}.xml`, cizimXml(s.resim)],

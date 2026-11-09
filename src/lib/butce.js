@@ -45,21 +45,98 @@ export function otomatikOrtalamalar(faturalar, firmalar, yil) {
   return new Map([...toplam].map(([id, e]) => [id, { toplam: e.kurus / 100, ay: e.aylar.size, ortalama: e.aylar.size ? k2(e.kurus / 100 / e.aylar.size) : null }]));
 }
 
-/** Tek satırın hesaplanan alanları. satir = budget_lines kaydı (veya boş {}), oto = otomatik ortalama (sayı/null). */
+/** Fiyat türüne göre aylık çarpan: sabit → 1, kişi başı → çalışan sayısı. */
+const carpan = (tur, adet) => (tur === 'kisi_basi' ? adet : 1);
+
+/**
+ * Tek satırın hesaplanan alanları. satir = budget_lines kaydı (veya boş {}), oto = otomatik ortalama (sayı/null).
+ * Fiyat türü gelecek yıl için değişebilir (ör. sabit → kişi başı); artış oranları AYLIK tutarlar üzerinden hesaplanır.
+ */
 export function satirHesapla(satir = {}, oto = null) {
   const tur = satir.price_type ?? 'sabit';
-  const adet = tur === 'kisi_basi' ? (sayiMi(satir.employee_count) ? Number(satir.employee_count) : 0) : 1;
+  const yeniTur = satir.next_price_type ?? tur;
+  const adet = sayiMi(satir.employee_count) ? Number(satir.employee_count) : 0;
   const birim = sayiMi(satir.unit_price) ? Number(satir.unit_price) : null;
-  const oncekiAylik = birim === null ? null : k2(birim * adet);
+  const oncekiAylik = birim === null || (tur === 'kisi_basi' && !adet) ? null : k2(birim * carpan(tur, adet));
   const elle = sayiMi(satir.prev_avg_income);
   const ortalama = elle ? Number(satir.prev_avg_income) : (sayiMi(oto) ? Number(oto) : null);
   const kabul = sayiMi(satir.accepted_price) ? Number(satir.accepted_price) : null;
-  const artisOrani = kabul !== null && birim !== null && birim > 0 ? kabul / birim - 1 : null;       // kesir
-  const artisTutari = kabul !== null && birim !== null ? k2((kabul - birim) * adet) : null;           // aylık fark
+  const yeniCarpan = carpan(yeniTur, adet);
+  const kabulAylik = kabul === null || !yeniCarpan ? null : k2(kabul * yeniCarpan);
+  const artisOrani = kabulAylik !== null && oncekiAylik !== null && oncekiAylik > 0 ? kabulAylik / oncekiAylik - 1 : null;   // kesir
+  const artisTutari = kabulAylik !== null && oncekiAylik !== null ? k2(kabulAylik - oncekiAylik) : null;                      // aylık fark
+  const beklenenElle = sayiMi(satir.expected_manual);
   let beklenen = null;
-  if (satir.status === 'sona_erdi') beklenen = 0;
+  if (beklenenElle) beklenen = Number(satir.expected_manual);
+  else if (satir.status === 'sona_erdi') beklenen = 0;
   else if (ortalama !== null && artisOrani !== null) beklenen = k2(ortalama * (1 + artisOrani));
-  return { tur, adet, birim, oncekiAylik, ortalama, elle, kabul, artisOrani, artisTutari, beklenen };
+  return { tur, yeniTur, adet, birim, oncekiAylik, ortalama, elle, kabul, kabulAylik, artisOrani, artisTutari, beklenen, beklenenElle };
+}
+
+/** Talep edilen artış yüzdesine karşılık gelen fiyat (gelecek yılın fiyat türünde; aylık tutar üzerinden). */
+export function talepFiyati(satir, yuzde) {
+  const h = satirHesapla(satir); const c = carpan(h.yeniTur, h.adet);
+  if (h.oncekiAylik === null || !c || !sayiMi(yuzde)) return null;
+  return k2((h.oncekiAylik * (1 + Number(yuzde) / 100)) / c);
+}
+/** Talep edilen fiyata karşılık gelen artış yüzdesi. */
+export function talepYuzdesi(satir, fiyat) {
+  const h = satirHesapla(satir); const c = carpan(h.yeniTur, h.adet);
+  if (h.oncekiAylik === null || !(h.oncekiAylik > 0) || !c || !sayiMi(fiyat)) return null;
+  return k2((((Number(fiyat) * c) / h.oncekiAylik) - 1) * 100);
+}
+
+// ---------------------------------------------------------------- gider tablosu
+export const VARSAYILAN_GIDERLER = [
+  'Yönetime Ödenen', 'Personel Giderleri', 'SGK Giderleri', 'Stopaj', 'Kurumlar', '3th Party Ödeme', 'Ofis Kirası', 'Araç Masrafları',
+  'Elektrik', 'Su', 'Doğal Gaz', 'İnternet / Telefon', 'Kırtasiye Giderleri', 'Ofis Genel Giderler', 'Elektronik',
+  'Reklam, Pazarlama, Web', 'Muhasebe Giderleri', 'Yemek&İçme', 'Diğer Giderler', 'KREDİ ÖDEMESİ',
+];
+
+/** Bir gider satırının önceki / artış / sonraki değerleri (kendi alanlarından). */
+export function giderSatiri(s) {
+  const prev = sayiMi(s.prev_avg_expense) ? Number(s.prev_avg_expense) : null;
+  let next = sayiMi(s.next_avg_expense) ? Number(s.next_avg_expense) : null;
+  if (next === null && prev !== null && sayiMi(s.increase_pct)) next = k2(prev * (1 + Number(s.increase_pct) / 100));
+  const pct = sayiMi(s.increase_pct) ? Number(s.increase_pct) : (next !== null && prev !== null && prev > 0 ? k2((next / prev - 1) * 100) : null);
+  return { prev, pct, next };
+}
+
+/**
+ * Tüm gider satırları (bir yılın) → satır başına değerler ve toplamlar.
+ * "Personel Giderleri" altında personel varsa kalem, personellerin toplamıdır. Sonraki yıl tutarı boşsa
+ * kalem önceki yıl tutarıyla aynı sayılır (artış yok). Ağırlıklı artış = Σ sonraki / Σ önceki − 1.
+ */
+export function giderlerHesapla(satirlar) {
+  const cocuk = new Map();
+  for (const s of satirlar) if (s.parent_id) cocuk.set(s.parent_id, [...(cocuk.get(s.parent_id) ?? []), s]);
+  const etkin = (v) => (v.next ?? v.prev ?? 0);
+  const harita = new Map(); let prevK = 0; let nextK = 0;
+  for (const s of satirlar.filter((x) => !x.parent_id)) {
+    const ch = cocuk.get(s.id) ?? [];
+    let v;
+    if (ch.length) {
+      const cv = ch.map(giderSatiri); for (let i = 0; i < ch.length; i++) harita.set(ch[i].id, cv[i]);
+      const prev = cv.some((x) => x.prev !== null) ? k2(cv.reduce((t, x) => t + (x.prev ?? 0), 0)) : null;
+      const next = k2(cv.reduce((t, x) => t + etkin(x), 0));
+      v = { prev, next: prev === null && !cv.some((x) => x.next !== null) ? null : next, pct: null, toplamli: true };
+      v.pct = v.prev > 0 && v.next !== null ? k2((v.next / v.prev - 1) * 100) : null;
+    } else v = { ...giderSatiri(s), toplamli: false };
+    harita.set(s.id, v);
+    prevK += Math.round((v.prev ?? 0) * 100); nextK += Math.round(etkin(v) * 100);
+  }
+  return { satirlar: harita, oncekiToplam: prevK / 100, sonrakiToplam: nextK / 100, agirlikliArtis: prevK > 0 ? (nextK / prevK - 1) * 100 : null };
+}
+
+/** Kâr durumu: gelecek yıl beklenen aylık gelir − gelecek yıl aylık gider (önceki yıl karşılaştırmasıyla). */
+export function karDurumu(gelir, gider) {
+  const aylikKar = k2(gelir.beklenen - gider.sonrakiToplam);
+  const oncekiKar = k2(gelir.ortalama - gider.oncekiToplam);
+  return {
+    aylikGelir: gelir.beklenen, aylikGider: gider.sonrakiToplam, aylikKar, yillikKar: k2(aylikKar * 12),
+    marj: gelir.beklenen > 0 ? aylikKar / gelir.beklenen : null,
+    oncekiGelir: gelir.ortalama, oncekiGider: gider.oncekiToplam, oncekiKar,
+  };
 }
 
 /** Tablo altı toplamları. satirlar: satirHesapla çıktıları. */
