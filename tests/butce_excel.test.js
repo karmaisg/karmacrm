@@ -40,3 +40,16 @@ test('bütçe Excel: toplamlar ve kâr canlı formül, önbellekli değerlerle',
   assert.match(xml, /<pane xSplit="1"/);                              // firma sütunu dondurulmuş
   assert.ok(!/<c [^>]*><f><\/f>/.test(xml));
 });
+
+test('Excel: Personel Gider Tablosu bölümü ve "Personel Giderleri" kalemi tabloya bağlanır', () => {
+  const bayt = butceExcel({ yil: 2027, gelirler: [], giderler: [{ ad: 'Personel Giderleri', toplamli: true, prev: 42000, pct: 33.33, next: 56000 }],
+    personel: [{ ad: 'Ali Veli', prevNet: 20000, prevSgk: 8000, pct: 50, nextNet: 30000, nextSgk: 12000 }, { ad: 'Ayşe', prevNet: 10000, prevSgk: 4000, pct: null, nextNet: 10000, nextSgk: 4000 }],
+    gelirToplam: { artisOrani: null }, tarih: '01.01.2027' });
+  const zip = Buffer.from(bayt).toString('latin1');
+  const xml = zip.slice(zip.indexOf('<worksheet'), zip.indexOf('</worksheet>'));
+  assert.match(xml, /<f>SUM\(D\d+:D\d+\)<\/f><v>42000<\/v>/);       // personel toplam gider (önceki)
+  assert.match(xml, /<f>SUM\(H\d+:H\d+\)<\/f><v>56000<\/v>/);       // personel toplam gider (sonraki)
+  assert.match(xml, /<f>D\d+<\/f><v>42000<\/v>/);                      // Giderler → Personel Giderleri satırı personel tablosuna bağlı
+  assert.match(xml, /<f>H\d+<\/f><v>56000<\/v>/);
+  assert.ok(zip.includes('PERSONEL G') && zip.includes('Ali Veli'));
+});

@@ -2978,35 +2978,49 @@ await test('Yıllık Bütçe: gelir satırı ekle, yeni fiyat türü, elle bekle
   const su = s.locator('tr[data-gider]', { has: s.locator('.butce-ad:text-is("Su")') });
   await ggir(su, 'prev_avg_expense', '1000'); await ggir(su, 'next_avg_expense', '1500');
   await s.waitForFunction(() => document.querySelector('[data-galan="increase_pct"][aria-label^="Su "]').value === '50');
-  // personel ekle: kalem personellerin toplamı olur
-  await s.click('[data-personel-ekle]'); await modal(s).locator('#f-ad').fill('Ali Veli'); await modal(s).locator('button[type=submit]').click();
-  await s.waitForSelector('tr.butce-cocuk');
-  const ali = s.locator('tr.butce-cocuk').first();
-  await ggir(ali, 'prev_avg_expense', '20.000'); await ggir(ali, 'increase_pct', '50');
-  await s.waitForFunction(() => document.querySelector('[data-galan="next_avg_expense"][aria-label^="Personel Giderleri"]').value === '30000');
-  esit(await s.locator('[data-galan="prev_avg_expense"][aria-label^="Personel Giderleri"]').isDisabled(), true, 'personel kalemi toplamdır, elle girilmez');
+  // personel ayrı tabloda: adı soyadı, önceki yıl net maaş + SGK, artış oranı → sonraki yıl net maaş + SGK
+  esit(await s.locator('tr[data-gider] [data-personel-ekle]').count(), 0, 'personel ekleme gider tablosunda değil');
+  await s.click('[data-action="personel-ekle"]'); await modal(s).locator('#f-ad').fill('Ali Veli'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('tr[data-personel]');
+  const pgir = async (alan, v) => { const k = s.locator(`tr[data-personel] [data-palan="${alan}"]`).first(); await k.fill(v); await k.press('Tab'); };
+  await pgir('prev_net', '20.000'); await pgir('prev_sgk', '8000'); await pgir('increase_pct', '50');
+  await s.waitForFunction(() => { const q = (a) => document.querySelector(`tr[data-personel] [data-palan="${a}"]`).value; return q('next_net') === '30000' && q('next_sgk') === '12000'; });
+  const ptop = (await s.locator('tr[data-personel]').first().innerText()).replace(/\s+/g, ' ');
+  if (!ptop.includes('28.000,00') || !ptop.includes('42.000,00')) throw new Error(`personel toplam gider: ${ptop}`);
+  // Giderler tablosundaki "Personel Giderleri" satırı personel tablosundan dolar (elle girilemez)
+  await s.waitForFunction(() => document.querySelector('[data-galan="next_avg_expense"][aria-label^="Personel Giderleri"]').value === '42000');
+  esit(await s.locator('[data-galan="prev_avg_expense"][aria-label^="Personel Giderleri"]').inputValue(), '28000', 'personel önceki yıl ortalaması');
+  esit(await s.locator('[data-galan="prev_avg_expense"][aria-label^="Personel Giderleri"]').isDisabled(), true, 'personel kalemi personel tablosundan gelir');
+  // sonraki yıl net maaş doğrudan girilirse artış oranı geriye hesaplanır: (33.000 + 12.000) / 28.000 − 1 = %60,71
+  await pgir('next_net', '33000');
+  await s.waitForFunction(() => document.querySelector('tr[data-personel] [data-palan="increase_pct"]').value === '60,71');
+  await s.waitForFunction(() => document.querySelector('[data-galan="next_avg_expense"][aria-label^="Personel Giderleri"]').value === '45000');
+  const ptf = (await s.locator('#butce-personel-toplam').innerText()).replace(/\s+/g, ' ');
+  if (!ptf.toLowerCase().includes('toplam (1 personel)') || !ptf.includes('28.000,00') || !ptf.includes('45.000,00')) throw new Error(`personel toplam satırı: ${ptf}`);
+  const pkayit = await s.evaluate(() => globalThis.__fake.tablo.budget_personnel_lines[0]);
+  esit([pkayit.full_name, pkayit.prev_net, pkayit.prev_sgk, pkayit.next_net, pkayit.next_sgk].join('|'), 'Ali Veli|20000|8000|33000|12000', 'personel kaydı');
   // kendi gider kalemi
   await s.click('[data-action="gider-ekle"]'); await modal(s).locator('#f-ad').fill('Sigorta'); await modal(s).locator('button[type=submit]').click();
   await s.waitForSelector('.butce-gider .butce-ad:text-is("Sigorta")');
-  esit(await s.locator('tr[data-gider]').count(), 22, 'hazır 20 + personel + sigorta');
-  // toplam gider ve ağırlıklı artış: önceki 10000+1000+20000 = 31000; sonraki 13000+1500+30000 = 44500 → %43,55
+  esit(await s.locator('tr[data-gider]').count(), 21, 'hazır 20 + sigorta');
+  // toplam gider ve ağırlıklı artış: önceki 10000+1000+28000 = 39000; sonraki 13000+1500+45000 = 59500 → %52,56
   const gt = (await s.locator('#butce-gider-toplam').innerText()).replace(/\s+/g, ' ');
-  if (!gt.includes('31.000,00') || !gt.includes('44.500,00') || !gt.includes('%43,55')) throw new Error(`gider toplamı: ${gt}`);
+  if (!gt.includes('39.000,00') || !gt.includes('59.500,00') || !gt.includes('%52,56')) throw new Error(`gider toplamı: ${gt}`);
   // kâr durumu = beklenen gelir − sonraki yıl gideri
   const kar = (await s.locator('#butce-kar').innerText()).replace(/\s+/g, ' ');
-  if (!kar.includes('KÂR DURUMU') || !kar.includes('44.500,00')) throw new Error(`kâr tablosu: ${kar}`);
+  if (!kar.includes('KÂR DURUMU') || !kar.includes('59.500,00')) throw new Error(`kâr tablosu: ${kar}`);
   // silme: yalnız kendi eklenenler
   esit(await s.locator('tr[data-gider]', { has: s.locator('.butce-ad:text-is("Stopaj")') }).locator('[data-gider-sil]').count(), 0, 'hazır kalem silinemez');
   await s.locator('tr[data-gider]', { has: s.locator('.butce-ad:text-is("Sigorta")') }).locator('[data-gider-sil]').click();
   await s.locator('[data-ok]').click();
-  await s.waitForFunction(() => document.querySelectorAll('tr[data-gider]').length === 21);
+  await s.waitForFunction(() => document.querySelectorAll('tr[data-gider]').length === 20);
   // Excel
   const [dl] = await Promise.all([s.waitForEvent('download'), s.click('[data-action="butce-excel"]')]);
   esit(dl.suggestedFilename().endsWith('.xlsx'), true, 'xlsx adı');
   const { readFileSync } = await import('node:fs'); const baytlar = readFileSync(await dl.path());
   esit(baytlar.subarray(0, 2).toString(), 'PK', 'zip imzası');
   const xlsxSayfa = JSON.stringify(await gelirOku(baytlar.buffer.slice(baytlar.byteOffset, baytlar.byteOffset + baytlar.byteLength)));
-  for (const t of ['GELİRLER TABLOSU', 'GİDERLER TABLOSU', 'KÂR DURUMU', 'Alfa Ltd', 'Eğitim geliri', 'Ali Veli', 'Ofis Kirası', 'TOPLAM GİDER']) if (!xlsxSayfa.includes(t)) throw new Error(`Excel'de yok: ${t}`);
+  for (const t of ['GELİRLER TABLOSU', 'GİDERLER TABLOSU', 'KÂR DURUMU', 'Alfa Ltd', 'Eğitim geliri', 'Ali Veli', 'PERSONEL GİDER TABLOSU', 'Ofis Kirası', 'TOPLAM GİDER']) if (!xlsxSayfa.includes(t)) throw new Error(`Excel'de yok: ${t}`);
 });
 
 await test('Firma sözleşmeler: imzalı sözleşme kaydet (PDF/resim), geçersiz dosya, listele, aç, arşivle', async (s) => {
@@ -3267,6 +3281,62 @@ await test('mobil 375px: yönetici paneli finans özetinde yatay taşma yok', as
   await ekran(s, '76-yonetici-paneli-mobil');
 }, { genislik: 375, yukseklik: 800 });
 
+await test('Yıllık Bütçe: uzun firma ünvanı sütuna sığar (…), tamamı fare üzerine gelince görünür', async (s) => {
+  const uzun = 'Çok Uzun Ünvanlı Deneme Sanayi ve Ticaret Anonim Şirketi Merkez Şubesi Limited Şirketi';
+  await girisYap(s); await firmaEkle(s, { ad: uzun, calisan: 5, tehlike: 'tehlikeli' });
+  await s.waitForFunction((a) => globalThis.__fake.tablo.companies.some((c) => c.name === a), uzun);
+  await git(s, '#/butce'); await s.waitForSelector('.butce-tablo tbody tr[data-anahtar]');
+  const o = await s.evaluate(() => { const a = document.querySelector('tr[data-anahtar] .butce-ad'); const th = a.closest('th'); const cs = getComputedStyle(a);
+    return { sig: a.scrollWidth > a.clientWidth, kes: cs.textOverflow, tasma: cs.overflow, thGenislik: Math.round(th.getBoundingClientRect().width), ipucu: a.getAttribute('title'), sonrakiSutun: Math.round(th.nextElementSibling.getBoundingClientRect().left - th.getBoundingClientRect().left) }; });
+  esit(o.sig, true, 'ünvan kısaltılmış (taşan kısım gizli)'); esit(o.kes, 'ellipsis', 'üç nokta'); esit(o.tasma, 'hidden', 'taşma gizli'); esit(o.ipucu, uzun, 'tam ünvan fare ipucunda');
+  if (o.thGenislik > 262 || o.sonrakiSutun > 262) throw new Error(`firma sütunu genişledi: ${JSON.stringify(o)}`);
+});
+
+await test('Yıllık Bütçe: Giderlerden doldur (kategori eşleştirme, önceki yıl ortalaması, elle giriş sürer)', async (s) => {
+  await girisYap(s);
+  await git(s, '#/butce'); await s.waitForSelector('.butce-gider');
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; const kat = (ad) => t.expense_categories.find((k) => k.name === ad).id; const o = t.expense_categories[0].organization_id;
+    const g = (id, ad, tarih, tutar) => t.expenses.push({ id, organization_id: o, category_id: kat(ad), expense_date: tarih, amount_excl_vat: tutar, vat_amount: 0, amount_incl_vat: tutar, cost_type: 'ortak', company_id: null, employee_id: null, paid: true, archived_at: null });
+    const yil = new Date().getFullYear();
+    g('b1', 'Kira', `${yil}-01-05`, 10000); g('b2', 'Kira', `${yil}-02-05`, 10000); g('b3', 'Araç yakıtı', `${yil}-02-10`, 3000); g('b4', 'Uzman maaşları', `${yil}-02-10`, 99999); });
+  await s.click('[data-action="giderden-doldur"]');
+  const m = modal(s); await m.waitFor();
+  const metin = await m.innerText();
+  if (metin.includes('Uzman maaşları')) throw new Error('personel kategorisi eşleştirmede olmamalı');
+  const secili = await m.evaluate((el) => [...el.querySelectorAll('select')].map((x) => `${x.getAttribute('aria-label')}=${x.selectedOptions[0].textContent}`));
+  if (!secili.some((x) => x.startsWith('Kira ') && x.endsWith('=Ofis Kirası')) || !secili.some((x) => x.startsWith('Araç yakıtı ') && x.endsWith('=Araç Masrafları'))) throw new Error(`öneriler: ${secili}`);
+  await m.locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelector('[data-galan="prev_avg_expense"][aria-label^="Ofis Kirası"]').value === '10000');   // 20.000 ÷ 2 ay (gider girilen aylar: ocak, şubat)
+  esit(await s.locator('[data-galan="prev_avg_expense"][aria-label^="Araç Masrafları"]').inputValue(), '1500', 'yakıt 3.000 ÷ 2 ay');
+  const e = await s.evaluate(() => globalThis.__fake.tablo.budget_expense_lines.find((x) => x.name === 'Ofis Kirası'));
+  esit(e.category_ids.length, 1, 'eşleşme kaydedildi');
+  // elle giriş sürer
+  const kutu = s.locator('[data-galan="prev_avg_expense"][aria-label^="Ofis Kirası"]'); await kutu.fill('12000'); await kutu.press('Tab');
+  await s.waitForFunction(() => globalThis.__fake.tablo.budget_expense_lines.find((x) => x.name === 'Ofis Kirası').prev_avg_expense === 12000);
+  // yeniden doldur: dolu değerin üzerine yazılmaz (kutu işaretli değilse)
+  await s.click('[data-action="giderden-doldur"]'); await modal(s).waitFor(); await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => !document.querySelector('.modal'));
+  esit(await s.locator('[data-galan="prev_avg_expense"][aria-label^="Ofis Kirası"]').inputValue(), '12000', 'dolu değer korunur');
+  await s.click('[data-action="giderden-doldur"]'); await modal(s).waitFor(); await modal(s).locator('input[name="ustune"]').check(); await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelector('[data-galan="prev_avg_expense"][aria-label^="Ofis Kirası"]').value === '10000');
+});
+
+await test('Sözleşmeler listesi: "İmzalı dosya var / yok" göstergesi ve süzgeç', async (s) => {
+  await girisYap(s); await firmaEkle(s, { ad: 'Alfa Ltd' }); await git(s, '#/firmalar'); await firmaEkle(s, { ad: 'Beta Ltd' });
+  await s.waitForFunction(() => globalThis.__fake.tablo.companies.length >= 2);
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; const o = t.companies[0].organization_id;
+    for (const [i, c] of t.companies.entries()) t.contracts.push({ id: `sz${i}`, organization_id: o, company_id: c.id, status: 'aktif', start_date: '2026-01-01', end_date: '2027-12-31', archived_at: null });
+    t.signed_contracts.push({ id: 'im1', organization_id: o, company_id: t.companies[0].id, contract_id: 'sz0', title: 'x', storage_path: `${o}/sozlesme/x.pdf`, file_name: 'x.pdf', mime_type: 'application/pdf', size_bytes: 10, archived_at: null, created_at: '2026-10-01T00:00:00Z' }); });
+  await git(s, '#/sozlesmeler'); await s.waitForSelector('[data-imza]');
+  const harita = await s.evaluate(() => Object.fromEntries([...document.querySelectorAll('tr:has([data-imza])')].map((tr) => [tr.querySelector('strong').textContent, tr.querySelector('[data-imza]').dataset.imza])));
+  esit(JSON.stringify(harita), JSON.stringify({ 'Alfa Ltd': 'var', 'Beta Ltd': 'yok' }), 'imza göstergesi');
+  if (!(await s.locator('[data-imza="var"]').innerText()).includes('İmzalı dosya var')) throw new Error('var rozeti metni');
+  await s.click('[data-filtre="imzasiz"]');
+  await s.waitForFunction(() => document.querySelectorAll('[data-imza]').length === 1 && document.querySelector('[data-imza]').dataset.imza === 'yok');
+});
+
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }
+
