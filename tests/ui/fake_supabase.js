@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['budget_lines', 'signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
+for (const ad of ['budget_expense_lines', 'budget_lines', 'signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -82,6 +82,11 @@ function kurucu(ad) {
     const ben = tablo.users.find((u) => u.id === oturum?.user?.id);
     const alanPersoneli = ben && ben.role_id === rid('uzman_hekim');
     if (durum.islem !== 'insert' && alanPersoneli && ['time_entries', 'assignments'].includes(ad)) eslesen = eslesen.filter((r) => r.employee_id === ben.employee_id);
+    if (durum.islem === 'insert' && Array.isArray(durum.yukle)) {
+      const simdi0 = new Date().toISOString();
+      const eklenen = durum.yukle.map((y) => ({ id: uid(), organization_id: ORG, created_at: simdi0, updated_at: simdi0, ...y }));
+      satirlar.push(...eklenen); return { data: eklenen, error: null };
+    }
     if (durum.islem === 'insert') {
       const simdi = new Date().toISOString();
       const yeni = { id: uid(), organization_id: ORG, created_at: simdi, updated_at: simdi, archived_at: null, ...durum.yukle };

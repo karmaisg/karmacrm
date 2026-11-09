@@ -53,3 +53,41 @@ test('toplamlar: karşılaştırılabilir firmalar üzerinden artış oranı; so
   assert.equal(t.karsilastirilan, 2); assert.equal(t.belirsiz, 1);
   assert.ok(Math.abs(t.artisOrani - (2400 / 3000 - 1)) < 1e-9);
 });
+
+import { talepFiyati, talepYuzdesi, giderlerHesapla, karDurumu, VARSAYILAN_GIDERLER } from '../src/lib/butce.js';
+
+test('fiyat türü değişirse artış AYLIK tutar üzerinden hesaplanır (sabit → kişi başı)', () => {
+  const s = { price_type: 'sabit', unit_price: 2000, employee_count: 20, next_price_type: 'kisi_basi' };
+  assert.equal(talepFiyati(s, 10), 110);                 // 2200 / 20 kişi
+  assert.equal(talepYuzdesi(s, 110), 10);
+  const h = satirHesapla({ ...s, accepted_price: 110 }, 2000);
+  assert.equal(h.kabulAylik, 2200); assert.ok(Math.abs(h.artisOrani - 0.1) < 1e-9); assert.equal(h.artisTutari, 200); assert.equal(h.beklenen, 2200);
+});
+
+test('beklenen aylık gelir elle girilebilir ve hesaplananın yerine geçer', () => {
+  const h = satirHesapla({ unit_price: 1000, accepted_price: 1200, expected_manual: 5555 }, 2000);
+  assert.equal(h.beklenen, 5555); assert.equal(h.beklenenElle, true);
+  assert.equal(satirHesapla({ expected_manual: 100, status: 'sona_erdi' }, 2000).beklenen, 100);
+});
+
+test('gider tablosu: kalem artışı iki yönlü, personel altındaki isimler kalemi toplar, ağırlıklı ortalama', () => {
+  const s = [
+    { id: 'k', name: 'Ofis Kirası', prev_avg_expense: 10000, increase_pct: 30 },
+    { id: 's', name: 'Su', prev_avg_expense: 1000, next_avg_expense: 1500 },
+    { id: 'p', name: 'Personel Giderleri', is_personnel: true },
+    { id: 'p1', parent_id: 'p', name: 'Ali Veli', prev_avg_expense: 20000, increase_pct: 50 },
+    { id: 'p2', parent_id: 'p', name: 'Ayşe Can', prev_avg_expense: 10000 },
+    { id: 'b', name: 'Boş' },
+  ];
+  const r = giderlerHesapla(s);
+  assert.equal(r.satirlar.get('k').next, 13000); assert.equal(r.satirlar.get('s').pct, 50);
+  assert.equal(r.satirlar.get('p').prev, 30000); assert.equal(r.satirlar.get('p').next, 40000); assert.equal(r.satirlar.get('p').toplamli, true);
+  assert.equal(r.oncekiToplam, 41000 + 0); assert.equal(r.sonrakiToplam, 13000 + 1500 + 40000);
+  assert.ok(Math.abs(r.agirlikliArtis - ((54500 / 41000 - 1) * 100)) < 1e-9);
+});
+
+test('kâr durumu: beklenen aylık gelir − gelecek yıl aylık gider; önceki yılla karşılaştırma', () => {
+  const k = karDurumu({ beklenen: 100000, ortalama: 90000 }, { sonrakiToplam: 60000, oncekiToplam: 55000 });
+  assert.equal(k.aylikKar, 40000); assert.equal(k.yillikKar, 480000); assert.equal(k.oncekiKar, 35000); assert.equal(k.marj, 0.4);
+  assert.equal(VARSAYILAN_GIDERLER.length, 20); assert.equal(VARSAYILAN_GIDERLER[1], 'Personel Giderleri');
+});

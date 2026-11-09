@@ -2237,7 +2237,8 @@ await test('İSG-Katip: karar değiştirme (yeni firma / başka firma / aktarma)
   // fatura firmasını değiştir
   await s.waitForSelector('#site-tablo');
   const satir = s.locator('#site-tablo tr', { hasText: 'SETERM SERVİS' });
-  await satir.locator('[data-site-firma]').selectOption({ label: 'Alfa Gıda' }); await s.waitForSelector('.toast');
+  await satir.locator('[data-site-firma]').selectOption({ label: 'Alfa Gıda' });
+  await s.waitForFunction(() => { const t = globalThis.__fake.tablo; const f = t.companies.find((c) => c.name === 'Alfa Gıda'); return !!f && t.company_sites.find((x) => x.site_name.startsWith('SETERM SERVİS'))?.company_id === f.id; });
   esit(await s.evaluate(() => { const t = globalThis.__fake.tablo; return t.company_sites.find((x) => x.site_name.startsWith('SETERM SERVİS')).company_id === t.companies.find((c) => c.name === 'Alfa Gıda').id; }), true, 'işyeri Alfa\'ya bağlandı');
   // arama
   await s.fill('#site-ara', 'alfa'); await s.waitForTimeout(100); esit(await s.locator('#site-tablo tbody tr').count() >= 1, true, 'arama');
@@ -2879,7 +2880,7 @@ await test('Yıllık Bütçe: fiyat, yüzde↔fiyat, kabul edilen bedel, beklene
     [[`${yil}-01-15`, 1000], [`${yil}-02-15`, 3000], [`${yil - 1}-12-15`, 9999]].forEach(([d, h], i) => t.invoices.push({ id: `bf${i}`, organization_id: alfa.organization_id, company_id: alfa.id, invoice_no: `B${i}`, invoice_date: d, due_date: d, amount_excl_vat: h, vat_amount: h * 0.2, amount_incl_vat: h * 1.2, status: 'kesildi', income_kind: 'fatura', archived_at: null }));
   });
   await git(s, '#/butce'); await s.waitForSelector('.butce-tablo');
-  const satir = (ad) => s.locator('tr[data-firma]', { has: s.locator(`a:text-is("${ad}")`) });
+  const satir = (ad) => s.locator('tr[data-anahtar]', { has: s.locator(`a:text-is("${ad}")`) });
   const alfa = satir('Alfa Ltd');
   const gir = async (alan, v) => { await alfa.locator(`[data-alan="${alan}"]`).fill(v); await alfa.locator(`[data-alan="${alan}"]`).press('Tab'); };
   const metin = async (c) => (await alfa.locator(`[data-c="${c}"]`).innerText()).replace(/\s+/g, ' ').trim();
@@ -2891,13 +2892,13 @@ await test('Yıllık Bütçe: fiyat, yüzde↔fiyat, kabul edilen bedel, beklene
   if (!(await metin('oncekiAylik')).includes('1.000')) throw new Error(`aylık fiyat: ${await metin('oncekiAylik')}`);
   // yüzde → fiyat
   await gir('increase_pct', '20');
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-alan="increase_price"]').value === '1200');
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-alan="increase_price"]').value === '1200');
   // fiyat → yüzde
   await gir('increase_price', '1500');
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-alan="increase_pct"]').value === '50');
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-alan="increase_pct"]').value === '50');
   // kabul edilen bedel → gerçekleşen artış ve beklenen gelir (2000 × 1,2)
   await gir('accepted_price', '1200');
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="beklenen"]')?.innerText.includes('2.400'));
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-alan="expected_manual"]')?.value === '2400' );
   if (!(await metin('artis')).includes('%20')) throw new Error(`artış: ${await metin('artis')}`);
   // durum renkleri
   const ad = alfa.locator('.butce-ad');
@@ -2909,28 +2910,28 @@ await test('Yıllık Bütçe: fiyat, yüzde↔fiyat, kabul edilen bedel, beklene
   await s.waitForFunction(() => document.querySelector('.butce-ad.turuncu'));
   await alfa.locator('[data-alan="status"]').selectOption('sona_erdi');
   await s.waitForFunction(() => document.querySelector('.butce-ad.kirmizi'));
-  if (!(await metin('beklenen')).includes('0,00')) throw new Error('sona eren firmanın beklenen geliri 0 olmalı');
+  esit(await alfa.locator('[data-alan="expected_manual"]').inputValue(), '0', 'sona eren firmanın beklenen geliri 0 olmalı');
   await alfa.locator('[data-alan="status"]').selectOption('kabul');
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="beklenen"]')?.innerText.includes('2.400'));
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-alan="expected_manual"]')?.value === '2400' );
   const renk = await ad.evaluate((el) => getComputedStyle(el).fontWeight);
   if (Number(renk) < 700) throw new Error('firma ünvanı kalın olmalı');
   // toplamlar
-  const toplam = (await s.locator('#butce-toplam').innerText()).replace(/\s+/g, ' ');
+  const toplam = (await s.locator('#butce-gelir-toplam').innerText()).replace(/\s+/g, ' ');
   if (!toplam.includes('2.000,00') || !toplam.includes('2.400,00') || !toplam.includes('%20')) throw new Error(`toplam satırı: ${toplam}`);
   // elle ortalama ve otomatiğe dönüş
   await gir('prev_avg_income', '3.000,50');
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="ortKaynak"]')?.innerText.includes('elle girildi'));
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="beklenen"]')?.innerText.includes('3.600,60'));
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-c="ortKaynak"]')?.innerText.includes('elle girildi'));
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-alan="expected_manual"]')?.value === '3600,6' );
   await alfa.locator('[data-oto-sifirla]').click();
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="ortKaynak"]')?.innerText.includes('otomatik'));
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-c="ortKaynak"]')?.innerText.includes('otomatik'));
   // geçersiz giriş reddedilir
   await gir('accepted_price', 'abc');
-  esit(await alfa.locator('[data-alan="accepted_price"]').inputValue(), '1200', 'geçersiz giriş geri alınır');
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-alan="accepted_price"]').value === '1200');
   // kişi başı fiyat
   await alfa.locator('[data-alan="price_type"]').selectOption('kisi_basi');
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-alan="employee_count"]').value === '20');
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-alan="employee_count"]').value === '20');
   await gir('unit_price', '100');
-  await s.waitForFunction(() => document.querySelector('tr[data-firma] [data-c="oncekiAylik"]')?.innerText.includes('2.000'));
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-c="oncekiAylik"]')?.innerText.includes('2.000'));
   await gir('note', 'Müdürle görüşüldü');
   await s.waitForFunction(() => globalThis.__fake.tablo.budget_lines[0].note === 'Müdürle görüşüldü');
   const k = await s.evaluate(() => globalThis.__fake.tablo.budget_lines[0]);
@@ -2938,7 +2939,74 @@ await test('Yıllık Bütçe: fiyat, yüzde↔fiyat, kabul edilen bedel, beklene
   // kalıcılık: sayfa yenilenince veriler geri gelir
   await git(s, '#/panel'); await git(s, '#/butce'); await s.waitForSelector('.butce-tablo');
   esit(await satir('Alfa Ltd').locator('[data-alan="note"]').inputValue(), 'Müdürle görüşüldü', 'not kalıcı');
-  esit(await s.locator('.butce-tablo tbody tr').count(), 2, 'iki firma');
+  esit(await s.locator('.butce-tablo:not(.butce-gider) tbody tr').count(), 2, 'iki firma');
+});
+
+await test('Yıllık Bütçe: gelir satırı ekle, yeni fiyat türü, elle beklenen gelir, gider tablosu (hazır kalemler, personel, ağırlıklı artış), kâr durumu, yapışkan başlık/sütun, Excel', async (s) => {
+  await girisYap(s); await firmaEkle(s, { ad: 'Alfa Ltd', calisan: 20, tehlike: 'tehlikeli' });
+  await s.waitForFunction(() => globalThis.__fake.tablo.companies.some((c) => c.name === 'Alfa Ltd'));
+  await git(s, '#/butce'); await s.waitForSelector('.butce-gider');
+  esit(await s.locator('tr[data-gider]').count(), 20, 'hazır gider kalemleri');
+  for (const ad of ['Yönetime Ödenen', 'Personel Giderleri', 'SGK Giderleri', 'Stopaj', 'KREDİ ÖDEMESİ', 'Yemek&İçme']) if (!(await s.locator('.butce-gider tbody').innerText()).includes(ad)) throw new Error(`gider kalemi yok: ${ad}`);
+  // yapışkan: başlık satırı ve ilk sütun
+  const pos = await s.evaluate(() => ({ th: getComputedStyle(document.querySelector('.butce-tablo thead th')).position, fc: getComputedStyle(document.querySelector('.butce-tablo tbody th.butce-firma')).position, tf: getComputedStyle(document.querySelector('.butce-tablo tfoot td')).position }));
+  esit(pos.th, 'sticky', 'başlık yapışkan'); esit(pos.fc, 'sticky', 'firma sütunu yapışkan'); esit(pos.tf, 'sticky', 'toplam satırı yapışkan');
+  // taşma yok: tutar girdileri ve özet kutuları kutusuna sığar
+  // kendi gelir satırı
+  await s.click('[data-action="gelir-ekle"]'); await modal(s).locator('#f-ad').fill('Eğitim geliri'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('tr[data-anahtar^="c:"]');
+  const ozel = s.locator('tr[data-anahtar^="c:"]');
+  await ozel.locator('[data-alan="prev_avg_income"]').fill('1000'); await ozel.locator('[data-alan="prev_avg_income"]').press('Tab');
+  await ozel.locator('[data-alan="unit_price"]').fill('1000'); await ozel.locator('[data-alan="unit_price"]').press('Tab');
+  await ozel.locator('[data-alan="accepted_price"]').fill('1100'); await ozel.locator('[data-alan="accepted_price"]').press('Tab');
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar^="c:"] [data-alan="expected_manual"]').value === '1100');
+  // beklenen aylık geliri elle gir
+  await ozel.locator('[data-alan="expected_manual"]').fill('1500'); await ozel.locator('[data-alan="expected_manual"]').press('Tab');
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar^="c:"] [data-c="beklenenAlt"]').innerText.includes('elle girildi'));
+  esit(await s.evaluate(() => globalThis.__fake.tablo.budget_lines.find((l) => l.custom_name).expected_manual), 1500, 'elle beklenen gelir kaydedildi');
+  // gelecek yıl fiyat türü: sabit 1000 → kişi başı; yüzde 10 → fiyat aylık tutar üzerinden
+  const alfa = s.locator('tr[data-anahtar]', { has: s.locator('a:text-is("Alfa Ltd")') });
+  const gir = async (kutu, alan, v) => { await kutu.locator(`[data-alan="${alan}"]`).fill(v); await kutu.locator(`[data-alan="${alan}"]`).press('Tab'); };
+  await gir(alfa, 'unit_price', '2000'); await gir(alfa, 'increase_pct', '10');
+  await alfa.locator('[data-alan="next_price_type"]').selectOption('kisi_basi');
+  await s.waitForFunction(() => document.querySelector('tr[data-anahtar] [data-alan="increase_price"]').value === '110');   // 2.200 TL ÷ 20 kişi
+  // gider tablosu: yüzde → tutar, tutar → yüzde
+  const kira = s.locator('tr[data-gider]', { has: s.locator('.butce-ad:text-is("Ofis Kirası")') });
+  const ggir = async (kutu, alan, v) => { await kutu.locator(`[data-galan="${alan}"]`).fill(v); await kutu.locator(`[data-galan="${alan}"]`).press('Tab'); };
+  await ggir(kira, 'prev_avg_expense', '10000'); await ggir(kira, 'increase_pct', '30');
+  await s.waitForFunction(() => document.querySelector('tr[data-gider] [data-galan="next_avg_expense"][aria-label^="Ofis Kirası"]').value === '13000');
+  const su = s.locator('tr[data-gider]', { has: s.locator('.butce-ad:text-is("Su")') });
+  await ggir(su, 'prev_avg_expense', '1000'); await ggir(su, 'next_avg_expense', '1500');
+  await s.waitForFunction(() => document.querySelector('[data-galan="increase_pct"][aria-label^="Su "]').value === '50');
+  // personel ekle: kalem personellerin toplamı olur
+  await s.click('[data-personel-ekle]'); await modal(s).locator('#f-ad').fill('Ali Veli'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('tr.butce-cocuk');
+  const ali = s.locator('tr.butce-cocuk').first();
+  await ggir(ali, 'prev_avg_expense', '20.000'); await ggir(ali, 'increase_pct', '50');
+  await s.waitForFunction(() => document.querySelector('[data-galan="next_avg_expense"][aria-label^="Personel Giderleri"]').value === '30000');
+  esit(await s.locator('[data-galan="prev_avg_expense"][aria-label^="Personel Giderleri"]').isDisabled(), true, 'personel kalemi toplamdır, elle girilmez');
+  // kendi gider kalemi
+  await s.click('[data-action="gider-ekle"]'); await modal(s).locator('#f-ad').fill('Sigorta'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForSelector('.butce-gider .butce-ad:text-is("Sigorta")');
+  esit(await s.locator('tr[data-gider]').count(), 22, 'hazır 20 + personel + sigorta');
+  // toplam gider ve ağırlıklı artış: önceki 10000+1000+20000 = 31000; sonraki 13000+1500+30000 = 44500 → %43,55
+  const gt = (await s.locator('#butce-gider-toplam').innerText()).replace(/\s+/g, ' ');
+  if (!gt.includes('31.000,00') || !gt.includes('44.500,00') || !gt.includes('%43,55')) throw new Error(`gider toplamı: ${gt}`);
+  // kâr durumu = beklenen gelir − sonraki yıl gideri
+  const kar = (await s.locator('#butce-kar').innerText()).replace(/\s+/g, ' ');
+  if (!kar.includes('KÂR DURUMU') || !kar.includes('44.500,00')) throw new Error(`kâr tablosu: ${kar}`);
+  // silme: yalnız kendi eklenenler
+  esit(await s.locator('tr[data-gider]', { has: s.locator('.butce-ad:text-is("Stopaj")') }).locator('[data-gider-sil]').count(), 0, 'hazır kalem silinemez');
+  await s.locator('tr[data-gider]', { has: s.locator('.butce-ad:text-is("Sigorta")') }).locator('[data-gider-sil]').click();
+  await s.locator('[data-ok]').click();
+  await s.waitForFunction(() => document.querySelectorAll('tr[data-gider]').length === 21);
+  // Excel
+  const [dl] = await Promise.all([s.waitForEvent('download'), s.click('[data-action="butce-excel"]')]);
+  esit(dl.suggestedFilename().endsWith('.xlsx'), true, 'xlsx adı');
+  const { readFileSync } = await import('node:fs'); const baytlar = readFileSync(await dl.path());
+  esit(baytlar.subarray(0, 2).toString(), 'PK', 'zip imzası');
+  const xlsxSayfa = JSON.stringify(await gelirOku(baytlar.buffer.slice(baytlar.byteOffset, baytlar.byteOffset + baytlar.byteLength)));
+  for (const t of ['GELİRLER TABLOSU', 'GİDERLER TABLOSU', 'KÂR DURUMU', 'Alfa Ltd', 'Eğitim geliri', 'Ali Veli', 'Ofis Kirası', 'TOPLAM GİDER']) if (!xlsxSayfa.includes(t)) throw new Error(`Excel'de yok: ${t}`);
 });
 
 await test('Firma sözleşmeler: imzalı sözleşme kaydet (PDF/resim), geçersiz dosya, listele, aç, arşivle', async (s) => {
