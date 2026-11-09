@@ -107,7 +107,7 @@ export function giderSatiri(s) {
  * "Personel Giderleri" altında personel varsa kalem, personellerin toplamıdır. Sonraki yıl tutarı boşsa
  * kalem önceki yıl tutarıyla aynı sayılır (artış yok). Ağırlıklı artış = Σ sonraki / Σ önceki − 1.
  */
-export function giderlerHesapla(satirlar) {
+export function giderlerHesapla(satirlar, personel = null) {
   const cocuk = new Map();
   for (const s of satirlar) if (s.parent_id) cocuk.set(s.parent_id, [...(cocuk.get(s.parent_id) ?? []), s]);
   const etkin = (v) => (v.next ?? v.prev ?? 0);
@@ -121,11 +121,87 @@ export function giderlerHesapla(satirlar) {
       const next = k2(cv.reduce((t, x) => t + etkin(x), 0));
       v = { prev, next: prev === null && !cv.some((x) => x.next !== null) ? null : next, pct: null, toplamli: true };
       v.pct = v.prev > 0 && v.next !== null ? k2((v.next / v.prev - 1) * 100) : null;
+    } else if (s.is_personnel && personel && personel.length) {
+      const t = personelToplamlari(personel);                       // Personel Gider Tablosu → "Personel Giderleri" kalemi
+      v = { prev: t.prevToplam, next: t.nextToplam, pct: t.pct, toplamli: true };
     } else v = { ...giderSatiri(s), toplamli: false };
     harita.set(s.id, v);
     prevK += Math.round((v.prev ?? 0) * 100); nextK += Math.round(etkin(v) * 100);
   }
   return { satirlar: harita, oncekiToplam: prevK / 100, sonrakiToplam: nextK / 100, agirlikliArtis: prevK > 0 ? (nextK / prevK - 1) * 100 : null };
+}
+
+// ---------------------------------------------------------------- personel gider tablosu
+const nz = (x) => (sayiMi(x) ? Number(x) : null);
+/** Tek personelin değerleri. Artış oranı net maaş ve SGK'ya birlikte uygulanır; sonraki yıl tutarı girilmişse o esas alınır. */
+export function personelSatiri(p) {
+  const prevNet = nz(p.prev_net); const prevSgk = nz(p.prev_sgk); const oran = nz(p.increase_pct);
+  const prevToplam = prevNet === null && prevSgk === null ? null : k2((prevNet ?? 0) + (prevSgk ?? 0));
+  const turet = (onceki, dogrudan) => (dogrudan !== null ? dogrudan : (onceki !== null && oran !== null ? k2(onceki * (1 + oran / 100)) : null));
+  const nextNet = turet(prevNet, nz(p.next_net)); const nextSgk = turet(prevSgk, nz(p.next_sgk));
+  const nextToplam = nextNet === null && nextSgk === null ? null : k2((nextNet ?? 0) + (nextSgk ?? 0));
+  const pct = oran !== null ? oran : (nextToplam !== null && prevToplam > 0 ? k2((nextToplam / prevToplam - 1) * 100) : null);
+  return { prevNet, prevSgk, prevToplam, pct, nextNet, nextSgk, nextToplam };
+}
+/** Tüm personel toplamı. Sonraki yıl tutarı boş olan personelde önceki yıl tutarı sürer. Artış = Σ sonraki / Σ önceki − 1. */
+export function personelToplamlari(liste) {
+  let pn = 0; let ps = 0; let nn = 0; let ns = 0;
+  for (const x of liste ?? []) {
+    const v = personelSatiri(x);
+    pn += Math.round((v.prevNet ?? 0) * 100); ps += Math.round((v.prevSgk ?? 0) * 100);
+    nn += Math.round((v.nextNet ?? v.prevNet ?? 0) * 100); ns += Math.round((v.nextSgk ?? v.prevSgk ?? 0) * 100);
+  }
+  const prevToplam = (pn + ps) / 100; const nextToplam = (nn + ns) / 100;
+  return { adet: (liste ?? []).length, prevNet: pn / 100, prevSgk: ps / 100, prevToplam, nextNet: nn / 100, nextSgk: ns / 100, nextToplam, pct: prevToplam > 0 ? k2((nextToplam / prevToplam - 1) * 100) : null };
+}
+
+// ---------------------------------------------------------------- Giderler kategorileri ↔ bütçe kalemleri
+const sade = (m) => ` ${String(m ?? '').toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()} `;
+/** Hazır kalemlere karşılık gelen anahtar sözcükler (kategori adında geçerse eşleşir). */
+export const ESLEME_ANAHTARLARI = {
+  'Yönetime Ödenen': ['yonetim', 'ortak cari', 'ortaklara'], 'SGK Giderleri': ['sgk', 'sigorta prim'], 'Stopaj': ['stopaj'],
+  'Kurumlar': ['kurumlar', 'vergi', 'damga'], '3th Party Ödeme': ['3th', 'third party', 'taseron', 'dis hizmet', 'hizmet alim'],
+  'Ofis Kirası': ['kira'], 'Araç Masrafları': ['arac', 'yakit', 'akaryakit', 'otopark', 'kasko', 'hgs', 'ogs'],
+  'Elektrik': ['elektrik'], 'Su': ['su'], 'Doğal Gaz': ['dogal gaz', 'dogalgaz'], 'İnternet / Telefon': ['internet', 'telefon', 'gsm'],
+  'Kırtasiye Giderleri': ['kirtasiye', 'toner'], 'Ofis Genel Giderler': ['ofis', 'temizlik', 'aidat'], 'Elektronik': ['elektronik', 'bilgisayar', 'yazilim', 'donanim'],
+  'Reklam, Pazarlama, Web': ['reklam', 'pazarlama', 'web', 'tanitim', 'sosyal medya'], 'Muhasebe Giderleri': ['muhasebe', 'mali musavir'],
+  'Yemek&İçme': ['yemek', 'icme', 'mutfak', 'ikram'], 'KREDİ ÖDEMESİ': ['kredi', 'taksit', 'faiz'], 'Diğer Giderler': ['diger'],
+};
+/**
+ * Kategori → kalem önerisi. Önce ad birebir/içerik eşleşmesi, sonra anahtar sözcükler. Personel kalemi ve personel türündeki kategoriler hariçtir.
+ * Dönüş: Map(kategoriId → kalemId). Kayıtlı eşleşme (kalem.category_ids) her zaman önceliklidir.
+ */
+export function kategoriEsle(kalemler, kategoriler) {
+  const sonuc = new Map(); const uygun = kalemler.filter((k) => !k.parent_id && !k.is_personnel);
+  for (const k of uygun) for (const id of k.category_ids ?? []) if (!sonuc.has(id)) sonuc.set(id, k.id);
+  for (const c of kategoriler) {
+    if (sonuc.has(c.id) || String(c.default_cost_type ?? '') === 'personel' || c.nature === 'personel' || c.is_payroll) continue;
+    const ad = sade(c.name);
+    let bulunan = uygun.find((k) => sade(k.name) === ad);
+    bulunan ??= uygun.find((k) => k.name === ({ sgk: 'SGK Giderleri', stopaj: 'Stopaj', vergi: 'Kurumlar' })[c.nature]);
+    bulunan ??= uygun.find((k) => { const kn = sade(k.name).trim(); return kn.length > 3 && (ad.includes(` ${kn} `) || sade(k.name).includes(ad) && ad.trim().length > 3); });
+    bulunan ??= uygun.find((k) => (ESLEME_ANAHTARLARI[k.name] ?? []).some((a) => ad.includes(` ${a} `) || (a.length > 3 && ad.includes(a))));
+    if (bulunan) sonuc.set(c.id, bulunan.id);
+  }
+  return sonuc;
+}
+/**
+ * Önceki yıl aylık ortalama gider: kalemin kategorilerindeki (arşivsiz) harcamaların KDV hariç toplamı ÷ o yıl içinde
+ * herhangi bir gider girilmiş ay sayısı (en çok 12). Dönüş: Map(kalemId → { toplam, ay, ortalama }).
+ */
+export function giderOrtalamalari(harcamalar, yil, kalemKategorileri) {
+  const aylar = new Set(); const kategoriToplam = new Map();
+  for (const h of harcamalar ?? []) {
+    if (h.archived_at || String(h.expense_date ?? '').slice(0, 4) !== String(yil)) continue;
+    aylar.add(String(h.expense_date).slice(0, 7));
+    kategoriToplam.set(h.category_id, (kategoriToplam.get(h.category_id) ?? 0) + Math.round(Number(h.amount_excl_vat) * 100));
+  }
+  const ay = Math.min(12, aylar.size); const sonuc = new Map();
+  for (const [kalemId, idler] of kalemKategorileri) {
+    const kurus = [...new Set(idler)].reduce((t, id) => t + (kategoriToplam.get(id) ?? 0), 0);
+    sonuc.set(kalemId, { toplam: kurus / 100, ay, ortalama: ay ? k2(kurus / 100 / ay) : null });
+  }
+  return sonuc;
 }
 
 /** Kâr durumu: gelecek yıl beklenen aylık gelir − gelecek yıl aylık gider (önceki yıl karşılaştırmasıyla). */

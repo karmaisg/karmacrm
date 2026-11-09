@@ -106,12 +106,19 @@ export async function sozlesmeFormuAc(app, { companyId = null } = {}) {
 
 // ---------------------------------------------------------------- liste
 export async function sozlesmelerSayfasi(app) {
-  const [sozlesmeler, fiyatlar, firmalar, profiller] = await Promise.all([
+  const [sozlesmeler, fiyatlar, firmalar, profiller, imzaliDosyalar] = await Promise.all([
     app.api.listContracts(), app.api.listAllContractPrices(),
     app.can('companies', 'view') ? app.api.listCompanies() : [],
     app.can('companies', 'view') ? app.api.listAllProfiles() : [],
+    app.api.listSignedContracts().catch(() => []),   // SQL (33_asama32) çalıştırılmadıysa boş
   ]);
   const bugunStr = bugun();
+  // İmzalı dosya var mı: sözleşmeye bağlı dosya; ya da firmanın tek sözleşmesi varsa sözleşmeye bağlanmamış firma dosyası da sayılır
+  const dosyaSozlesme = new Set(); const dosyaFirma = new Set();
+  for (const d of imzaliDosyalar) { if (d.archived_at) continue; if (d.contract_id) dosyaSozlesme.add(d.contract_id); else dosyaFirma.add(d.company_id); }
+  const firmaSozlesmeSayisi = new Map();
+  for (const c of sozlesmeler) if (!c.archived_at) firmaSozlesmeSayisi.set(c.company_id, (firmaSozlesmeSayisi.get(c.company_id) ?? 0) + 1);
+  const imzaVar = (c) => dosyaSozlesme.has(c.id) || (dosyaFirma.has(c.company_id) && firmaSozlesmeSayisi.get(c.company_id) === 1);
   const firmaAdi = new Map(firmalar.map((f) => [f.id, f.name]));
   const ozet = sozlesmeOzeti(sozlesmeler, fiyatlar, profiller, bugunStr);
   const olusturabilir = app.can('contracts', 'create');
@@ -121,9 +128,10 @@ export async function sozlesmelerSayfasi(app) {
     yaklasan: (c) => { const b = bitisDurumu(c, bugunStr); return !c.archived_at && !!b && b.gun <= 90; },
     taslak: (c) => !c.archived_at && c.status === 'taslak',
     biten: (c) => !c.archived_at && ['yenilendi', 'sona_erdi', 'feshedildi'].includes(c.status),
+    imzasiz: (c) => !c.archived_at && c.status === 'aktif' && !imzaVar(c),
     tumu: (c) => !c.archived_at, arsiv: (c) => !!c.archived_at,
   };
-  const FILTRELER = [['aktif', 'Aktif'], ['yaklasan', 'Bitişi yaklaşan (90 gün)'], ['taslak', 'Taslak'], ['biten', 'Sona eren / yenilenen'], ['tumu', 'Tümü'], ['arsiv', 'Arşivli']];
+  const FILTRELER = [['aktif', 'Aktif'], ['yaklasan', 'Bitişi yaklaşan (90 gün)'], ['taslak', 'Taslak'], ['biten', 'Sona eren / yenilenen'], ['imzasiz', 'Aktif, imzalı dosyası yok'], ['tumu', 'Tümü'], ['arsiv', 'Arşivli']];
   const sayilar = Object.fromEntries(Object.entries(GRUP).map(([k, f]) => [k, sozlesmeler.filter(f).length]));
   const fiyatHaritasi = new Map();
   for (const p of fiyatlar) { if (!fiyatHaritasi.has(p.contract_id)) fiyatHaritasi.set(p.contract_id, []); fiyatHaritasi.get(p.contract_id).push(p); }
@@ -136,7 +144,8 @@ export async function sozlesmelerSayfasi(app) {
     return html`<tr class="${c.archived_at ? 'row-muted' : ''}">
       <td><a class="cell-main" href="#/sozlesmeler/${c.id}">${avatar(ad)}<span><strong>${ad}</strong><small>${tarih(c.start_date)} – ${tarih(c.end_date)}</small></span></a></td>
       <td class="num hide-sm">${f ? para(fiyatAylikHaric(f, p?.employee_count ?? 0)) : '—'}</td>
-      <td class="hide-md">${bitisRozeti(c, bugunStr)}</td><td>${sozlesmePill(c.status)}</td></tr>`;
+      <td class="hide-md">${bitisRozeti(c, bugunStr)}</td><td>${sozlesmePill(c.status)}</td>
+      <td class="hide-sm" data-imza="${imzaVar(c) ? 'var' : 'yok'}">${imzaVar(c) ? pill('İmzalı dosya var', 'success') : pill('İmzalı dosya yok', 'neutral')}</td></tr>`;
   };
   function tablo() {
     if (!sozlesmeler.length) {
@@ -150,7 +159,7 @@ export async function sozlesmelerSayfasi(app) {
     if (!liste.length) return emptyState({ simge: 'search', baslik: 'Eşleşen sözleşme yok', metin: 'Arama veya filtreyi değiştirmeyi deneyin.' });
     const sayfaSayisi = Math.max(1, Math.ceil(liste.length / SAYFA_BASI));
     durum.sayfa = Math.min(durum.sayfa, sayfaSayisi);
-    return html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Firma ve dönem</th><th scope="col" class="num hide-sm">Aylık gelir (KDV hariç)</th><th scope="col" class="hide-md">Bitişe kalan</th><th scope="col">Durum</th></tr></thead>
+    return html`<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Firma ve dönem</th><th scope="col" class="num hide-sm">Aylık gelir (KDV hariç)</th><th scope="col" class="hide-md">Bitişe kalan</th><th scope="col">Durum</th><th scope="col" class="hide-sm">İmzalı dosya</th></tr></thead>
       <tbody>${liste.slice((durum.sayfa - 1) * SAYFA_BASI, durum.sayfa * SAYFA_BASI).map(satir)}</tbody></table></div>
       ${sayfalama({ sayfa: durum.sayfa, sayfaSayisi, toplam: liste.length, sayfaBasi: SAYFA_BASI })}`;
   }

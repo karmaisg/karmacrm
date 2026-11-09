@@ -528,3 +528,11 @@ svg.grafik rect[data-ipucu]:hover, svg.grafik circle[data-ipucu]:hover { opacity
 .butce-arti { color: var(--success); }
 .butce-eksi { color: var(--danger); }
 .butce-not-alt { padding: 4px 16px 14px; }
+
+/* Yıllık Bütçe (Aşama 35): uzun firma adı sütuna sığar (…), tamamı fare üzerine gelince görünür; Personel Gider Tablosu */
+.butce-tablo tbody th.butce-firma { width: 250px; min-width: 250px; max-width: 250px; }
+.butce-firma-ic { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.butce-firma-ic .butce-ad { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.butce-firma-ic .icon-btn { flex: none; }
+.butce-personel { min-width: 1080px; }
+.butce-personel .butce-in { width: 120px; }

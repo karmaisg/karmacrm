@@ -40,9 +40,10 @@ const n2 = (x) => (x === null || x === undefined ? null : Math.round(Number(x) *
 
 /**
  * gelirler: [{ ad, durum, tur, birim, adet, aylik, ortalama, yuzde(%), yeniTur, talepFiyat, kabul, artisOrani(kesir), artisTutari, beklenen, not }]
+ * personel: [{ ad, prevNet, prevSgk, pct(%), nextNet, nextSgk }] — Personel Gider Tablosu; varsa "Personel Giderleri" kalemi buradaki toplamlara bağlanır
  * giderler: sıralı liste [{ ad, cocuk, prev, pct(%), next, toplamli }] — personel altındaki isimler `cocuk: true`, kendi kalemi `toplamli: true`
  */
-export function butceExcel({ yil, gelirler, giderler, gelirToplam, tarih }) {
+export function butceExcel({ yil, gelirler, giderler, personel = [], gelirToplam, tarih }) {
   const satirlar = []; const birlesik = []; const yuk = {};
   const bos = (n) => Array.from({ length: n }, () => null);
   const hs = (r) => r + 1;                                           // 0 tabanlı satır dizini → Excel satır no
@@ -81,7 +82,7 @@ export function butceExcel({ yil, gelirler, giderler, gelirToplam, tarih }) {
   // ---- giderler tablosu
   satirlar.push([tum('bant', 'GİDERLER TABLOSU'), ...bos(14).map(() => tum('bant', ''))]); birlesik.push(`A${hs(satirlar.length - 1)}:O${hs(satirlar.length - 1)}`); yuk[satirlar.length - 1] = 22;
   satirlar.push([tum('kolon', 'Gider kalemi'), tum('kolon', `${yil - 1} aylık ort. gider`), tum('kolon', '% artış'), tum('kolon', `${yil} aylık ort. gider`)]); yuk[satirlar.length - 1] = 46;
-  const satirNo = new Map(); const ustSatirlar = []; let sonUst = null; const cocukSatirlari = new Map();
+  let pToplamNo = 0; let pOnce = 0; let pSonra = 0; const satirNo = new Map(); const ustSatirlar = []; let sonUst = null; const cocukSatirlari = new Map();
   giderler.forEach((g, i) => {
     const no = hs(satirlar.length + 0);
     satirNo.set(i, no);
@@ -110,6 +111,29 @@ export function butceExcel({ yil, gelirler, giderler, gelirToplam, tarih }) {
   ]);
   satirlar.push([{ o: 'dipnot', v: 'Toplam gider satırındaki % artış, kalem tutarlarına göre ağırlıklı ortalamadır (Σ sonraki yıl ÷ Σ önceki yıl − 1). Sonraki yıl tutarı girilmeyen kalem, önceki yılla aynı sayılır.' }]); birlesik.push(`A${hs(satirlar.length - 1)}:O${hs(satirlar.length - 1)}`);
   satirlar.push([]);
+
+  // ---- personel gider tablosu
+  if (personel.length) {
+    satirlar.push([tum('bant', 'PERSONEL GİDER TABLOSU'), ...bos(14).map(() => tum('bant', ''))]); birlesik.push(`A${hs(satirlar.length - 1)}:O${hs(satirlar.length - 1)}`); yuk[satirlar.length - 1] = 22;
+    satirlar.push([`Ad Soyad`, `${yil - 1} net maaş`, `${yil - 1} SGK gideri`, `${yil - 1} toplam gider`, 'Artış oranı %', `${yil} net maaş`, `${yil} SGK gideri`, `${yil} toplam gider`].map((k) => tum('kolon', k))); yuk[satirlar.length - 1] = 34;
+    const p0 = hs(satirlar.length);
+    for (const p of personel) {
+      const r = hs(satirlar.length);
+      satirlar.push([tum('metin', p.ad), tum('tl', n2(p.prevNet)), tum('tl', n2(p.prevSgk)), { o: 'tl', f: `B${r}+C${r}`, v: n2((p.prevNet ?? 0) + (p.prevSgk ?? 0)) },
+        tum('yuzde', p.pct === null || p.pct === undefined ? null : p.pct / 100), tum('tl', n2(p.nextNet)), tum('tl', n2(p.nextSgk)), { o: 'tl', f: `F${r}+G${r}`, v: n2((p.nextNet ?? 0) + (p.nextSgk ?? 0)) }]);
+    }
+    const p1 = hs(satirlar.length - 1); pToplamNo = hs(satirlar.length);
+    const ps = (alan) => n2(personel.reduce((t, p) => t + (Number(p[alan]) || 0), 0));
+    const sonT = n2(ps('nextNet') + ps('nextSgk')); const onceT = n2(ps('prevNet') + ps('prevSgk'));
+    pOnce = onceT; pSonra = sonT;
+    satirlar.push([tum('topMetin', `TOPLAM (${personel.length} personel)`), { o: 'topTl', f: `SUM(B${p0}:B${p1})`, v: ps('prevNet') }, { o: 'topTl', f: `SUM(C${p0}:C${p1})`, v: ps('prevSgk') }, { o: 'topTl', f: `SUM(D${p0}:D${p1})`, v: onceT },
+      { o: 'topYuzde', f: `IF(D${pToplamNo}>0,H${pToplamNo}/D${pToplamNo}-1,"")`, v: onceT > 0 ? sonT / onceT - 1 : null }, { o: 'topTl', f: `SUM(F${p0}:F${p1})`, v: ps('nextNet') }, { o: 'topTl', f: `SUM(G${p0}:G${p1})`, v: ps('nextSgk') }, { o: 'topTl', f: `SUM(H${p0}:H${p1})`, v: sonT }]);
+    satirlar.push([{ o: 'dipnot', v: 'Bu tablonun toplamı, Giderler tablosundaki "Personel Giderleri" satırına aktarılır (net maaş + SGK).' }]); birlesik.push(`A${hs(satirlar.length - 1)}:O${hs(satirlar.length - 1)}`);
+    satirlar.push([]);
+    for (const [i, g] of giderler.entries()) {
+      if (g.toplamli && !g.cocuk) { const row = satirlar[satirNo.get(i) - 1]; row[1] = { ...row[1], f: `D${pToplamNo}`, v: pOnce }; row[3] = { ...row[3], f: `H${pToplamNo}`, v: pSonra }; row[2] = { ...row[2], f: `IF(B${satirNo.get(i)}>0,D${satirNo.get(i)}/B${satirNo.get(i)}-1,"")` }; }
+    }
+  }
 
   // ---- kâr durumu
   satirlar.push([tum('bant', 'KÂR DURUMU'), ...bos(14).map(() => tum('bant', ''))]); birlesik.push(`A${hs(satirlar.length - 1)}:O${hs(satirlar.length - 1)}`); yuk[satirlar.length - 1] = 22;
