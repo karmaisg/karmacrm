@@ -587,3 +587,14 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
   - **Toplam gider** satırında yüzde, **ağırlıklı ortalama**dır (Σ sonraki ÷ Σ önceki − 1).
 - **Kâr Durumu:** sonraki yıl beklenen aylık gelir toplamı − sonraki yıl aylık gider toplamı (önceki yılla yan yana; yıllık kâr ve kâr marjı dahil).
 - **Excel'e aktar:** tüm yıllık bütçeyi tek sayfada (gelirler, giderler, kâr durumu) profesyonel biçimde indirir; toplamlar, ağırlıklı artış ve kâr canlı formüldür, ilk sütun dondurulmuştur.
+
+## Yıllık Bütçe: Personel Gider Tablosu, Giderlerden doldur, imzalı dosya göstergesi (Aşama 35) — `supabase/36_asama35.sql` çalıştırılmalı
+
+`35_asama34.sql` çalıştırıldıktan sonra `36_asama35.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Eski "Personel Giderleri altındaki" satırlar otomatik olarak yeni personel tablosuna taşınır.
+
+- **Uzun firma ünvanı:** Gelirler/Giderler tablolarında ilk sütuna sığmayan ünvan "…" ile kısaltılır; ünvanın üzerine fareyle gelince tamamı görünür.
+- **Personel Gider Tablosu** (Giderler tablosunun altında, ayrı): *Personel ekle* ile adı soyadı yazılır. Sütunlar: önceki yıl net maaş · SGK gideri · toplam gider · artış oranı % · sonraki yıl net maaş · sonraki yıl SGK gideri (+ sonraki yıl toplam). Artış oranı girilirse sonraki yıl tutarları hesaplanır; sonraki yıl tutarı girilirse oran geriye hesaplanır. Alt satırda tüm personelin toplamı vardır. Tutarlar aylıktır.
+- **Giderler tablosu → "Personel Giderleri" satırı** (önceki yıl ortalaması, % artış, sonraki yıl ortalaması) bu tablonun toplamından dolar. Personel girilmemişse satır elle doldurulabilir. Dikkat: "SGK Giderleri" satırına ayrıca tutar girerseniz SGK iki kez sayılır.
+- **Giderlerden doldur** düğmesi: Giderler menüsündeki kategorileri bütçe kalemleriyle eşleştirir (öneriler ad/anahtar sözcüğe göre otomatik seçilir, değiştirilebilir; personel kategorileri hariç). Kalemin önceki yıl aylık ortalaması = bağlı kategorilerin önceki yıl toplamı (KDV hariç, arşivsiz) ÷ o yıl gider girilen ay sayısı. Eşleşme kaydedilir. Varsayılan olarak dolu değerlere dokunmaz ("üzerine yaz" kutusu ile değiştirilebilir). Değerler her zaman elle de değiştirilebilir.
+- **Excel:** "PERSONEL GİDER TABLOSU" bölümü eklendi; "Personel Giderleri" satırı bu bölümün toplamına formülle bağlıdır.
+- **Sözleşmeler listesi:** her satırda "İmzalı dosya var / yok" rozeti; "Aktif, imzalı dosyası yok" filtresi. Dosya sözleşmeye bağlı yüklenmişse "var" sayılır; firmanın tek sözleşmesi varsa sözleşmeye bağlanmamış firma dosyası da "var" sayılır.
