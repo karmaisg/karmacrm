@@ -572,3 +572,18 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
    - **Durum:** Kabul edildi (firma adı kalın yeşil) · Sözleşme sona erdi (kalın kırmızı) · Görüşme yapıldı – bilgi verilemedi / Bilgi verildi – dönüş bekleniyor (kalın turuncu). **Açıklama** sütununa görüşme notları yazılır.
 4. Tablonun altında önceki yıl aylık ortalama gelir toplamı, beklenen aylık gelir toplamı ve artış oranı bulunur (aynı bilgi üstte kutucuklarda da var). Artış oranı yalnızca beklenen geliri hesaplanabilen firmalar üzerinden bulunur; bedeli henüz belli olmayan firma sayısı kutucukta yazar.
 5. **Sözleşme fiyatlarından doldur** düğmesi, önceki yıl fiyatı boş olan firmalar için sözleşmedeki fiyatı (KDV hariç; sabit/kişi başı) otomatik girer; dolu olanlara dokunmaz.
+
+## Yıllık Bütçe: gelir/gider tabloları, kâr durumu ve Excel (Aşama 34) — `supabase/35_asama34.sql` çalıştırılmalı
+
+`34_asama33.sql` çalıştırıldıktan sonra `35_asama34.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir).
+
+- **Gelirler Tablosu** (eski tablo): başlık satırı yukarıda, firma sütunu solda **sabit kalır**; sağa/aşağı kaydırırken hangi firmada olduğunuz görünür. Fare ile bir satırın üzerine gelince satır vurgulanır. Tutarlar kutulara sığacak şekilde genişletildi.
+  - **Talep edilen fiyattan önce yeni "fiyat türü"** sütunu vardır (Aynı / Sabit fiyat / Kişi başı fiyat). Tür değişirse (ör. sabit → kişi başı) artış yüzdesi ile fiyat **aylık tutar** üzerinden birbirine bağlanır; kişi başı seçilince çalışan sayısı firmadan gelir.
+  - **Beklenen aylık gelir** kutucuğu elle yazılabilir (altında "elle girildi · hesaplanana dön"). Elle girilmezse önceki yıl ortalaması × (1 + gerçekleşen artış oranı) hesaplanır.
+  - **Gelir satırı ekle:** firma dışı gelir kalemi (ör. eğitim geliri) eklenir; ortalama geliri elle girilir; satır silinebilir.
+- **Giderler Tablosu:** hazır kalemler (Yönetime Ödenen, Personel Giderleri, SGK, Stopaj, Kurumlar, 3th Party Ödeme, Ofis Kirası, Araç, Elektrik, Su, Doğal Gaz, İnternet/Telefon, Kırtasiye, Ofis Genel, Elektronik, Reklam/Pazarlama/Web, Muhasebe, Yemek&İçme, Diğer, Kredi Ödemesi) ilk açılışta otomatik gelir. **Gider kalemi ekle** ile kendi kaleminizi ekleyebilirsiniz (hazır kalemler silinemez).
+  - **Personel Giderleri** altına **Personel ekle** ile adı soyadı elle yazılan satırlar eklenir; kalem, personellerin toplamı olur.
+  - Sütunlar: önceki yıl aylık ortalama gider · % artış · sonraki yıl aylık ortalama gider (yüzde ↔ tutar iki yönlü). Sonraki yıl tutarı girilmeyen kalem, önceki yılla aynı sayılır.
+  - **Toplam gider** satırında yüzde, **ağırlıklı ortalama**dır (Σ sonraki ÷ Σ önceki − 1).
+- **Kâr Durumu:** sonraki yıl beklenen aylık gelir toplamı − sonraki yıl aylık gider toplamı (önceki yılla yan yana; yıllık kâr ve kâr marjı dahil).
+- **Excel'e aktar:** tüm yıllık bütçeyi tek sayfada (gelirler, giderler, kâr durumu) profesyonel biçimde indirir; toplamlar, ağırlıklı artış ve kâr canlı formüldür, ilk sütun dondurulmuştur.
