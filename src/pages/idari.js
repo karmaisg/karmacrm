@@ -300,8 +300,6 @@ export async function idariSayfasi(app) {
         const alan = el.dataset.maas; const bos = el.value.trim() === ''; const v = bos ? null : sayiOku(el.value);
         const eski = sayiMetni(m[alan]);
         if ((!bos && v === null) || (alan === 'net_salary' && bos)) { toast(alan === 'net_salary' ? 'Net maaşı girin (0 veya üstü).' : 'Geçerli bir sayı girin.', 'hata'); el.value = eski; return; }
-        const y = { ...m, [alan]: v };
-        if (y.bank_amount !== null && y.bank_amount !== undefined && Number(y.bank_amount) > Number(y.net_salary)) { toast('Banka tutarı net maaştan büyük olamaz.', 'hata'); el.value = eski; return; }
         try {
           const kayit = await app.api.updateSalaryCalc(m.id, { [alan]: v }); maaslar = maaslar.map((x) => (x.id === m.id ? kayit : x));
           const h = maasHesapla(kayit.net_salary, kayit.bank_amount); tr.querySelector('[data-maas-diger]').textContent = digerHucre(h).s ?? digerHucre(h);
