@@ -7,7 +7,7 @@ test('maaş hesaplayıcı: diğer = net maaş − banka; banka girilmemişse di�
   assert.equal(maasHesapla('35000.10', '0.20').diger, 34999.9);          // kayan nokta hatası olmaz
   assert.equal(maasHesapla(35000, null).diger, null); assert.equal(maasHesapla(35000, '').diger, null);
   assert.equal(maasHesapla(35000, 0).diger, 35000);
-  assert.equal(maasHesapla(1000, 1500).asim, true);
+  assert.equal(maasHesapla(1000, 1500).diger, -500); assert.equal(maasHesapla(1000, 1500).asim, true);
   assert.equal(maasHesapla(null, 100).diger, null);
 });
 test('maaş toplamları: diğer yalnızca banka girilmiş satırlardan', () => {

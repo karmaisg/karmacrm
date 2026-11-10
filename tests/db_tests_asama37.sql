@@ -64,7 +64,8 @@ select tst.works('Personel net maaşla eklenir (banka boş)', $$insert into sala
 select tst.ok('Kurum otomatik atanır, banka boş', (select organization_id = 'aaaaaaaa-0000-0000-0000-000000000001' and bank_amount is null from salary_calcs where id = 'c0c0c0c0-0000-0000-0000-000000000001'));
 select tst.works('Banka tutarı girilir', $$update salary_calcs set bank_amount = 28075.50 where id = 'c0c0c0c0-0000-0000-0000-000000000001'$$);
 select tst.ok('Net maaş değişmeden kalır', (select net_salary = 35000.50 and bank_amount = 28075.50 from salary_calcs where id = 'c0c0c0c0-0000-0000-0000-000000000001'));
-select tst.fails('Banka net maaştan büyük olamaz', $$update salary_calcs set bank_amount = 40000 where id = 'c0c0c0c0-0000-0000-0000-000000000001'$$);
+select tst.works('Banka net maaştan büyük olabilir', $$update salary_calcs set bank_amount = 40000 where id = 'c0c0c0c0-0000-0000-0000-000000000001'$$);
+update salary_calcs set bank_amount = 28075.50 where id = 'c0c0c0c0-0000-0000-0000-000000000001';
 select tst.fails('Negatif net maaş reddedilir', $$insert into salary_calcs(full_name, net_salary) values ('X', -1)$$);
 select tst.fails('Negatif banka reddedilir', $$update salary_calcs set bank_amount = -5 where id = 'c0c0c0c0-0000-0000-0000-000000000001'$$);
 select tst.fails('Boş ad reddedilir', $$insert into salary_calcs(full_name, net_salary) values ('', 100)$$);

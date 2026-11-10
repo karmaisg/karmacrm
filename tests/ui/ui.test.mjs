@@ -3392,11 +3392,13 @@ await test('İdari İşler: Maaş hesaplayıcı (net maaş kayıtlı kalır, ban
   await s.waitForFunction(() => document.querySelector('[data-maas-diger]').innerText.replace(/\s/g, '').includes('6.925'));      // 35.000,50 − 28.075,50 = 6.925,00
   const t1 = (await s.locator('#maas-toplam').innerText()).replace(/\s+/g, ' ');
   if (!t1.includes('35.000,5') || !t1.includes('28.075,5') || !t1.includes('6.925')) throw new Error(`toplam: ${t1}`);
-  // banka net maaştan büyük olamaz
-  await banka.fill('99999'); await banka.press('Tab');
-  await s.waitForFunction(() => document.querySelector('[data-maas="bank_amount"]').value === '28075,5');
   const kayit = await s.evaluate(() => globalThis.__fake.tablo.salary_calcs[0]);
   esit([kayit.full_name, kayit.net_salary, kayit.bank_amount].join('|'), 'Ayşe Demir|35000.5|28075.5', 'kayıt');
+  // banka net maaştan büyük olabilir: diğer eksi çıkar
+  await banka.fill('36.000,50'); await banka.press('Tab');
+  await s.waitForFunction(() => document.querySelector('[data-maas-diger]').innerText.replace(/[\s₺]/g, '').replace('−', '-').includes('-1.000'));
+  await banka.fill('28.075,50'); await banka.press('Tab');
+  await s.waitForFunction(() => document.querySelector('[data-maas-diger]').innerText.replace(/\s/g, '').includes('6.925'));
   // net maaş yenilemeden sonra da yerinde (varsayılan olarak kalır); net düşürülürse diğer yeniden hesaplanır
   await git(s, '#/idari'); await s.click('[data-sekme="maas"]'); await s.waitForSelector('tr[data-maas-satir]');
   esit(await s.locator('[data-maas="net_salary"]').inputValue(), '35000,5', 'yenilemeden sonra net maaş duruyor');
