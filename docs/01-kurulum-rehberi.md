@@ -623,3 +623,5 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 ## Maaş hesaplayıcı: banka > net serbest (Aşama 38) — `supabase/39_asama38.sql` çalıştırılmalı
 
 `38_asama37.sql` sonrasında `39_asama38.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Banka tutarı net maaştan büyükse Diğer sütunu eksi değer (ör. −1.000,00) gösterir.
+
+**Diğer (+) / (−) toplamları (Aşama 39, SQL gerekmez):** Tablonun altında Diğer'in artı değerlerinin toplamı ile eksi değerlerinin toplamı ayrı satırlarda gösterilir; "Toplam" satırındaki Diğer ise ikisinin net toplamıdır.
