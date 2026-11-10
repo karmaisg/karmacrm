@@ -47,10 +47,10 @@ export function maasHesapla(net, banka) {
 }
 /** Tüm personel toplamı; "diğer" toplamı yalnızca banka tutarı girilmiş satırlardan. */
 export function maasToplamlari(liste) {
-  let net = 0; let banka = 0; let diger = 0; let girilen = 0;
+  let net = 0; let banka = 0; let diger = 0; let girilen = 0; let artı = 0; let eksi = 0;
   for (const x of liste ?? []) {
     const h = maasHesapla(x.net_salary, x.bank_amount); net += kurus(h.net ?? 0);
-    if (h.banka !== null) { banka += kurus(h.banka); diger += kurus(h.diger); girilen += 1; }
+    if (h.banka !== null) { banka += kurus(h.banka); diger += kurus(h.diger); girilen += 1; if (kurus(h.diger) > 0) artı += kurus(h.diger); else eksi += kurus(h.diger); }
   }
-  return { adet: (liste ?? []).length, net: net / 100, banka: banka / 100, diger: diger / 100, girilen };
+  return { adet: (liste ?? []).length, net: net / 100, banka: banka / 100, diger: diger / 100, girilen, artiToplam: artı / 100, eksiToplam: eksi / 100 };
 }

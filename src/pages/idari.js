@@ -264,7 +264,7 @@ export async function idariSayfasi(app) {
   const maasYaz = app.can('payroll', 'create'); const maasDuzenler = app.can('payroll', 'edit'); const maasArsivler = app.can('payroll', 'archive');
   const sayiMetni = (x) => (x === null || x === undefined ? '' : String(x).replace('.', ','));
   const digerHucre = (h) => (h.diger === null ? '—' : para2(h.diger));
-  const maasToplamSatiri = () => { const t = maasToplamlari(maaslar); return html`<tr><th scope="row">Toplam (${t.adet} personel)</th><td class="num">${para2(t.net)}</td><td class="num">${para2(t.banka)}</td><td class="num">${para2(t.diger)}</td><td></td></tr>`; };
+  const maasToplamSatiri = () => { const t = maasToplamlari(maaslar); return html`<tr><th scope="row">Toplam (${t.adet} personel)</th><td class="num">${para2(t.net)}</td><td class="num">${para2(t.banka)}</td><td class="num">${para2(t.diger)}</td><td></td></tr><tr data-maas-artı><th scope="row" colspan="3">Diğer (+) toplamı</th><td class="num">${para2(t.artiToplam)}</td><td></td></tr><tr data-maas-eksi><th scope="row" colspan="3">Diğer (−) toplamı</th><td class="num">${para2(t.eksiToplam)}</td><td></td></tr>`; };
   const maasSatiri = (m) => { const h = maasHesapla(m.net_salary, m.bank_amount);
     return html`<tr data-maas-satir="${m.id}"><th scope="row"><strong>${m.full_name}</strong></th>
       <td><input class="butce-in butce-sayi" type="text" inputmode="decimal" data-maas="net_salary" value="${sayiMetni(m.net_salary)}" aria-label="${m.full_name} net maaş" ${maasDuzenler ? '' : html`disabled`}></td>
