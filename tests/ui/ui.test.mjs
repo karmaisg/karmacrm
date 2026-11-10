@@ -3460,6 +3460,49 @@ await test('İSG teklifi Word çıktısı: firma adı büyük harf, yetkili, ça
   // kopyalanan teklif sözleşme tarihini taşır (sahte veritabanı kopya alanları aynen taşır)
 });
 
+await test('Teklif PDF\'i: bağlantı oluştururken yüklenir, müşteri "Teklif Detayı Gör" ile indirir, Yazdır/PDF yüklü PDF\'i yazdırır, kaldırılabilir', async (s, ctx) => {
+  await girisYap(s);
+  await gonderilmisTeklif(s, 'Pdf Gıda A.Ş.', { kalem: false });
+  const gec = os.tmpdir(); const pdfYolu = path.join(gec, 'Pdf Teklifi 2026.pdf'); const pdfIcerik = '%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n';
+  fs.writeFileSync(pdfYolu, pdfIcerik); const txtYolu = path.join(gec, 'not.txt'); fs.writeFileSync(txtYolu, 'merhaba'); const sahteYolu = path.join(gec, 'sahte.pdf'); fs.writeFileSync(sahteYolu, 'MZ bu pdf degil');
+  esit(await s.locator('#teklif-pdf-bilgi').innerText().then((t) => t.includes('Teklif PDF\'i yüklenmedi')), true, 'başlangıçta PDF yok');
+  await s.click('[data-action="paylasim-olustur"]'); const m = modal(s);
+  await m.locator('#f-pdf').setInputFiles(txtYolu); await m.locator('button[type=submit]').click();
+  if (!(await m.innerText()).includes('Yalnızca .pdf dosyası yüklenebilir')) throw new Error('.pdf dışı dosya reddedilmeli');
+  await m.locator('#f-pdf').setInputFiles(sahteYolu); await m.locator('button[type=submit]').click();
+  await m.locator('.field-error:has-text("geçerli bir PDF değil")').waitFor({ timeout: 5000 }).catch(() => { throw new Error('PDF imzası olmayan dosya reddedilmeli'); });
+  esit(await s.evaluate(() => globalThis.__fake.tablo.offer_pdfs.length), 0, 'reddedilen dosya kaydedilmedi');
+  await m.locator('#f-pdf').setInputFiles(pdfYolu); await m.locator('button[type=submit]').click();
+  await s.waitForSelector('#m-link'); const link = await s.locator('#m-link').inputValue(); await s.click('.modal-actions [data-close]');
+  await s.waitForSelector('#teklif-pdf-bilgi .pill:has-text("yüklü")');
+  const bilgi = await s.locator('#teklif-pdf-bilgi').innerText(); if (!bilgi.includes('Pdf Teklifi 2026.pdf')) throw new Error(`pdf bilgisi: ${bilgi}`);
+  esit(await s.evaluate(() => globalThis.__fake.tablo.offer_pdfs.filter((x) => !x.archived_at).length), 1, 'tek aktif PDF');
+  // müşteri: Hizmet bedeli kartının üstünde "Teklif Detayı Gör"; tıklayınca PDF iner
+  const c = await musteriSayfasi(s, ctx, link); await c.waitForSelector('#teklif-detay-gor');
+  esit(await c.evaluate(() => { const d = document.querySelector('#teklif-detay'); const h = [...document.querySelectorAll('h2.card-title')].find((e) => e.textContent.trim() === 'Hizmet bedeli'); return !!(d.compareDocumentPosition(h.closest('section')) & Node.DOCUMENT_POSITION_FOLLOWING); }), true, 'düğme Hizmet bedeli kartının üstünde');
+  esit((await c.locator('#teklif-detay-gor').innerText()).trim(), 'Teklif Detayı Gör', 'düğme etiketi');
+  const [ind] = await Promise.all([c.waitForEvent('download'), c.click('#teklif-detay-gor')]);
+  esit(ind.suggestedFilename(), 'Pdf Teklifi 2026.pdf', 'indirilen ad'); esit(fs.readFileSync(await ind.path(), 'utf8'), pdfIcerik, 'indirilen içerik aynı');
+  esit(await c.locator('#teklif-detay-hata').isHidden(), true, 'hata yok');
+  esit(c.__hatalar.length, 0, `müşteri sayfası hataları: ${c.__hatalar.join(' | ')}`);
+  await c.close();
+  // yönetici: Yazdır / PDF yüklü PDF'i yazdırma çerçevesine yükler
+  await s.click('[data-yazdir]'); await s.waitForSelector('iframe[data-pdf-yazdir][src^="blob:"]', { state: 'attached', timeout: 8000 });
+  // ikinci yükleme öncekini değiştirir
+  fs.writeFileSync(pdfYolu, pdfIcerik + '% yeni\n');
+  await s.click('[data-action="paylasim-olustur"]'); const m2 = modal(s);
+  if (!(await m2.innerText()).includes('Yüklü dosya: Pdf Teklifi 2026.pdf')) throw new Error('mevcut PDF bilgisi forma yazılmalı');
+  await m2.locator('#f-pdf').setInputFiles(pdfYolu); await m2.locator('button[type=submit]').click(); await s.waitForSelector('#m-link'); const link2 = await s.locator('#m-link').inputValue(); await s.click('.modal-actions [data-close]');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.offer_pdfs.filter((x) => !x.archived_at).length), 1, 'yenisi öncekini arşive alır');
+  // yeni bağlantı, dosya seçmeden: mevcut PDF kullanılır
+  await s.click('[data-action="paylasim-olustur"]'); await modal(s).locator('button[type=submit]').click(); await s.waitForSelector('#m-link'); const link3 = await s.locator('#m-link').inputValue(); await s.click('.modal-actions [data-close]');
+  const c3 = await musteriSayfasi(s, ctx, link3); await c3.waitForSelector('#teklif-detay-gor'); await c3.close();
+  // kaldır: müşteri sayfasında düğme kalmaz
+  await s.click('[data-action="pdf-kaldir"]'); await s.locator('[data-ok]').click(); await s.waitForSelector('#teklif-pdf-bilgi:has-text("yüklenmedi")');
+  const c4 = await musteriSayfasi(s, ctx, link3); await c4.waitForSelector('#aylik-toplam'); esit(await c4.locator('#teklif-detay').count(), 0, 'PDF yokken düğme yok'); await c4.close();
+  void link2;
+});
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }

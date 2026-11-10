@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['salary_calcs', 'budget_personnel_lines', 'budget_expense_lines', 'budget_lines', 'signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
+for (const ad of ['offer_pdfs', 'salary_calcs', 'budget_personnel_lines', 'budget_expense_lines', 'budget_lines', 'signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -742,6 +742,37 @@ const rpcler = {
       zaman: tablo.time_entries.filter((t) => !t.archived_at && t.work_date >= bas && t.work_date <= bit).map((t) => ({ employee_id: t.employee_id, company_id: t.company_id, work_date: t.work_date, activity_type: t.activity_type, onsite_minutes: t.onsite_minutes, reporting_minutes: t.reporting_minutes, archived_at: null })),
       personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type ?? null, role_kind: e.role_kind ?? null, title: e.title ?? null, is_management: !!e.is_management, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
     } };
+  },
+  teklif_pdf_yukle({ p_offer, p_ad, p_veri }) {
+    if (!izinVar('offers', 'can_edit')) return { error: hata('Teklifi düzenleme yetkiniz yok.', 'P0001') };
+    const o = tablo.offers.find((x) => x.id === p_offer && !x.archived_at);
+    if (!o) return { error: hata('Teklif bulunamadı.', 'P0001') };
+    if (!/\.pdf$/i.test(p_ad ?? '')) return { error: hata('Dosya adı .pdf ile bitmelidir (en çok 200 karakter).', 'P0001') };
+    let ham; try { ham = atob(p_veri ?? ''); } catch { return { error: hata('Dosya okunamadı. Lütfen geçerli bir PDF seçin.', 'P0001') }; }
+    if (ham.length > 3145728) return { error: hata('PDF en çok 3 MB olabilir.', 'P0001') };
+    if (!ham.startsWith('%PDF-')) return { error: hata('Bu dosya geçerli bir PDF değil.', 'P0001') };
+    const simdi = new Date().toISOString();
+    tablo.offer_pdfs.filter((x) => x.offer_id === o.id && !x.archived_at).forEach((x) => { x.archived_at = simdi; });
+    const kayit = { id: uid(), organization_id: ORG, offer_id: o.id, file_name: p_ad, size_bytes: ham.length, content: p_veri, created_at: simdi, archived_at: null };
+    tablo.offer_pdfs.push(kayit);
+    return { data: { id: kayit.id, ad: p_ad, boyut: ham.length } };
+  },
+  teklif_pdf_kaldir({ p_offer }) {
+    if (!izinVar('offers', 'can_edit')) return { error: hata('Teklifi düzenleme yetkiniz yok.', 'P0001') };
+    const a = tablo.offer_pdfs.filter((x) => x.offer_id === p_offer && !x.archived_at); a.forEach((x) => { x.archived_at = new Date().toISOString(); });
+    return { data: a.length };
+  },
+  teklif_pdf_getir({ p_offer }) {
+    if (!izinVar('offers', 'can_view')) return { error: hata('Teklifleri görüntüleme yetkiniz yok.', 'P0001') };
+    const f = tablo.offer_pdfs.find((x) => x.offer_id === p_offer && !x.archived_at);
+    return { data: f ? { ad: f.file_name, boyut: f.size_bytes, veri: f.content } : null };
+  },
+  teklif_paylasim_pdf({ p_token, p_veri }) {
+    const s = paylasimBul(p_token);
+    if (!s) return { data: { durum: 'gecersiz' } };
+    const f = tablo.offer_pdfs.find((x) => x.offer_id === s.offer_id && !x.archived_at);
+    if (!f) return { data: { durum: 'yok' } };
+    return { data: { durum: 'var', ad: f.file_name, boyut: f.size_bytes, ...(p_veri ? { veri: f.content } : {}) } };
   },
   teklif_baglantisi_olustur({ p_offer, p_gun, p_not }) {
     if (!izinVar('offers', 'can_edit')) return { error: hata('Teklifi düzenleme yetkiniz yok.', 'P0001') };
