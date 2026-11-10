@@ -5,11 +5,13 @@ import { pill, emptyState, field, openFormModal, confirmDialog, toast } from '..
 import { humanError } from '../lib/api.js';
 import { bosIseNull } from '../lib/veri.js';
 import { izinHakki, isGunuSayisi } from '../lib/izin.js';
-import { OZLUK_BELGELERI, BELGE_TURU, ARAC_KAYDI, KABUL, dosyaDogrula, dosyaTuru, boyutMetni, sureDurumu, plakaDuzelt, plakaGecerli } from '../lib/idari.js';
+import { sayiOku } from '../lib/butce.js';
+import { maasHesapla, maasToplamlari, OZLUK_BELGELERI, BELGE_TURU, ARAC_KAYDI, KABUL, dosyaDogrula, dosyaTuru, boyutMetni, sureDurumu, plakaDuzelt, plakaGecerli } from '../lib/idari.js';
 
 const SEKMELER = [
   { id: 'ozluk', ad: 'Özlük belgeleri', simge: 'folder' }, { id: 'izin', ad: 'Personel izinleri', simge: 'calendar' },
   { id: 'arac', ad: 'Şirket araçları', simge: 'car' }, { id: 'sirket', ad: 'Şirket belgeleri', simge: 'building' },
+  { id: 'maas', ad: 'Maaş hesaplayıcı', simge: 'calc' },
 ];
 const durum = { sekme: 'ozluk', kisi: '', arac: '' };   // sayfa yenilense de seçim korunur
 
@@ -149,9 +151,14 @@ function aracKaydiFormuAc(app, { arac, kayit = null }) {
 // ---------------------------------------------------------------- sayfa
 export async function idariSayfasi(app) {
   const bugunStr = bugun();
-  const [calisanlar, belgeler, izinler, araclar, kayitlar] = await Promise.all([
+  const maasYetkisi = app.can('payroll', 'view');
+  const [calisanlar, belgeler, izinler, araclar, kayitlar, maasListesi] = await Promise.all([
     app.can('staff', 'view') ? app.api.listEmployees() : [], app.api.listAdminDocuments(), app.api.listLeaves(), app.api.listVehicles(), app.api.listVehicleRecords(),
+    maasYetkisi ? app.api.listSalaryCalcs().catch(() => null) : [],   // SQL (38_asama37) çalıştırılmadıysa null
   ]);
+  let maaslar = maasListesi ?? [];
+  const sekmeler = SEKMELER.filter((s) => s.id !== 'maas' || maasYetkisi);
+  if (!sekmeler.some((s) => s.id === durum.sekme)) durum.sekme = 'ozluk';
   const yaz = app.can('admin_affairs', 'create'); const duzenler = app.can('admin_affairs', 'edit'); const arsivler = app.can('admin_affairs', 'archive');
   const personel = calisanlar.filter((p) => !p.archived_at).sort((a, b) => trSirala(a.full_name, b.full_name));
   const canliBelge = belgeler.filter((d) => !d.archived_at);
@@ -253,11 +260,31 @@ export async function idariSayfasi(app) {
     : emptyState({ simge: 'building', baslik: 'Henüz şirket belgesi yok', metin: 'Şirketle ilgili belgeleri (PDF veya resim) adı, tarihi ve açıklamasıyla yükleyin.', eylem: yaz ? html`<button type="button" class="btn btn-primary" data-sirket-belge>${icon('upload', 18)} Belge yükle</button>` : '' })}</section>`;
   };
 
-  const govdeCiz = () => ({ ozluk, izin, arac, sirket })[durum.sekme]();
-  const sekmeCubugu = () => html`<div class="tabs" role="tablist" aria-label="İdari işler bölümleri">${SEKMELER.map((s) => html`<button type="button" role="tab" class="tab ${durum.sekme === s.id ? 'tab-on' : ''}" aria-selected="${durum.sekme === s.id}" data-sekme="${s.id}">${icon(s.simge, 16)} ${s.ad}</button>`)}</div>`;
+  // ---- 5) maaş hesaplayıcı: net maaş kayıtlı kalır; banka bordrodan girilir; diğer = net − banka
+  const maasYaz = app.can('payroll', 'create'); const maasDuzenler = app.can('payroll', 'edit'); const maasArsivler = app.can('payroll', 'archive');
+  const sayiMetni = (x) => (x === null || x === undefined ? '' : String(x).replace('.', ','));
+  const digerHucre = (h) => (h.diger === null ? '—' : para2(h.diger));
+  const maasToplamSatiri = () => { const t = maasToplamlari(maaslar); return html`<tr><th scope="row">Toplam (${t.adet} personel)</th><td class="num">${para2(t.net)}</td><td class="num">${para2(t.banka)}</td><td class="num">${para2(t.diger)}</td><td></td></tr>`; };
+  const maasSatiri = (m) => { const h = maasHesapla(m.net_salary, m.bank_amount);
+    return html`<tr data-maas-satir="${m.id}"><th scope="row"><strong>${m.full_name}</strong></th>
+      <td><input class="butce-in butce-sayi" type="text" inputmode="decimal" data-maas="net_salary" value="${sayiMetni(m.net_salary)}" aria-label="${m.full_name} net maaş" ${maasDuzenler ? '' : html`disabled`}></td>
+      <td><input class="butce-in butce-sayi" type="text" inputmode="decimal" data-maas="bank_amount" value="${sayiMetni(m.bank_amount)}" placeholder="Bordrodaki tutar" aria-label="${m.full_name} banka (bordro)" ${maasDuzenler ? '' : html`disabled`}></td>
+      <td class="num" data-maas-diger>${digerHucre(h)}</td>
+      <td class="actions">${maasArsivler ? html`<button type="button" class="icon-btn" data-maas-sil="${m.id}" aria-label="Personeli sil" title="Sil">${icon('trash', 16)}</button>` : ''}</td></tr>`; };
+  const maas = () => {
+    if (maasListesi === null) return html`<section class="card">${emptyState({ simge: 'calc', baslik: 'Maaş hesaplayıcı hazır değil', metin: 'Supabase SQL Editor\'de 38_asama37.sql dosyasını çalıştırın.' })}</section>`;
+    return html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Maaş hesaplayıcı</h2>${maasYaz ? html`<button type="button" class="btn btn-primary btn-sm" data-maas-ekle>${icon('plus', 16)} Personel ekle</button>` : ''}</div>
+      ${maaslar.length ? html`<div class="table-wrap"><table class="table" id="maas-tablo"><thead><tr><th scope="col">Ad Soyad</th><th scope="col" class="num">Net maaş</th><th scope="col" class="num">Banka (bordro)</th><th scope="col" class="num">Diğer (net − banka)</th><th scope="col"><span class="sr-only">Eylem</span></th></tr></thead>
+        <tbody>${maaslar.map(maasSatiri)}</tbody><tfoot id="maas-toplam">${maasToplamSatiri()}</tfoot></table></div>
+        <p class="muted fine pad">Net maaş, siz değiştirene kadar kayıtlı kalır. Banka alanına bordroda yazan tutarı girin; Diğer = Net maaş − Banka olarak hesaplanır.</p>`
+      : emptyState({ simge: 'calc', baslik: 'Henüz personel eklenmedi', metin: 'Adı soyadı ve net maaşı girerek başlayın; banka tutarını bordrodan yazın, diğer tutar otomatik hesaplanır.', eylem: maasYaz ? html`<button type="button" class="btn btn-primary" data-maas-ekle>${icon('plus', 16)} Personel ekle</button>` : '' })}</section>`;
+  };
+
+  const govdeCiz = () => ({ ozluk, izin, arac, sirket, maas })[durum.sekme]();
+  const sekmeCubugu = () => html`<div class="tabs" role="tablist" aria-label="İdari işler bölümleri">${sekmeler.map((s) => html`<button type="button" role="tab" class="tab ${durum.sekme === s.id ? 'tab-on' : ''}" aria-selected="${durum.sekme === s.id}" data-sekme="${s.id}">${icon(s.simge, 16)} ${s.ad}</button>`)}</div>`;
 
   return {
-    baslik: 'İdari İşler', altBaslik: 'Özlük belgeleri, yıllık izinler, şirket araçları ve şirket belgeleri',
+    baslik: 'İdari İşler', altBaslik: 'Özlük belgeleri, yıllık izinler, şirket araçları, şirket belgeleri ve maaş hesaplayıcı',
     govde: html`<div id="idari-sekmeler">${sekmeCubugu()}</div><div id="idari-icerik">${govdeCiz()}</div>`,
     mount(kok) {
       const ic = kok.querySelector('#idari-icerik'); const sb = kok.querySelector('#idari-sekmeler');
@@ -266,7 +293,21 @@ export async function idariSayfasi(app) {
       const belgeTurleri = ['ruhsat', 'trafik_sigortasi', 'kasko', 'bakim', 'diger'];
       kok.addEventListener('change', (e) => {
         if (e.target.id === 'idari-kisi') { durum.kisi = e.target.value; ciz(); }
+        if (e.target.dataset.maas) maasDegisti(e.target);
       });
+      const maasDegisti = async (el) => {
+        const tr = el.closest('[data-maas-satir]'); const m = maaslar.find((x) => x.id === tr?.dataset.maasSatir); if (!m) return;
+        const alan = el.dataset.maas; const bos = el.value.trim() === ''; const v = bos ? null : sayiOku(el.value);
+        const eski = sayiMetni(m[alan]);
+        if ((!bos && v === null) || (alan === 'net_salary' && bos)) { toast(alan === 'net_salary' ? 'Net maaşı girin (0 veya üstü).' : 'Geçerli bir sayı girin.', 'hata'); el.value = eski; return; }
+        const y = { ...m, [alan]: v };
+        if (y.bank_amount !== null && y.bank_amount !== undefined && Number(y.bank_amount) > Number(y.net_salary)) { toast('Banka tutarı net maaştan büyük olamaz.', 'hata'); el.value = eski; return; }
+        try {
+          const kayit = await app.api.updateSalaryCalc(m.id, { [alan]: v }); maaslar = maaslar.map((x) => (x.id === m.id ? kayit : x));
+          const h = maasHesapla(kayit.net_salary, kayit.bank_amount); tr.querySelector('[data-maas-diger]').textContent = digerHucre(h).s ?? digerHucre(h);
+          el.value = sayiMetni(kayit[alan]); kok.querySelector('#maas-toplam').innerHTML = maasToplamSatiri().s;
+        } catch (err) { toast(humanError(err), 'hata'); el.value = eski; }
+      };
       kok.addEventListener('click', async (e) => {
         const t = e.target; const a = (s) => t.closest(`[${s}]`);
         let x;
@@ -317,6 +358,26 @@ export async function idariSayfasi(app) {
           const k = bul(kayitlar, x.dataset.kayitBelge); if (!v || !k) return;
           belgeFormuAc(app, { kapsam: 'arac', aracId: v.id, kayitId: k.id, tur: k.kind === 'diger' || k.kind === 'muayene' ? 'diger' : k.kind, baslik: `${v.plate} · ${ARAC_KAYDI[k.kind]} belgesi`,
             baslikGoster: k.kind === 'diger' || k.kind === 'muayene', baslikZorunlu: k.kind === 'diger' || k.kind === 'muayene' });
+          return;
+        }
+        if (a('data-maas-ekle')) {
+          openFormModal({ baslik: 'Personel ekle', altBaslik: 'Net maaş, siz değiştirene kadar kayıtlı kalır.', boyut: 'sm', gonderEtiketi: 'Ekle',
+            govde: html`${field({ ad: 'full_name', etiket: 'Ad Soyad', zorunlu: true, maksUzunluk: 200, tam: true })}${field({ ad: 'net_salary', etiket: 'Net maaş (TL)', zorunlu: true, tam: true, ipucu: 'Örn. 35.000 veya 35000,50' })}`,
+            async onSubmit(fd) {
+              const ad = String(fd.get('full_name') ?? '').trim(); const net = sayiOku(fd.get('net_salary')); const h = {};
+              if (!ad) h.full_name = 'Adı soyadı yazın.';
+              if (net === null) h.net_salary = 'Net maaşı girin (0 veya üstü).';
+              if (Object.keys(h).length) return { errors: h };
+              maaslar = [...maaslar, await app.api.createSalaryCalc({ full_name: ad, net_salary: net })];
+            },
+            onDone: () => ciz(),
+          });
+          return;
+        }
+        if ((x = a('data-maas-sil'))) {
+          const m = bul(maaslar, x.dataset.maasSil); if (!m) return;
+          if (!(await confirmDialog({ baslik: 'Personeli sil', onayEtiketi: 'Sil', tehlikeli: true, mesaj: `"${m.full_name}" maaş hesaplayıcıdan kaldırılacak (kayıt arşivde tutulur).` }))) return;
+          try { await app.api.archiveSalaryCalc(m.id); maaslar = maaslar.filter((q) => q.id !== m.id); toast('Personel kaldırıldı.'); ciz(); } catch (err) { toast(humanError(err), 'hata'); }
           return;
         }
         if (a('data-sirket-belge')) belgeFormuAc(app, { kapsam: 'sirket', baslik: 'Şirket belgesi yükle', baslikGoster: true, baslikZorunlu: true, gecerlilik: false });

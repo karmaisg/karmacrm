@@ -36,3 +36,21 @@ export function sureDurumu(bitis, bugun, uyariGun = 30) {
 /** Plaka: boşluksuz, büyük harf (veri tabanındaki kuralla aynı). */
 export const plakaDuzelt = (p) => String(p ?? '').replace(/\s+/g, '').toUpperCase();
 export const plakaGecerli = (p) => /^[0-9A-Z]{3,15}$/.test(plakaDuzelt(p));
+
+// ---------------------------------------------------------------- maaş hesaplayıcı
+const kurus = (x) => Math.round(Number(x) * 100);
+/** Net maaş ve bordrodaki banka tutarından "Diğer" (elden/ek ödeme) = net maaş − banka. Banka girilmemişse diğer yoktur (null). */
+export function maasHesapla(net, banka) {
+  const n = net === null || net === undefined || net === '' || !Number.isFinite(Number(net)) ? null : Number(net);
+  const b = banka === null || banka === undefined || banka === '' || !Number.isFinite(Number(banka)) ? null : Number(banka);
+  return { net: n, banka: b, diger: n !== null && b !== null ? (kurus(n) - kurus(b)) / 100 : null, asim: n !== null && b !== null && b > n };
+}
+/** Tüm personel toplamı; "diğer" toplamı yalnızca banka tutarı girilmiş satırlardan. */
+export function maasToplamlari(liste) {
+  let net = 0; let banka = 0; let diger = 0; let girilen = 0;
+  for (const x of liste ?? []) {
+    const h = maasHesapla(x.net_salary, x.bank_amount); net += kurus(h.net ?? 0);
+    if (h.banka !== null) { banka += kurus(h.banka); diger += kurus(h.diger); girilen += 1; }
+  }
+  return { adet: (liste ?? []).length, net: net / 100, banka: banka / 100, diger: diger / 100, girilen };
+}
