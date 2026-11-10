@@ -19,7 +19,7 @@ export const ALAN_ADLARI = {
   amount: 'Tutar', amount_excl_vat: 'Tutar (KDV hariç)', vat_amount: 'KDV', vat_rate: 'KDV oranı', invoice_no: 'Fatura no', offer_no: 'Teklif no',
   invoice_date: 'Fatura tarihi', due_date: 'Vade', due_at: 'Son tarih', paid_at: 'Ödeme tarihi', start_date: 'Başlangıç', end_date: 'Bitiş',
   valid_from: 'Geçerlilik başı', valid_to: 'Geçerlilik sonu', archived_at: 'Arşiv tarihi', is_active: 'Aktif', flag: 'Tahsilat işareti',
-  employee_count: 'Çalışan sayısı', hazard_class: 'Tehlike sınıfı', staff_type: 'Personel türü', gross_salary: 'Brüt maaş', employer_sgk: 'İşveren SGK',
+  employee_count: 'Çalışan sayısı', contract_end_date: 'Sözleşme bitiş tarihi', hazard_class: 'Tehlike sınıfı', staff_type: 'Personel türü', gross_salary: 'Brüt maaş', employer_sgk: 'İşveren SGK',
   other_benefits: 'Diğer yan haklar', total_monthly_cost: 'Aylık toplam maliyet', unit_price: 'Birim fiyat', fixed_monthly_price: 'Sabit aylık fiyat',
   discount_pct: 'İskonto %', pricing: 'Fiyatlandırma', key: 'Anahtar', value: 'Değer', can_view: 'Görüntüleme', can_create: 'Oluşturma',
   can_edit: 'Düzenleme', can_archive: 'Arşivleme', module: 'Modül', role_id: 'Rol', minutes_per_employee: 'Çalışan başına dakika',

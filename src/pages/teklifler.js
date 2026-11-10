@@ -4,7 +4,7 @@ import {
 } from '../lib/format.js';
 import { icon } from '../ui/icons.js';
 import {
-  avatar, pill, emptyState, field, openFormModal, openModal, confirmDialog, toast, sayfalama,
+  avatar, pill, emptyState, field, checkbox, openFormModal, openModal, confirmDialog, toast, sayfalama,
 } from '../ui/components.js';
 import { SURE_SECENEKLERI, baglantiAdresi, baglantiDurumu, yanitHaritasi, yanitDurumu } from '../lib/musteri.js';
 import { fiyatSenaryolari } from '../lib/hesaplama.js';
@@ -13,6 +13,8 @@ import {
 } from '../lib/ticari.js';
 import { ayarDegeri, bosIseNull, guncelProfil, profilleriGrupla } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
+import { dosyaIndir } from '../ui/indir.js';
+import { teklifAlanlari, docxUret, dosyaAdi, DOCX_TURU } from '../lib/isg_teklif_word.js';
 
 const SAYFA_BASI = 25;
 export const teklifPill = (d) => pill(TEKLIF_DURUMLARI[d] ?? d, TEKLIF_TON[d] ?? 'neutral');
@@ -39,6 +41,8 @@ export function hesapOzeti(o, esik) {
     ${h.uyari ? html`<div class="notice notice-warn" role="status">${h.uyari}</div>` : ''}
   </div>`;
 }
+
+const form_isaretli = (fd) => fd.get('contract_end_on') === '1';
 
 // ---------------------------------------------------------------- form
 export async function teklifFormuAc(app, { teklif = null, leadId = null, companyId = null, opportunityId = null, onDone = null } = {}) {
@@ -85,6 +89,8 @@ export async function teklifFormuAc(app, { teklif = null, leadId = null, company
       ${field({ ad: 'vat_rate', etiket: 'KDV oranı (%)', tur: 'number', min: 0, max: 100, adim: '0.01', deger: v('vat_rate', varsayilanKdv(ayarlar)) })}
       ${field({ ad: 'discount_pct', etiket: 'İndirim (%)', tur: 'number', min: 0, max: 100, adim: '0.01', deger: v('discount_pct', 0) })}
       ${field({ ad: 'valid_until', etiket: 'Geçerlilik tarihi', tur: 'date', deger: v('valid_until', gunEkle(bugun(), 30)) })}
+      ${checkbox({ ad: 'contract_end_on', etiket: 'Sözleşme bitiş tarihi belirtilsin mi?', isaretli: !!teklif?.contract_end_date, ipucu: 'İşaretlenirse Word teklifinde "Sözleşme … tarihine kadar yapılacak olup, yeni sözleşme dönemi fiyatları…" cümlesi yer alır; işaretlenmezse bu cümle çıkmaz.' })}
+      ${field({ ad: 'contract_end_date', etiket: 'Sözleşme bitiş tarihi', tur: 'date', deger: v('contract_end_date') })}
       ${field({ ad: 'est_expert_cost', etiket: 'Tahmini aylık uzman maliyeti (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: v('est_expert_cost'), ipucu: 'Bu müşteriye ayrılacak uzman süresinin aylık maliyeti.' })}
       ${field({ ad: 'est_physician_cost', etiket: 'Tahmini aylık hekim maliyeti (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: v('est_physician_cost') })}
       ${field({ ad: 'est_travel_other_cost', etiket: 'Tahmini yol ve diğer maliyet (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: v('est_travel_other_cost') })}
@@ -111,11 +117,13 @@ export async function teklifFormuAc(app, { teklif = null, leadId = null, company
       if (g('vat_rate') === '' || !(kdv >= 0 && kdv <= 100)) h.vat_rate = 'KDV oranı 0 ile 100 arasında olmalıdır.';
       const ind = Number(g('discount_pct') || 0);
       if (!spot && !(ind >= 0 && ind <= 100)) h.discount_pct = 'İndirim 0 ile 100 arasında olmalıdır.';
+      const sozBitis = !spot && form_isaretli(fd) ? g('contract_end_date') : '';
+      if (!spot && form_isaretli(fd) && !sozBitis) h.contract_end_date = 'Sözleşme bitiş tarihini seçin.';
       if (g('valid_until') && g('valid_until') < (teklif?.offer_date ?? bugun())) h.valid_until = 'Geçerlilik tarihi teklif tarihinden önce olamaz.';
       if (Object.keys(h).length) return { errors: h };
       const num = (k) => (g(k) === '' ? null : Number(g(k)));
       const kisi = g('pricing') === 'kisi_basi';
-      const ortak = { company_id: bosIseNull(firma), lead_id: bosIseNull(aday), opportunity_id: bosIseNull(g('opportunity_id')),
+      const ortak = { contract_end_date: bosIseNull(sozBitis), company_id: bosIseNull(firma), lead_id: bosIseNull(aday), opportunity_id: bosIseNull(g('opportunity_id')),
         vat_mode: g('vat_mode') || 'kdv_haric', vat_rate: kdv, valid_until: bosIseNull(g('valid_until')), description: bosIseNull(g('description')) };
       const degerler = spot
         ? { ...ortak, offer_type: 'patlamadan_korunma', pricing: 'ozel', service_fee: num('service_fee'), scope: bosIseNull(g('scope')), employee_count: null, hazard_class: null,
@@ -136,6 +144,7 @@ export async function teklifFormuAc(app, { teklif = null, leadId = null, company
     const kisi = g('pricing') === 'kisi_basi';
     const spot = g('offer_type') === 'patlamadan_korunma';
     const goster = (ad, ok) => { const e = form.querySelector(`[data-field="${ad}"]`); if (e) e.hidden = !ok; };
+    goster('contract_end_on', !spot); goster('contract_end_date', !spot && !!form.elements.contract_end_on.checked);
     for (const ad of ['employee_count', 'hazard_class', 'pricing', 'discount_pct', 'est_expert_cost', 'est_physician_cost', 'est_travel_other_cost']) goster(ad, !spot);
     goster('unit_price', !spot && kisi); goster('fixed_monthly_price', !spot && !kisi); goster('service_fee', spot); goster('scope', spot);
     const etiketEl = form.querySelector('[data-field="description"] label'); if (etiketEl) etiketEl.firstChild.textContent = spot ? 'Açıklama' : 'Açıklama / kapsam';
@@ -329,6 +338,7 @@ export async function teklifSayfasi(app, id) {
       <span class="muted">${tarih(o.offer_date)}${o.valid_until ? ` · geçerlilik ${tarih(o.valid_until)}` : ''}</span></div></div></div>`,
     eylemler: html`${duzenleyebilir && !kilitli ? html`<button type="button" class="btn btn-secondary" data-action="duzenle">${icon('pencil', 18)} Düzenle</button>` : ''}
       <button type="button" class="btn btn-secondary" data-yazdir>${icon('file', 18)} Yazdır / PDF</button>
+      ${spot ? '' : html`<button type="button" class="btn btn-secondary" data-word-teklif>${icon('file', 18)} Word teklifi</button>`}
       ${app.can('offers', 'create') ? html`<button type="button" class="btn btn-secondary" data-action="kopyala">${icon('file', 18)} Kopyala</button>` : ''}
       ${!spot && duzenleyebilir && kabulEdilebilir(o.status) && app.can('contracts', 'create') ? html`<button type="button" class="btn btn-primary" data-action="kabul">${icon('check', 18)} Sözleşme oluştur</button>` : ''}
       ${app.can('offers', 'archive') && !o.archived_at ? html`<button type="button" class="btn btn-secondary" data-action="arsiv">${icon('archive', 18)} Arşivle</button>` : ''}`,
@@ -367,6 +377,8 @@ export async function teklifSayfasi(app, id) {
     mount(kok) {
       kok.addEventListener('click', async (e) => {
         if (e.target.closest('[data-yazdir]')) { window.print(); return; }
+        const wordDugme = e.target.closest('[data-word-teklif]');
+        if (wordDugme) { await wordTeklifiIndir(app, o, firma, aday, wordDugme); return; }
         const kalemSil = e.target.closest('[data-kalem-sil]');
         if (kalemSil) {
           try { await app.api.archiveOfferItem(kalemSil.dataset.kalemSil); toast('Kalem kaldırıldı.'); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
@@ -396,6 +408,27 @@ export async function teklifSayfasi(app, id) {
       });
     },
   };
+}
+
+/** İSG hizmeti teklifini firmanın Word şablonuyla indirir (firma/aday adı, yetkili, çalışan, tehlike sınıfı, fiyat, sözleşme tarihi). */
+async function wordTeklifiIndir(app, o, firma, aday, dugme) {
+  const kaynak = firma ?? aday;
+  if (!kaynak) { toast('Teklifin firması veya potansiyel müşterisi görüntülenemiyor.', 'hata'); return; }
+  dugme.disabled = true;
+  try {
+    let yetkili = firma ? '' : (aday?.contact_name ?? '');
+    try {
+      const kisiler = firma ? await app.api.listContactsByCompany(firma.id) : (yetkili ? [] : await app.api.listContactsByLead(aday.id));
+      const aktif = kisiler.filter((k) => !k.archived_at);
+      yetkili = (aktif.find((k) => k.is_decision_maker) ?? aktif[0])?.full_name ?? yetkili;
+    } catch { /* kişi listesine erişim yoksa "Sayın Yetkili" yazılır */ }
+    const alanlar = teklifAlanlari(o, { ad: kaynak.name, yetkili, sehir: kaynak.city, ilce: kaynak.district });
+    const yanit = await fetch(new URL('../assets/teklif_sablonu.docx', import.meta.url));
+    if (!yanit.ok) throw new Error('Word şablonu yüklenemedi.');
+    const bayt = await docxUret(new Uint8Array(await yanit.arrayBuffer()), alanlar);
+    const ad = dosyaAdi(kaynak.name);
+    dosyaIndir(ad, bayt, DOCX_TURU); toast(`Word teklifi indirildi: ${ad}`);
+  } catch (err) { toast(err?.message ? humanError(err) : 'Word teklifi hazırlanamadı.', 'hata'); } finally { dugme.disabled = false; }
 }
 
 function kalemFormu(app, o) {
