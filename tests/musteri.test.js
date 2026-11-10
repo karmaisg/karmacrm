@@ -77,3 +77,11 @@ test('yanıt haritası ve yanıt durumu: bekliyor / kabul / red, işlenmiş ve a
   assert.equal(yanitDurumu(null, h), null);
   assert.equal(yanitHaritasi(null).size, 0);
 });
+
+test('patlamadan korunma teklifi: tek seferlik hizmet bedeli + KDV (hariç ve dahil giriş), ek kalemler', () => {
+  const a = teklifOzeti({ teklif_turu: 'patlamadan_korunma', hizmet_bedeli: 12000, kdv_modu: 'kdv_haric', kdv_orani: 20, kalemler: [{ aciklama: 'Ölçüm', miktar: 2, birim_fiyat: 500, kdv_modu: 'kdv_haric', kdv_orani: 20 }] });
+  assert.equal(a.spot, true); assert.equal(a.haric, 12000); assert.equal(a.kdv, 2400); assert.equal(a.dahil, 14400); assert.equal(a.kalemHaric, 1000);
+  const b = teklifOzeti({ teklif_turu: 'patlamadan_korunma', hizmet_bedeli: 12000, kdv_modu: 'kdv_dahil', kdv_orani: 20, kalemler: [] });
+  assert.equal(b.dahil, 12000); assert.equal(b.haric, 10000); assert.equal(b.kdv, 2000);
+  assert.equal(teklifOzeti({ fiyatlama: 'sabit_aylik', sabit_fiyat: 1000, calisan_sayisi: 5, kdv_modu: 'kdv_haric', kdv_orani: 20, indirim: 0, kalemler: [] }).spot, undefined);
+});

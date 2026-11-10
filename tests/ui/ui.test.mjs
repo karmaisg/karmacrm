@@ -1800,7 +1800,7 @@ await test('özet e-postası: kart, test gönderimi, günlük kaydı', async (s)
   await girisYap(s);
   await git(s, '#/ayarlar'); await s.waitForSelector('#ozet-kart');
   const kart = await s.locator('#ozet-kart').innerText();
-  for (const b of ['yalnızca sizin e-posta adresinize', 'Müşterilere hiçbir şey gönderilmez', 'Henüz gönderim kaydı yok']) if (!kart.includes(b)) throw new Error(`kartta "${b}" yok: ${kart}`);
+  for (const b of ['sizin e-posta adresinize', 'Geçmiş hatırlatmalar'.toLowerCase(), 'Müşterilere hiçbir şey gönderilmez', 'Henüz gönderim kaydı yok']) if (!kart.includes(b)) throw new Error(`kartta "${b}" yok: ${kart}`);
   if (/@/.test(kart)) throw new Error('kartta e-posta adresi görünmemeli');
   await s.click('#ozet-test');
   await s.waitForSelector('.toast:has-text("Test e-postası gönderildi")');
@@ -3335,6 +3335,45 @@ await test('Sözleşmeler listesi: "İmzalı dosya var / yok" göstergesi ve sü
   await s.waitForFunction(() => document.querySelectorAll('[data-imza]').length === 1 && document.querySelector('[data-imza]').dataset.imza === 'yok');
 });
 
+
+await test('Patlamadan korunma teklifi: yalnızca hizmet bedeli, KDV, açıklama, kapsam; sözleşme yok, "Kabul edildi" ile işlenir', async (s, ctx) => {
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Spot A.Ş.', calisan: 10, tehlike: 'tehlikeli' });
+  await s.waitForSelector('.company-head h1:has-text("Spot")');
+  await git(s, '#/teklifler'); await s.waitForSelector('[data-action="yeni-teklif"]'); await s.click('[data-action="yeni-teklif"]');
+  await s.waitForSelector('#f-company_id'); const m = modal(s);
+  await m.locator('#f-company_id').selectOption({ label: 'Spot A.Ş.' });
+  await m.locator('#f-offer_type').selectOption('patlamadan_korunma');
+  const gorunur = await m.evaluate((el) => Object.fromEntries(['employee_count', 'hazard_class', 'pricing', 'unit_price', 'fixed_monthly_price', 'discount_pct', 'est_expert_cost', 'est_physician_cost', 'est_travel_other_cost', 'service_fee', 'scope', 'vat_rate', 'description'].map((k) => [k, !el.querySelector(`[data-field="${k}"]`).hidden])));
+  esit(JSON.stringify(gorunur), JSON.stringify({ employee_count: false, hazard_class: false, pricing: false, unit_price: false, fixed_monthly_price: false, discount_pct: false, est_expert_cost: false, est_physician_cost: false, est_travel_other_cost: false, service_fee: true, scope: true, vat_rate: true, description: true }), 'spot formunda görünen alanlar');
+  await m.locator('#f-service_fee').fill('10000'); await m.locator('#f-description').fill('Patlamadan korunma dokümanı hazırlanması'); await m.locator('#f-scope').fill('Risk değerlendirmesi ve EX bölge sınıflandırması');
+  await s.waitForFunction(() => document.querySelector('#hesap-alani').innerText.includes('12.000'), null, { timeout: 5000 }).catch(async (e) => { throw new Error(`hesap: ${await s.locator('#hesap-alani').innerText()} | ${e.message}`); });
+  await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head h1:has-text("TKL-")');
+  await var_(s.locator('#spot-fiyat'), 'spot fiyat kartı'); await var_(s.locator('#spot-kapsam'), 'kapsam kartı');
+  const sayfa = await s.locator('main').innerText();
+  if (!sayfa.includes('Patlamadan Korunma Dokümanı') || !sayfa.includes('12.000') || !sayfa.includes('Risk değerlendirmesi')) throw new Error(`spot teklif sayfası: ${sayfa.slice(0, 400)}`);
+  if (sayfa.includes('Kârlılık') || sayfa.includes('Fiyat senaryoları') || sayfa.includes('Çalışan / tehlike')) throw new Error('spot teklifte kârlılık/çalışan alanı görünmemeli');
+  const kayit = await s.evaluate(() => globalThis.__fake.tablo.offers.at(-1));
+  esit([kayit.offer_type, kayit.service_fee, kayit.employee_count, kayit.hazard_class, kayit.pricing, kayit.scope].join('|'), 'patlamadan_korunma|10000|||ozel|Risk değerlendirmesi ve EX bölge sınıflandırması', 'kaydedilen alanlar');
+  // gönder → "Kabul edildi" (sözleşme düğmesi yok)
+  await s.click('[data-gecis="gonderildi"]'); await s.waitForSelector('[data-gecis="kabul_edildi"]');
+  // müşteri teklif raporu: spot türe özel (çalışan/tehlike/aylık yok; açıklama, kapsam, hizmet bedeli)
+  const link = await baglantiOlustur(s, { gun: '14' }); await s.click('.modal-actions [data-close]');
+  const mp = await musteriSayfasi(s, ctx, link); await mp.waitForSelector('#spot-toplam');
+  const mm = await mp.locator('main').innerText();
+  for (const b of ['Patlamadan Korunma Dokümanı Teklifi', 'Spot A.Ş.', 'Patlamadan korunma dokümanı hazırlanması', 'Risk değerlendirmesi ve EX bölge sınıflandırması', 'Hizmet bedeli', 'tek seferlik', 'Yanıtınız']) if (!mm.includes(b)) throw new Error(`müşteri raporunda "${b}" yok: ${mm.slice(0, 500)}`);
+  for (const yasak of ['Çalışan sayısı', 'tehlike sınıfı', 'Aylık toplam', 'Kişi başı', 'Kârlılık', 'Hizmet sözleşmesi ayrıca']) if (mm.includes(yasak)) throw new Error(`spot müşteri raporunda olmamalı: ${yasak}`);
+  esit((await mp.locator('#spot-toplam').innerText()).replace(/\s/g, '').includes('12.000'), true, '10.000 + %20 KDV = 12.000');
+  await mp.close();
+  esit(await s.locator('[data-action="kabul"]').count(), 0, 'sözleşme oluştur düğmesi yok');
+  await s.click('[data-gecis="kabul_edildi"]');
+  await s.waitForFunction(() => globalThis.__fake.tablo.offers.at(-1).status === 'kabul_edildi');
+  // liste
+  await git(s, '#/teklifler'); await s.waitForSelector('tr[data-tur="spot"]');
+  const satir = (await s.locator('tr[data-tur="spot"]').innerText()).replace(/\s+/g, ' ');
+  if (!satir.includes('Patlamadan Korunma') || !satir.includes('10.000') || !satir.toLowerCase().includes('tek seferlik')) throw new Error(`liste satırı: ${satir}`);
+});
 
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);

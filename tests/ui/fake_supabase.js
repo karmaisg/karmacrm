@@ -769,6 +769,7 @@ const rpcler = {
     s.view_count += 1; s.last_viewed_at = new Date().toISOString(); s.first_viewed_at ??= s.last_viewed_at;
     return { data: { durum: 'gecerli', kurum: tablo.organizations[0].name, alici: c?.name ?? 'Müşteri', teklif_no: o.offer_no, teklif_tarihi: o.offer_date, gecerlilik: o.valid_until ?? null,
       calisan_sayisi: o.employee_count, tehlike: o.hazard_class, fiyatlama: o.pricing, birim_fiyat: o.unit_price ?? null, sabit_fiyat: o.fixed_monthly_price ?? null, kdv_modu: o.vat_mode, kdv_orani: o.vat_rate, indirim: o.discount_pct ?? 0,
+      teklif_turu: o.offer_type ?? 'osgb', hizmet_bedeli: o.service_fee ?? null, aciklama: o.description ?? null, kapsam: o.scope ?? null,
       kalemler: tablo.offer_items.filter((i) => i.offer_id === o.id && !i.archived_at).map((i) => ({ aciklama: i.description, miktar: i.quantity, birim_fiyat: i.unit_price, kdv_modu: i.vat_mode, kdv_orani: i.vat_rate })),
       musteri_notu: s.customer_note, teklif_durumu: ['kabul_edildi', 'reddedildi', 'suresi_doldu'].includes(o.status) ? o.status : 'acik',
       sure_bitti: !!(o.valid_until && o.valid_until < bugun()),

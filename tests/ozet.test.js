@@ -10,7 +10,7 @@ const kaynak = new URL('../supabase/functions/gunluk-ozet/index.ts', import.meta
 const gecici = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ozet-')), 'index.mjs');
 fs.copyFileSync(kaynak, gecici);
 const m = await import(pathToFileURL(gecici).href);
-const { yanitKonu, yanitMetni, yanitHtml, isle, ozetKonu, ozetMetni, ozetHtml, ozetBos, ozetBolumleri, esc, para, tarih, maskele } = m;
+const { ekAlicilar, yanitKonu, yanitMetni, yanitHtml, isle, ozetKonu, ozetMetni, ozetHtml, ozetBos, ozetBolumleri, esc, para, tarih, maskele } = m;
 
 const OZET = {
   tarih: '2026-10-29',
@@ -268,4 +268,42 @@ test('Bugün Yapılacaklar ve Yaklaşan Program: başlıklar, tarih ve kalan gü
   const t = ozetMetni(o); assert.ok(t.indexOf('Bugün Yapılacaklar') < t.indexOf('Yaklaşan Program')); assert.ok(t.includes('/#/takvim'));
   assert.ok(ozetHtml(o).includes('Yaklaşan Program')); assert.equal(ozetBos(o), false); assert.equal(ozetBos({ ...BOS, tarih: '2026-11-02' }), true);
   assert.ok(ozetKonu(o).includes('bugün 2 iş') && ozetKonu(o).includes('yaklaşan 2 iş'));
+});
+
+test('Geçmiş Hatırlatmalar: başlık, tarih, tür, gecikme günü; bölüm sırası; konu; yalnızca bu bölüm doluysa özet boş sayılmaz', () => {
+  const o = { ...BOS, tarih: '2026-11-10', bugun: { adet: 1, liste: [{ baslik: 'Bugünkü', firma: null, tutar: null, tur: 'hatirlatma', kaynak: 'takvim' }] },
+    gecmis_hatirlatma: { adet: 17, liste: [{ tarih: '2026-10-30', gecikme_gun: 11, baslik: 'Kira ödemesi', firma: 'Alfa <Ltd>', tutar: 25000, tur: 'odeme' }, { tarih: '2026-11-08', gecikme_gun: 2, baslik: 'Aramayı unutma', firma: null, tutar: null, tur: 'hatirlatma' }] } };
+  const b = ozetBolumleri(o);
+  assert.equal(b[0].baslik, 'Bugün Yapılacaklar: 1 adet'); assert.equal(b[1].baslik, 'Geçmiş Hatırlatmalar (yapıldı işaretlenmemiş): 17 adet');
+  assert.equal(b[1].fazla, 15);
+  assert.ok(b[1].satirlar[0].startsWith('30.10.2026') && b[1].satirlar[0].includes('25.000,00 TL') && b[1].satirlar[0].includes('ödeme') && b[1].satirlar[0].includes('11 gün gecikti'));
+  assert.ok(b[1].satirlar[1].includes('hatırlatma') && b[1].satirlar[1].includes('2 gün gecikti'));
+  assert.ok(ozetKonu(o).includes('17 geçmiş hatırlatma'));
+  assert.ok(ozetMetni(o).includes('… ve 15 kayıt daha') && ozetMetni(o).includes('Geçmiş Hatırlatmalar'));
+  const h = ozetHtml(o); assert.ok(h.includes('Geçmiş Hatırlatmalar') && h.includes('Alfa &lt;Ltd&gt;') && !h.includes('Alfa <Ltd>'));
+  assert.equal(ozetBos({ ...BOS, gecmis_hatirlatma: { adet: 1, liste: [{ tarih: '2026-11-08', gecikme_gun: 2, baslik: 'x', tur: 'hatirlatma' }] } }), false);
+  assert.equal(ozetBos({ ...BOS, gecmis_hatirlatma: { adet: 0, liste: [] } }), true);
+});
+
+test('ek alıcılar: ayrıştırma, tekrar/sahip ayıklama, geçersiz adres ve 5 sınırı', () => {
+  assert.deepEqual(ekAlicilar({}, 'sahip@gmail.com'), { liste: [], hata: null });
+  assert.deepEqual(ekAlicilar({ OZET_EK_ALICILAR: 'a@x.com, B@x.com; a@x.com sahip@gmail.com' }, 'sahip@gmail.com').liste, ['a@x.com', 'b@x.com']);
+  assert.ok(ekAlicilar({ OZET_EK_ALICILAR: 'a@x.com, bozuk' }, 'sahip@gmail.com').hata.includes('geçersiz'));
+  assert.ok(ekAlicilar({ OZET_EK_ALICILAR: 'a@x.com,b@x.com,c@x.com,d@x.com,e@x.com,f@x.com' }, 's@s.com').hata.includes('5'));
+});
+
+test('ek alıcı tanımlıysa günlük özet hepsine gider (adresler maskeli döner); tanımsızsa yalnızca sahibe', async () => {
+  const s = kur({ env: { OZET_EK_ALICILAR: 'ortak@firma.com, muhasebe@firma.com' } });
+  const r = await json(await isle(istek({ 'x-ozet-sirri': 'sirli' }), s.b));
+  assert.equal(r.ok, true);
+  assert.deepEqual(JSON.parse(gonderimler(s.cagrilar)[0][2].body).to, ['sahip@gmail.com', 'ortak@firma.com', 'muhasebe@firma.com']);
+  assert.ok(!JSON.stringify(r).includes('ortak@firma.com') && JSON.stringify(r).includes('o***@firma.com'));
+  const t = kur(); await isle(istek({ 'x-ozet-sirri': 'sirli' }), t.b);
+  assert.deepEqual(JSON.parse(gonderimler(t.cagrilar)[0][2].body).to, ['sahip@gmail.com']);
+});
+
+test('geçersiz ek alıcı ayarı: e-posta gönderilmez, anlaşılır hata', async () => {
+  const s = kur({ env: { OZET_EK_ALICILAR: 'bozuk-adres' } });
+  const r = await json(await isle(istek({ 'x-ozet-sirri': 'sirli' }), s.b));
+  assert.equal(r.ok, false); assert.ok(r.mesaj.includes('OZET_EK_ALICILAR')); assert.equal(gonderimler(s.cagrilar).length, 0);
 });

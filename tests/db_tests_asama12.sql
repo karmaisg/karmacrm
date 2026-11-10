@@ -115,8 +115,8 @@ select tst.ok('Anon: alıcı, kurum, teklif no, kalem doğru', (select r ->> 'al
     and jsonb_array_length(r -> 'kalemler') = 1 and r -> 'kalemler' -> 0 ->> 'aciklama' = 'Risk analizi eğitimi' and r ->> 'musteri_notu' = 'Merhaba, teklifimiz ektedir.'
   from (select public.teklif_paylasim_goruntule((select token from jt where ad='t1')) as r) q));
 select tst.ok('Anon: yalnızca izin verilen alanlar döner (maliyet, iç not, hazırlayan YOK)',
-  (select array(select jsonb_object_keys(r) order by 1) = array['alici','birim_fiyat','calisan_sayisi','durum','fiyatlama','gecerlilik','indirim','kalemler','kdv_modu','kdv_orani','kurum',
-      'musteri_notu','sabit_fiyat','sure_bitti','tehlike','teklif_durumu','teklif_no','teklif_tarihi','yanit','yanit_verilebilir']
+  (select array(select jsonb_object_keys(r) order by 1) = array['aciklama','alici','birim_fiyat','calisan_sayisi','durum','fiyatlama','gecerlilik','hizmet_bedeli','indirim','kalemler','kapsam','kdv_modu','kdv_orani','kurum',
+      'musteri_notu','sabit_fiyat','sure_bitti','tehlike','teklif_durumu','teklif_no','teklif_tarihi','teklif_turu','yanit','yanit_verilebilir']
   from (select public.teklif_paylasim_goruntule((select token from jt where ad='t1')) as r) q));
 select tst.ok('Anon: yanıtta maliyet/iç not/hazırlayan değeri geçmez',
   (select r::text !~ '(12345|7654|999\.99|GİZLİ|22222222)' from (select public.teklif_paylasim_goruntule((select token from jt where ad='t1')) as r) q));
