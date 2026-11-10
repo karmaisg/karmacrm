@@ -636,3 +636,12 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 - **Fiyat (F maddesi, kalın):** Sabit aylık seçildiyse "aylık 7000 TL + KDV"; Kişi başı seçildiyse "kişi başı aylık 125 TL + KDV" (teklifte girilen kişi başı fiyat). Fiyat "KDV dahil" girildiyse "(KDV dahil)" yazar. Teklifteki indirim yüzdesi Word'e işlenmez; girilen fiyat aynen yazılır.
 - **Sözleşme bitiş tarihi:** Teklif formunda "Sözleşme bitiş tarihi belirtilsin mi?" kutusu vardır. İşaretlenirse tarih seçilir ve Word'de "Sözleşme GG.AA.YYYY tarihine kadar yapılacak olup, yeni sözleşme dönemi fiyatları yıllık enflasyon ve asgari ücret artış tutarları göz önüne alınarak karşılıklı olarak belirlenecektir." cümlesi yer alır. İşaretlenmezse cümle Word'den çıkar. Teklif kopyalanınca tarih de taşınır.
 - Dosya adı: `firma-adi-is-sagligi-teklifi.docx`. Word şablonunu değiştirmek isterseniz `tools/sablon_hazirla.py` örnek belgeden alan işaretli şablonu yeniden üretir (`src/assets/teklif_sablonu.docx`).
+
+## Teklif PDF'i: müşteri "Teklif Detayı Gör", yönetici yazdırma (Aşama 40) — `supabase/41_asama40.sql` çalıştırılmalı
+
+`40_asama39.sql` sonrasında `41_asama40.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Siteyi yayınladıktan sonra Ctrl+F5 ile yenileyin. (`index.html` güvenlik satırına PDF yazdırma için `frame-src blob:; object-src blob:` eklendi; dosyalar birlikte yayınlanmalıdır.)
+
+- **Yükleme:** Teklif sayfasında **Müşteri bağlantısı → Bağlantı oluştur** penceresinde "Teklif PDF'i" alanından kendi hazırladığınız teklifin `.pdf` dosyasını seçin (en çok 3 MB; PDF olmayan dosya reddedilir). Alan isteğe bağlıdır. PDF teklife bağlıdır: yeni bağlantı oluştururken dosya seçmezseniz mevcut PDF kullanılır, yeni dosya seçerseniz öncekinin yerine geçer.
+- **Müşteri sayfası:** PDF yüklüyse "Hizmet bedeli" kartının hemen üstünde **Teklif Detayı Gör** düğmesi çıkar; tıklayınca PDF indirilir. Yüklü değilse düğme görünmez. Dosyaya yalnızca geçerli (iptal edilmemiş, süresi dolmamış) bağlantıyla ulaşılır.
+- **Yönetici tarafı:** Teklif sayfasındaki "Müşteri bağlantısı" kartında yüklü PDF'in adı/boyutu, **İndir** ve **PDF'i kaldır** düğmeleri vardır. Üstteki **Yazdır / PDF** düğmesi PDF yüklüyse **yüklenen PDF'i** yazdırır (yüklü değilse eskisi gibi sayfayı yazdırır). Tarayıcı yazdırmaya izin vermezse PDF yeni sekmede açılır; oradan Ctrl+P ile yazdırın.
+- Yükleme ve kaldırma denetim kayıtlarında görünür (dosyanın içeriği değil, adı ve boyutu). Müşteriye mesaj gönderilmez; bağlantıyı yine siz iletirsiniz.
