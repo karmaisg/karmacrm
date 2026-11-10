@@ -617,5 +617,9 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 - **Personel ekle:** Ad soyad ve net maaş yazılır. Net maaş kaydedilir ve siz değiştirene kadar aynen kalır (sayfa yenilense de).
 - **Banka:** Bordroda yazan tutarı kendiniz girersiniz; hücreden çıkınca otomatik kaydedilir.
 - **Diğer:** Otomatik hesaplanır: **Net maaş − Banka**. Banka girilmemişse "—" görünür. Alt satırda tüm personelin toplamı vardır (Diğer toplamı yalnızca banka girilmiş satırlardan hesaplanır).
-- **Kurallar:** Banka tutarı net maaştan büyük olamaz (uyarı verir, eski değer geri gelir); negatif tutar kabul edilmez. Tutarlar `35.000,50` biçiminde yazılabilir.
+- **Kurallar:** Banka tutarı net maaştan büyük olabilir; bu durumda Diğer **eksi (−)** değer gösterir. Negatif tutar girilemez. Tutarlar `35.000,50` biçiminde yazılabilir.
 - **Silme** kalıcı değildir; kayıt arşive alınır (denetim kaydında izlenir).
+
+## Maaş hesaplayıcı: banka > net serbest (Aşama 38) — `supabase/39_asama38.sql` çalıştırılmalı
+
+`38_asama37.sql` sonrasında `39_asama38.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Banka tutarı net maaştan büyükse Diğer sütunu eksi değer (ör. −1.000,00) gösterir.
