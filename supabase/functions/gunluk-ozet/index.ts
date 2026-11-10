@@ -1,5 +1,5 @@
 // @ts-nocheck
-// OSGB 360 - Günlük özet e-postası (Supabase Edge Function). Alıcı YALNIZCA işletme sahibidir (tek, sabit adres).
+// OSGB 360 - Günlük özet e-postası (Supabase Edge Function). Alıcı işletme sahibidir (OZET_ALICI); isteğe bağlı olarak OZET_EK_ALICILAR ile günlük özet başka kişilere de gider.
 //
 // İki yoldan çalışır:
 //   1) Zamanlanmış (pg_cron): "x-ozet-sirri" başlığı OZET_CRON_SIRRI ile aynıysa, her kurum için günde en çok bir özet gönderilir
@@ -7,8 +7,9 @@
 //   2) Test: Sistem ayarları sayfasındaki "Test e-postası gönder" düğmesi; oturum açmış, "ayarlar" izni olan kullanıcı gerekir.
 //
 // Gizli ayarlar (Supabase > Edge Functions > Secrets): RESEND_API_KEY, OZET_ALICI, OZET_CRON_SIRRI
+// İsteğe bağlı: OZET_EK_ALICILAR (virgülle ayrılmış, en çok 5 adres; yalnızca günlük özet ve test e-postası ek alıcılara da gider, teklif yanıtı bildirimi yalnızca sahibe gider)
 // İsteğe bağlı: OZET_GONDEREN (varsayılan: "OSGB 360 <onboarding@resend.dev>"), OZET_UYGULAMA_ADRESI
-// Müşterilere hiçbir mesaj gönderilmez; alıcı kodda değil, gizli ayardadır. API anahtarı hiçbir yerde kaydedilmez ya da geri döndürülmez.
+// Müşterilere hiçbir mesaj gönderilmez; alıcılar kodda değil, gizli ayardadır. API anahtarı hiçbir yerde kaydedilmez ya da geri döndürülmez.
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -31,7 +32,7 @@ export const maskele = (e) => { const [a, d] = String(e).split('@'); return `${a
 
 const GECIKMIS_FATURA_SINIRI = 3;
 const bol = (o, k) => o?.[k] ?? { adet: 0, liste: [] };
-export const ozetBos = (o) => ['bugun', 'program', 'gecikmis_fatura', 'yaklasan_vade', 'sozlesme'].every((k) => !(bol(o, k).adet > 0));
+export const ozetBos = (o) => ['bugun', 'program', 'gecmis_hatirlatma', 'gecikmis_fatura', 'yaklasan_vade', 'sozlesme'].every((k) => !(bol(o, k).adet > 0));
 
 /** Bölümler: [{baslik, satirlar:[metin], fazla:n}] — hem düz metin hem HTML bunlardan üretilir. */
 const TAKVIM_TURU = { odeme: 'ödeme', hatirlatma: 'hatırlatma', gorev: 'görev' };
@@ -43,6 +44,11 @@ export function ozetBolumleri(o) {
   const bg = bol(o, 'bugun');
   if (bg.adet > 0) {
     b.push({ baslik: `Bugün Yapılacaklar: ${bg.adet} adet`, baglanti: '#/takvim', fazla: bg.adet - bg.liste.length, satirlar: bg.liste.map(takvimSatiri) });
+  }
+  const gh = bol(o, 'gecmis_hatirlatma');
+  if (gh.adet > 0) {
+    b.push({ baslik: `Geçmiş Hatırlatmalar (yapıldı işaretlenmemiş): ${gh.adet} adet`, baglanti: '#/takvim', fazla: gh.adet - gh.liste.length,
+      satirlar: gh.liste.map((x) => `${tarih(x.tarih)} · ${x.baslik}${x.firma ? ` · ${x.firma}` : ''}${x.tutar !== null && x.tutar !== undefined ? ` · ${para(x.tutar)}` : ''} · ${takvimEtiketi({ kaynak: 'takvim', tur: x.tur })} · ${x.gecikme_gun} gün gecikti`) });
   }
   const pr = bol(o, 'program');
   if (pr.adet > 0) {
@@ -71,6 +77,7 @@ export function ozetBolumleri(o) {
 export function ozetKonu(o, test = false) {
   const p = [];
   const bg = bol(o, 'bugun').adet; if (bg > 0) p.push(`bugün ${bg} iş`);
+  const gh = bol(o, 'gecmis_hatirlatma').adet; if (gh > 0) p.push(`${gh} geçmiş hatırlatma`);
   const pr = bol(o, 'program').adet; if (pr > 0) p.push(`yaklaşan ${pr} iş`);
   const g = bol(o, 'gecikmis_fatura').adet; if (g > 0) p.push(`${g} gecikmiş fatura`);
   const y = bol(o, 'yaklasan_vade').adet; if (y > 0) p.push(`${y} yaklaşan vade`);
@@ -98,6 +105,15 @@ export function ozetHtml(o, adres = VARSAYILAN_ADRES) {
 <h2 style="margin:0 0 4px;font-size:20px;color:#111827">OSGB 360 özeti</h2><p style="margin:0;color:#6b7280;font-size:13px">${esc(tarih(o?.tarih))}</p>
 ${govde}
 <p style="margin:28px 0 0;color:#9ca3af;font-size:12px">Bu e-posta yalnızca sizin için otomatik hazırlanmıştır; müşterilere gönderilmez.</p></div></body></html>`;
+}
+
+/** OZET_EK_ALICILAR: virgül/noktalı virgülle ayrılmış en çok 5 adres. Geçersiz adres varsa hata döner (sessizce atlanmaz). */
+export function ekAlicilar(env, ana) {
+  const ham = String(env.OZET_EK_ALICILAR ?? '').split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
+  if (ham.some((x) => !ALICI.test(x))) return { liste: [], hata: 'OZET_EK_ALICILAR geçersiz bir e-posta adresi içeriyor.' };
+  const liste = [...new Set(ham.map((x) => x.toLowerCase()))].filter((x) => x !== String(ana ?? '').toLowerCase());
+  if (liste.length > 5) return { liste: [], hata: 'OZET_EK_ALICILAR en çok 5 adres içerebilir.' };
+  return { liste, hata: null };
 }
 
 // ---------------------------------------------------------------- işleyici
@@ -206,7 +222,9 @@ export async function isle(istek, b) {
   const kayit = async (org, durum, ayrinti) => {
     try { await db.from('email_digest_log').insert({ organization_id: org, gun, tur: mod, durum, ayrinti: String(ayrinti ?? '').slice(0, 300) }); } catch (_) { /* kayıt başarısız olsa da akış sürer */ }
   };
-  const eksik = !anahtar ? 'RESEND_API_KEY tanımlı değil.' : !alici ? 'OZET_ALICI tanımlı değil.' : !ALICI.test(alici) ? 'OZET_ALICI tek bir geçerli e-posta adresi olmalıdır.' : null;
+  const ek = ekAlicilar(env, alici);
+  const eksik = !anahtar ? 'RESEND_API_KEY tanımlı değil.' : !alici ? 'OZET_ALICI tanımlı değil.' : !ALICI.test(alici) ? 'OZET_ALICI tek bir geçerli e-posta adresi olmalıdır.' : ek.hata;
+  const tumAlicilar = [alici, ...ek.liste]; const maskeli = tumAlicilar.map(maskele).join(', ');
   if (eksik) {
     for (const org of kurumlar) await kayit(org, 'hata', eksik);
     return cevap({ ok: false, mesaj: eksik, sonuclar: kurumlar.map((k) => ({ kurum: k, durum: 'hata', ayrinti: eksik })) });
@@ -227,12 +245,12 @@ export async function isle(istek, b) {
       yanit = await b.fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { authorization: `Bearer ${anahtar}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ from: gonderen, to: [alici], subject: ozetKonu(ozet, mod === 'test'), html: ozetHtml(ozet, adres), text: ozetMetni(ozet, adres) }),
+        body: JSON.stringify({ from: gonderen, to: tumAlicilar, subject: ozetKonu(ozet, mod === 'test'), html: ozetHtml(ozet, adres), text: ozetMetni(ozet, adres) }),
       });
     } catch (e) {
       const m = 'E-posta servisine ulaşılamadı.'; await kayit(org, 'hata', m); sonuclar.push({ kurum: org, durum: 'hata', ayrinti: m }); continue;
     }
-    if (yanit.ok) { await kayit(org, 'gonderildi', `Gönderildi: ${maskele(alici)}`); sonuclar.push({ kurum: org, durum: 'gonderildi', ayrinti: `Gönderildi: ${maskele(alici)}` }); continue; }
+    if (yanit.ok) { await kayit(org, 'gonderildi', `Gönderildi: ${maskeli}`); sonuclar.push({ kurum: org, durum: 'gonderildi', ayrinti: `Gönderildi: ${maskeli}` }); continue; }
     const govde = (await yanit.text().catch(() => '')).slice(0, 200);
     const ipucu = yanit.status === 403 && /testing emails to your own/i.test(govde)
       ? 'Resend hesabınızın e-posta adresi ile OZET_ALICI aynı olmalıdır (kendi alan adınızı doğrulamadıkça yalnızca hesap adresine gönderilebilir).'
@@ -240,7 +258,7 @@ export async function isle(istek, b) {
     await kayit(org, 'hata', ipucu); sonuclar.push({ kurum: org, durum: 'hata', ayrinti: ipucu });
   }
   const gonderilen = sonuclar.filter((s) => s.durum === 'gonderildi').length; const hata = sonuclar.find((s) => s.durum === 'hata');
-  const mesaj = hata ? hata.ayrinti : gonderilen ? `${mod === 'test' ? 'Test e-postası' : 'Özet'} gönderildi: ${maskele(alici)}` : (sonuclar[0]?.ayrinti ?? 'Gönderilecek bir şey yok.');
+  const mesaj = hata ? hata.ayrinti : gonderilen ? `${mod === 'test' ? 'Test e-postası' : 'Özet'} gönderildi: ${maskeli}` : (sonuclar[0]?.ayrinti ?? 'Gönderilecek bir şey yok.');
   return cevap({ ok: !hata, mesaj, sonuclar });
 }
 
