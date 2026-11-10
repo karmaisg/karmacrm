@@ -608,3 +608,14 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 - Patlamadan korunma teklifi **sözleşmeye çevrilmez** (aylık sözleşme değildir). Müşteri onaylayınca teklif sayfasındaki **"Kabul edildi"** düğmesiyle durum işlenir. Kopyalama, müşteri bağlantısı, gönderme/ret akışı OSGB teklifleriyle aynıdır. Yeni spot türler (ör. başka dokümanlar) aynı yapıyla eklenebilir.
 - **Geçmiş Hatırlatmalar:** Takvimde tarihi geçmiş ve "yapıldı" işaretlenmemiş hatırlatma/ödeme kayıtları, her günkü özet e-postasında "Geçmiş Hatırlatmalar" başlığıyla, **kaç gün geciktiği** ile birlikte gelir (son 90 gün; en eski önce, en çok 15 kayıt, toplam adet başlıkta). Kaydı takvimde "yapıldı" işaretleyince listeden düşer. Bu bölüm doluysa, başka bildirim olmasa bile e-posta her gün gelir.
 - **Ek alıcı (e-postanın başka birine de gitmesi):** Supabase > Edge Functions > Secrets'a `OZET_EK_ALICILAR` ekleyin; değer, virgülle ayrılmış en çok 5 e-posta adresi (ör. `ortak@firma.com, muhasebe@firma.com`). Özet ve test e-postası bu kişilere de gider; teklif yanıtı bildirimi yalnızca size gider. **Önemli:** Resend'de kendi alan adınızı doğrulamadıysanız yalnızca Resend hesabınızın adresine gönderebilirsiniz; ek alıcı için Resend'de alan adı doğrulayıp `OZET_GONDEREN` ayarını o alan adından bir adres yapmanız gerekir. Ek alıcı kaldırmak için gizli ayarı silin.
+
+## İdari İşler: Maaş hesaplayıcı (Aşama 37) — `supabase/38_asama37.sql` çalıştırılmalı
+
+`37_asama36.sql` sonrasında `38_asama37.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Başka kurulum adımı yoktur.
+
+- **Yeri:** İdari İşler → **Maaş hesaplayıcı** sekmesi (Şirket belgeleri'nin yanında). Maaş bilgisi hassas olduğu için sekme yalnızca **Maaşlar (payroll)** modülünü görme yetkisi olan rollere (işletme sahibi, finans) görünür; yetkisi olmayan rol sekmeyi hiç görmez.
+- **Personel ekle:** Ad soyad ve net maaş yazılır. Net maaş kaydedilir ve siz değiştirene kadar aynen kalır (sayfa yenilense de).
+- **Banka:** Bordroda yazan tutarı kendiniz girersiniz; hücreden çıkınca otomatik kaydedilir.
+- **Diğer:** Otomatik hesaplanır: **Net maaş − Banka**. Banka girilmemişse "—" görünür. Alt satırda tüm personelin toplamı vardır (Diğer toplamı yalnızca banka girilmiş satırlardan hesaplanır).
+- **Kurallar:** Banka tutarı net maaştan büyük olamaz (uyarı verir, eski değer geri gelir); negatif tutar kabul edilmez. Tutarlar `35.000,50` biçiminde yazılabilir.
+- **Silme** kalıcı değildir; kayıt arşive alınır (denetim kaydında izlenir).
