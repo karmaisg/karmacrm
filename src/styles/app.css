@@ -344,6 +344,7 @@ svg { flex: none; }
 .musteri-ust { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .musteri-ust h1 { margin: 2px 0 4px; }
 .musteri-kurum { margin: 0; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; font-size: var(--fs-xs); }
+.musteri-pdf { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .musteri-dugmeler { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .musteri-mesaj { text-align: center; padding: 32px 20px; }
 .musteri-alt { text-align: center; }

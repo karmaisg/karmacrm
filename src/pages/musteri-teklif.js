@@ -9,6 +9,8 @@ import { humanError } from '../lib/api.js';
 import { TOKEN_DESENI, teklifOzeti, yanitDogrula, tl } from '../lib/musteri.js';
 import { FIYATLAMA, KDV_MODU } from '../lib/ticari.js';
 import { TEHLIKE } from '../lib/format.js';
+import { dosyaIndir } from '../ui/indir.js';
+import { base64Bayt, boyutMetni } from '../lib/teklif_pdf.js';
 
 const kapsayici = (icerik) => html`<main class="musteri" id="main"><div class="musteri-kap">${icerik}</div></main>`;
 const kart = (baslik, metin) => kapsayici(html`<section class="card pad musteri-mesaj"><h1>${baslik}</h1><p>${metin}</p></section>`);
@@ -22,7 +24,7 @@ export async function musteriTeklifSayfasi(api, token) {
   const kok = document.getElementById('app');
   robotlariEngelle();
   document.title = 'Teklif';
-  let p = null; let secim = null; let gonderiyor = false;
+  let p = null; let secim = null; let gonderiyor = false; let pdf = null;
 
   const gecersiz = () => { document.title = 'Teklif'; mount(kok, kart('Bu bağlantı geçersiz ya da süresi dolmuş', 'Lütfen teklifi gönderen kişiyle iletişime geçin ve yeni bir bağlantı isteyin.')); };
 
@@ -34,6 +36,8 @@ export async function musteriTeklifSayfasi(api, token) {
       return false;
     }
     if (!p || p.durum !== 'gecerli') { gecersiz(); return false; }
+    // Teklif PDF'i yüklenmişse "Teklif Detayı Gör" düğmesi gösterilir (fonksiyon yoksa/başarısızsa sayfa yine açılır)
+    try { const b = await api.getPublicOfferPdf(token, false); pdf = b?.durum === 'var' ? b : null; } catch { pdf = null; }
     return true;
   }
 
@@ -45,6 +49,10 @@ export async function musteriTeklifSayfasi(api, token) {
       : p.teklif_durumu === 'kabul_edildi' ? html`<div class="notice notice-ok" role="status">Bu teklif kabul edilmiştir.</div>`
       : p.teklif_durumu === 'reddedildi' ? html`<div class="notice notice-info" role="status">Bu teklif kapatılmıştır.</div>`
       : p.sure_bitti || p.teklif_durumu === 'suresi_doldu' ? html`<div class="notice notice-warn" role="status">Bu teklifin geçerlilik süresi dolmuştur. Güncel teklif için lütfen bizimle iletişime geçin.</div>` : '';
+    const detayKart = pdf ? html`<section class="card pad yazdirma-gizli" id="teklif-detay"><div class="musteri-pdf"><div><h2 class="card-title">Teklif detayı</h2>
+          <p class="muted fine">Teklifin ayrıntılı dosyası (PDF, ${boyutMetni(pdf.boyut)}).</p></div>
+          <button type="button" class="btn btn-primary" id="teklif-detay-gor">${icon('file', 18)} Teklif Detayı Gör</button></div>
+          <p class="field-error" id="teklif-detay-hata" role="alert" hidden></p></section>` : '';
     mount(kok, kapsayici(html`
       <header class="musteri-ust"><div><p class="musteri-kurum">${p.kurum}</p><h1>${o.spot ? 'Patlamadan Korunma Dokümanı Teklifi' : 'Teklif'} ${p.teklif_no}</h1>
         <p class="muted">${tarih(p.teklif_tarihi)}${p.gecerlilik ? ` · ${tarih(p.gecerlilik)} tarihine kadar geçerlidir` : ''}</p></div>
@@ -54,13 +62,14 @@ export async function musteriTeklifSayfasi(api, token) {
         ${p.musteri_notu ? html`<p class="prewrap" id="musteri-notu">${p.musteri_notu}</p>` : ''}</section>
       ${o.spot ? html`${p.aciklama ? html`<section class="card pad" id="spot-aciklama"><h2 class="card-title">Açıklama</h2><p class="prewrap">${p.aciklama}</p></section>` : ''}
         ${p.kapsam ? html`<section class="card pad" id="spot-kapsam"><h2 class="card-title">Kapsam</h2><p class="prewrap">${p.kapsam}</p></section>` : ''}
+        ${detayKart}
         <section class="card card-flush"><div class="card-head"><h2 class="card-title">Hizmet bedeli</h2></div>
           <dl class="kv-list pad">
             <div class="kv"><dt>Hizmet bedeli (tek seferlik, ${KDV_MODU[o.kdvModu]})</dt><dd>${tl(o.brut)}</dd></div>
             <div class="kv"><dt>KDV hariç</dt><dd>${tl(o.haric)}</dd></div>
             <div class="kv"><dt>KDV (%${o.kdvOrani})</dt><dd>${tl(o.kdv)}</dd></div>
             <div class="kv"><dt><strong>Toplam (KDV dahil)</strong></dt><dd><strong id="spot-toplam">${tl(o.dahil)}</strong></dd></div>
-          </dl></section>` : html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Hizmet bedeli</h2></div>
+          </dl></section>` : html`${detayKart}<section class="card card-flush"><div class="card-head"><h2 class="card-title">Hizmet bedeli</h2></div>
         <dl class="kv-list pad">
           <div class="kv"><dt>Çalışan sayısı / tehlike sınıfı</dt><dd>${p.calisan_sayisi} · ${TEHLIKE[p.tehlike] ?? p.tehlike}</dd></div>
           <div class="kv"><dt>Fiyatlama</dt><dd>${FIYATLAMA[p.fiyatlama] ?? p.fiyatlama}</dd></div>
@@ -90,6 +99,15 @@ export async function musteriTeklifSayfasi(api, token) {
 
   function bagla() {
     kok.querySelector('#yazdir').addEventListener('click', () => window.print());
+    const detayDugme = kok.querySelector('#teklif-detay-gor');
+    if (detayDugme) detayDugme.addEventListener('click', async () => {
+      const hataEl = kok.querySelector('#teklif-detay-hata'); hataEl.hidden = true; detayDugme.disabled = true;
+      try {
+        const d = await api.getPublicOfferPdf(token, true);
+        if (d?.durum !== 'var' || !d.veri) throw new Error('Dosya artık erişilebilir değil. Lütfen teklifi gönderen kişiyle iletişime geçin.');
+        dosyaIndir(d.ad, base64Bayt(d.veri), 'application/pdf');
+      } catch (e) { hataEl.textContent = 'Teklif dosyası indirilemedi. Sayfayı yenileyip tekrar deneyin; sorun sürerse teklifi gönderen kişiyle iletişime geçin.'; hataEl.hidden = false; console.error(e); } finally { detayDugme.disabled = false; }
+    });
     const form = kok.querySelector('#yanit-form'); if (!form) return;
     const dugmeler = kok.querySelector('#yanit-dugmeler'); const hataKutusu = form.querySelector('.form-error'); const gonder = form.querySelector('#yanit-gonder');
     dugmeler.addEventListener('click', (e) => {

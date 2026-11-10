@@ -224,6 +224,12 @@ export function createApi(db) {
     recordBackup: ({ tabloSayisi, satirSayisi, dosya }) => bir(db.rpc('yedek_kaydi', { p_tablo_sayisi: tabloSayisi, p_satir_sayisi: satirSayisi, p_dosya: dosya ?? null })),
 
     // ----- müşteri teklif bağlantısı (Aşama 12)
+    // Teklif PDF'i (içerik yalnızca fonksiyonlarla alınır; tablodan yalnızca bilgi sütunları okunur)
+    getOfferPdfInfo: async (offerId) => { const l = await bir(T('offer_pdfs').select('id,offer_id,file_name,size_bytes,created_at,uploaded_by').eq('offer_id', offerId).is('archived_at', null)); return l[0] ?? null; },
+    uploadOfferPdf: ({ offer, ad, veri }) => bir(db.rpc('teklif_pdf_yukle', { p_offer: offer, p_ad: ad, p_veri: veri })),
+    removeOfferPdf: (offerId) => bir(db.rpc('teklif_pdf_kaldir', { p_offer: offerId })),
+    getOfferPdf: (offerId) => bir(db.rpc('teklif_pdf_getir', { p_offer: offerId })),
+    getPublicOfferPdf: (token, veri = false) => bir(db.rpc('teklif_paylasim_pdf', { p_token: token, p_veri: veri })),
     createOfferShare: ({ offer, gun, not }) => bir(db.rpc('teklif_baglantisi_olustur', { p_offer: offer, p_gun: gun, p_not: not ?? null })),
     revokeOfferShare: (offer) => bir(db.rpc('teklif_baglantisi_iptal', { p_offer: offer })),
     // token_hash sütunu bilerek istenmez (veri tabanı da vermez)

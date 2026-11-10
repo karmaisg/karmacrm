@@ -14,6 +14,8 @@ import {
 import { ayarDegeri, bosIseNull, guncelProfil, profilleriGrupla } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
 import { dosyaIndir } from '../ui/indir.js';
+import { pdfYazdir } from '../ui/pdf_yazdir.js';
+import { pdfDogrula, pdfImzasiVar, baytBase64, base64Bayt, boyutMetni } from '../lib/teklif_pdf.js';
 import { teklifAlanlari, docxUret, dosyaAdi, DOCX_TURU } from '../lib/isg_teklif_word.js';
 
 const SAYFA_BASI = 25;
@@ -267,10 +269,11 @@ export async function teklifSayfasi(app, id) {
     return { baslik: 'Teklif bulunamadı', altBaslik: '', eylemler: html`<a class="btn btn-secondary" href="#/teklifler">${icon('arrowL', 18)} Tekliflere dön</a>`,
       govde: emptyState({ simge: 'file', baslik: 'Bu teklif yok ya da erişim izniniz yok' }) };
   }
-  const [kalemler, sozlesmeler, paylasimlar] = await Promise.all([
+  const [kalemler, sozlesmeler, paylasimlar, pdf] = await Promise.all([
     app.api.listOfferItems(id),
     app.can('contracts', 'view') ? app.api.listContracts() : [],
     app.api.listOfferShares(id).catch(() => null),   // null: 12_asama12.sql çalıştırılmamış
+    app.api.getOfferPdfInfo(id).catch(() => undefined),   // undefined: 41_asama40.sql çalıştırılmamış
   ]);
   const esik = marjEsigi(ayarlar);
   const firma = firmalar.find((f) => f.id === o.company_id);
@@ -321,6 +324,11 @@ export async function teklifSayfasi(app, id) {
       <div class="action-row">${olusturabilir ? html`<button type="button" class="btn btn-primary btn-sm" data-action="paylasim-olustur">${icon('plus', 16)} ${aktif && durum.ad === 'aktif' ? 'Yeni bağlantı oluştur' : 'Bağlantı oluştur'}</button>` : ''}
         ${duzenleyebilir && durum.ad === 'aktif' ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="paylasim-iptal">Bağlantıyı iptal et</button>` : ''}</div></div>
       <div class="pad">
+        ${pdf === undefined ? html`<div class="notice notice-info" role="note" id="pdf-hazir-degil">Teklif PDF'i yüklemek için Supabase'de <strong>41_asama40.sql</strong> dosyasını çalıştırın.</div>`
+          : pdf ? html`<p id="teklif-pdf-bilgi">${pill('Teklif PDF\'i yüklü', 'success')} <strong>${pdf.file_name}</strong> <span class="muted">(${boyutMetni(pdf.size_bytes)})</span>
+              <button type="button" class="btn btn-secondary btn-sm" data-action="pdf-indir">İndir</button>
+              ${duzenleyebilir ? html`<button type="button" class="btn btn-secondary btn-sm" data-action="pdf-kaldir">PDF'i kaldır</button>` : ''}</p>`
+          : html`<p class="muted" id="teklif-pdf-bilgi">Teklif PDF'i yüklenmedi. Bağlantı oluştururken yükleyebilirsiniz; yüklenirse müşteri sayfasında "Teklif Detayı Gör" düğmesi görünür.</p>`}
         ${aktif ? html`<p>${pill(durum.metin, durum.ad === 'aktif' ? 'success' : 'neutral')} <span class="muted">Son geçerlilik: ${tarihSaat(aktif.expires_at)} · ${aktif.view_count} görüntüleme${aktif.last_viewed_at ? ` · son: ${tarihSaat(aktif.last_viewed_at)}` : ''}</span></p>
           ${aktif.customer_note ? html`<p class="fine">Müşteriye notunuz: <span class="prewrap">${aktif.customer_note}</span></p>` : ''}`
           : html`<p class="muted">${olusturabilir ? 'Henüz bağlantı oluşturulmadı.' : 'Bağlantı oluşturmak için teklifi önce "Müşteriye gönder" olarak işaretleyin.'}</p>`}
@@ -376,7 +384,11 @@ export async function teklifSayfasi(app, id) {
       </div>`,
     mount(kok) {
       kok.addEventListener('click', async (e) => {
-        if (e.target.closest('[data-yazdir]')) { window.print(); return; }
+        if (e.target.closest('[data-yazdir]')) {
+          if (!pdf) { window.print(); return; }
+          try { const d = await app.api.getOfferPdf(o.id); if (!d?.veri) throw new Error('PDF bulunamadı.'); const r = await pdfYazdir(base64Bayt(d.veri)); if (r === 'yeni-sekme') toast('PDF yeni sekmede açıldı; oradan yazdırabilirsiniz (Ctrl+P).', 'bilgi'); } catch (err) { toast(humanError(err), 'hata'); }
+          return;
+        }
         const wordDugme = e.target.closest('[data-word-teklif]');
         if (wordDugme) { await wordTeklifiIndir(app, o, firma, aday, wordDugme); return; }
         const kalemSil = e.target.closest('[data-kalem-sil]');
@@ -393,7 +405,13 @@ export async function teklifSayfasi(app, id) {
         const x = a.dataset.action;
         if (x === 'duzenle') teklifFormuAc(app, { teklif: o });
         else if (x === 'kalem-ekle') kalemFormu(app, o);
-        else if (x === 'paylasim-olustur') paylasimFormu(app, o);
+        else if (x === 'paylasim-olustur') paylasimFormu(app, o, pdf);
+        else if (x === 'pdf-indir') {
+          try { const d = await app.api.getOfferPdf(o.id); if (!d?.veri) throw new Error('PDF bulunamadı.'); dosyaIndir(d.ad, base64Bayt(d.veri), 'application/pdf'); } catch (err) { toast(humanError(err), 'hata'); }
+        } else if (x === 'pdf-kaldir') {
+          if (!(await confirmDialog({ baslik: "Teklif PDF'ini kaldır", onayEtiketi: 'Kaldır', tehlikeli: true, mesaj: 'Müşteri sayfasındaki "Teklif Detayı Gör" düğmesi de kalkar. İsterseniz sonra yeni PDF yükleyebilirsiniz.' }))) return;
+          try { await app.api.removeOfferPdf(o.id); toast("Teklif PDF'i kaldırıldı."); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
+        }
         else if (x === 'paylasim-iptal') {
           if (!(await confirmDialog({ baslik: 'Bağlantıyı iptal et', onayEtiketi: 'İptal et', tehlikeli: true, mesaj: 'Müşteri bu bağlantıyla teklife bir daha ulaşamaz. Daha önce verdiği yanıt saklanır.' }))) return;
           try { await app.api.revokeOfferShare(o.id); toast('Müşteri bağlantısı iptal edildi.'); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
@@ -454,13 +472,24 @@ function kalemFormu(app, o) {
   });
 }
 
-function paylasimFormu(app, o) {
+function paylasimFormu(app, o, pdf) {
   let token = null;
   openFormModal({
     baslik: 'Müşteri bağlantısı oluştur', altBaslik: `${o.offer_no}. Varsa önceki bağlantı kapanır.`, gonderEtiketi: 'Bağlantıyı oluştur',
     govde: html`${field({ ad: 'gun', etiket: 'Bağlantı kaç gün açık kalsın', zorunlu: true, deger: '30', secenekler: SURE_SECENEKLERI.map((g) => ({ deger: String(g), etiket: `${g} gün` })) })}
+      ${pdf === undefined ? '' : field({ ad: 'pdf', etiket: pdf ? 'Teklif PDF\'ini değiştir (isteğe bağlı)' : 'Teklif PDF\'i (isteğe bağlı)', tur: 'file', kabul: 'application/pdf,.pdf', tam: true,
+        ipucu: pdf ? `Yüklü dosya: ${pdf.file_name}. Yeni dosya seçmezseniz bu dosya kullanılır.` : 'Müşteri sayfasında "Teklif Detayı Gör" düğmesinden indirilir. En çok 3 MB.' })}
       ${field({ ad: 'not', etiket: 'Müşteriye kısa not (isteğe bağlı)', tur: 'textarea', tam: true, maksUzunluk: 1000, ipucu: 'Teklif sayfasında müşteri görür. İç bilgi yazmayın.' })}`,
     async onSubmit(fd) {
+      const dosya = pdf === undefined ? null : fd.get('pdf'); const secildi = dosya && dosya.size > 0 && dosya.name;
+      let veri = null;
+      if (secildi) {
+        const hata = pdfDogrula(dosya); if (hata) return { errors: { pdf: hata } };
+        const bayt = new Uint8Array(await dosya.arrayBuffer());
+        if (!pdfImzasiVar(bayt)) return { errors: { pdf: 'Bu dosya geçerli bir PDF değil.' } };
+        veri = baytBase64(bayt);
+      }
+      if (veri) await app.api.uploadOfferPdf({ offer: o.id, ad: dosya.name, veri });
       token = await app.api.createOfferShare({ offer: o.id, gun: Number(fd.get('gun')), not: String(fd.get('not') ?? '').trim() || null });
     },
     onDone: async () => { if (token) baglantiGoster(token); app.yenile(); },
