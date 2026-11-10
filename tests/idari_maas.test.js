@@ -12,6 +12,8 @@ test('maaş hesaplayıcı: diğer = net maaş − banka; banka girilmemişse di�
 });
 test('maaş toplamları: diğer yalnızca banka girilmiş satırlardan', () => {
   const t = maasToplamlari([{ net_salary: 30000, bank_amount: 20000 }, { net_salary: 25000.5, bank_amount: 25000.5 }, { net_salary: 10000, bank_amount: null }]);
-  assert.deepEqual(t, { adet: 3, net: 65000.5, banka: 45000.5, diger: 10000, girilen: 2 });
-  assert.deepEqual(maasToplamlari([]), { adet: 0, net: 0, banka: 0, diger: 0, girilen: 0 });
+  assert.deepEqual(t, { adet: 3, net: 65000.5, banka: 45000.5, diger: 10000, girilen: 2, artiToplam: 10000, eksiToplam: 0 });
+  const k = maasToplamlari([{ net_salary: 1000, bank_amount: 400 }, { net_salary: 1000, bank_amount: 1500 }, { net_salary: 500, bank_amount: 700.5 }, { net_salary: 800, bank_amount: 800 }]);
+  assert.equal(k.artiToplam, 600); assert.equal(k.eksiToplam, -700.5); assert.equal(k.diger, -100.5);
+  assert.deepEqual(maasToplamlari([]), { adet: 0, net: 0, banka: 0, diger: 0, girilen: 0, artiToplam: 0, eksiToplam: 0 });
 });
