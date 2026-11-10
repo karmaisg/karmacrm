@@ -3415,6 +3415,51 @@ await test('İdari İşler: Maaş hesaplayıcı (net maaş kayıtlı kalır, ban
   esit(await s.evaluate(() => globalThis.__fake.tablo.salary_calcs.filter((x) => !x.archived_at).length), 1, 'arşivlendi');
 });
 
+await test('İSG teklifi Word çıktısı: firma adı büyük harf, yetkili, çalışan, tehlike sınıfı süreleri, fiyat; sözleşme bitiş tarihi isteğe bağlı', async (s) => {
+  const { zipDizini } = await import('../../src/lib/xlsx.js');
+  const docOku = async (dl) => { const d = zipDizini(new Uint8Array(fs.readFileSync(await dl.path()))); const xml = new TextDecoder().decode(await d.get('word/document.xml')()); return { xml, metin: [...xml.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map((m) => m[1]).join('') }; };
+  await girisYap(s);
+  await firmaEkle(s, { ad: 'Egepoli Çelik Yapı Sistemleri Ltd. Şti.', calisan: 6, tehlike: 'cok_tehlikeli' });
+  await s.waitForSelector('.company-head h1:has-text("Egepoli")');
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; const f = t.companies.find((x) => x.name.startsWith('Egepoli')); f.city = 'İzmir'; f.district = 'Gaziemir';
+    t.contacts.push({ id: 'c-egepoli-1', organization_id: f.organization_id, company_id: f.id, lead_id: null, full_name: 'Mustafa BAYINDIR', is_decision_maker: true, archived_at: null }); });
+  await git(s, '#/teklifler'); await s.waitForSelector('[data-action="yeni-teklif"]'); await s.click('[data-action="yeni-teklif"]');
+  await s.waitForSelector('#f-company_id'); const m = modal(s);
+  await m.locator('#f-company_id').selectOption({ label: 'Egepoli Çelik Yapı Sistemleri Ltd. Şti.' });
+  esit(await m.locator('#f-contract_end_on').isChecked(), false, 'sözleşme tarihi varsayılan: işaretsiz');
+  esit(await m.locator('[data-field="contract_end_date"]').isHidden(), true, 'işaretsizken tarih alanı gizli');
+  await m.locator('#f-pricing').selectOption('sabit_aylik'); await m.locator('#f-fixed_monthly_price').fill('7000');
+  await m.locator('#f-contract_end_on').check();
+  esit(await m.locator('[data-field="contract_end_date"]').isVisible(), true, 'işaretlenince tarih alanı görünür');
+  await m.locator('button[type=submit]').click();
+  if (!(await m.innerText()).includes('Sözleşme bitiş tarihini seçin')) throw new Error('tarih zorunlu olmalı');
+  await m.locator('#f-contract_end_date').fill('2026-12-31'); await m.locator('button[type=submit]').click();
+  await s.waitForSelector('.company-head h1:has-text("TKL-")'); await s.waitForSelector('[data-word-teklif]');
+  esit(await s.evaluate(() => globalThis.__fake.tablo.offers.at(-1).contract_end_date), '2026-12-31', 'sözleşme bitiş tarihi kaydedildi');
+  let [dl] = await Promise.all([s.waitForEvent('download'), s.click('[data-word-teklif]')]);
+  esit(dl.suggestedFilename(), 'egepoli-celik-yapi-sistemleri-ltd-sti-is-sagligi-teklifi.docx', 'dosya adı');
+  let d = await docOku(dl);
+  for (const beklenen of ['Sayın Mustafa BAYINDIR', 'EGEPOLİ ÇELİK YAPI SİSTEMLERİ LTD. ŞTİ.', 'İzmir Gaziemir’de faaliyet gösteren toplam 6 personelin bulunduğu çok tehlikeli sınıfta',
+    'Çok tehlikeli sınıftaki işyeri için çalışan başına ayda en az 40 dakika)', 'Çok tehlikeli sınıftaki işyeri için çalışan başına ayda en az 20 dakika)', 'aylık 7000 TL + KDV', 'Sözleşme 31.12.2026 tarihine kadar yapılacak olup, yeni sözleşme dönemi fiyatları yıllık enflasyon ve asgari ücret artış tutarları göz önüne alınarak karşılıklı olarak belirlenecektir.']) {
+    if (!d.metin.includes(beklenen)) throw new Error(`Word'de yok: ${beklenen}`);
+  }
+  if (d.metin.includes('{{') || d.metin.includes('BAYINDIR BAYINDIR')) throw new Error('doldurulmamış alan');
+  // düzenle: kişi başı fiyat, tehlikeli sınıf, sözleşme tarihi kaldırılır
+  await s.click('[data-action="duzenle"]'); await s.waitForSelector('#f-pricing'); const e = modal(s);
+  esit(await e.locator('#f-contract_end_on').isChecked(), true, 'düzenlemede işaretli gelir');
+  await e.locator('#f-hazard_class').selectOption('tehlikeli'); await e.locator('#f-pricing').selectOption('kisi_basi'); await e.locator('#f-unit_price').fill('125,50'.replace(',', '.'));
+  await e.locator('#f-contract_end_on').uncheck(); await e.locator('button[type=submit]').click();
+  await s.waitForFunction(() => globalThis.__fake.tablo.offers.at(-1).contract_end_date == null);
+  await s.waitForSelector('[data-word-teklif]');
+  [dl] = await Promise.all([s.waitForEvent('download'), s.click('[data-word-teklif]')]); d = await docOku(dl);
+  for (const beklenen of ['kişi başı aylık 125.5 TL + KDV'.replace('125.5', '125,50'), 'Tehlikeli sınıftaki işyeri için çalışan başına ayda en az 20 dakika)', 'Tehlikeli sınıftaki işyeri için çalışan başına ayda en az 15 dakika)', 'tehlikeli sınıfta yer alan']) {
+    if (!d.metin.includes(beklenen)) throw new Error(`Word'de yok: ${beklenen}`);
+  }
+  if (d.metin.includes('Sözleşme 31.12') || d.metin.includes('yıllık enflasyon')) throw new Error('işaretsiz teklifte sözleşme cümlesi kalkmalı');
+  if (!d.metin.includes('Aylık hizmet bedeli')) throw new Error('sonraki paragraf kaybolmamalı');
+  // kopyalanan teklif sözleşme tarihini taşır (sahte veritabanı kopya alanları aynen taşır)
+});
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }
