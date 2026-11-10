@@ -9,7 +9,7 @@ import {
 import { SURE_SECENEKLERI, baglantiAdresi, baglantiDurumu, yanitHaritasi, yanitDurumu } from '../lib/musteri.js';
 import { fiyatSenaryolari } from '../lib/hesaplama.js';
 import {
-  FIYATLAMA, KDV_MODU, TEKLIF_DURUMLARI, TEKLIF_TON, TEKLIF_GECISLERI, teklifKilitli, kabulEdilebilir, teklifHesabi,
+  FIYATLAMA, KDV_MODU, TEKLIF_DURUMLARI, TEKLIF_TON, TEKLIF_GECISLERI, teklifKilitli, kabulEdilebilir, teklifHesabi, TEKLIF_TURU, spotTeklifMi, spotHesabi,
 } from '../lib/ticari.js';
 import { ayarDegeri, bosIseNull, guncelProfil, profilleriGrupla } from '../lib/veri.js';
 import { humanError } from '../lib/api.js';
@@ -75,6 +75,7 @@ export async function teklifFormuAc(app, { teklif = null, leadId = null, company
       ${app.can('companies', 'view') ? field({ ad: 'company_id', etiket: 'Mevcut firma', deger: secFirma, secenekler: firmaSec, pasif: !!sabit && !!companyId }) : ''}
       ${app.can('crm', 'view') ? field({ ad: 'lead_id', etiket: 'Potansiyel müşteri', deger: secAday, secenekler: adaySec, pasif: !!sabit && !!leadId }) : ''}
       ${app.can('opportunities', 'view') ? field({ ad: 'opportunity_id', etiket: 'Satış fırsatı', deger: teklif?.opportunity_id ?? opportunityId ?? '', secenekler: firsatSec, tam: true }) : ''}
+      ${field({ ad: 'offer_type', etiket: 'Teklif türü', zorunlu: true, deger: v('offer_type', 'osgb'), pasif: duzenle, tam: true, secenekler: Object.entries(TEKLIF_TURU).map(([deger, etiket]) => ({ deger, etiket })), ipucu: 'Patlamadan korunma dokümanı gibi spot işlerde yalnızca hizmet bedeli, KDV, açıklama ve kapsam girilir.' })}
       ${field({ ad: 'employee_count', etiket: 'Çalışan sayısı', tur: 'number', min: 0, adim: 1, inputmode: 'numeric', zorunlu: true, deger: oncekiCalisan })}
       ${field({ ad: 'hazard_class', etiket: 'Tehlike sınıfı', zorunlu: true, deger: oncekiTehlike, secenekler: [{ deger: '', etiket: 'Seçiniz' }].concat(TEHLIKE_SIRASI.map((k) => ({ deger: k, etiket: TEHLIKE[k] }))) })}
       ${field({ ad: 'pricing', etiket: 'Fiyatlama', zorunlu: true, deger: v('pricing', 'kisi_basi'), secenekler: [{ deger: 'kisi_basi', etiket: FIYATLAMA.kisi_basi }, { deger: 'sabit_aylik', etiket: FIYATLAMA.sabit_aylik }] })}
@@ -87,37 +88,41 @@ export async function teklifFormuAc(app, { teklif = null, leadId = null, company
       ${field({ ad: 'est_expert_cost', etiket: 'Tahmini aylık uzman maliyeti (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: v('est_expert_cost'), ipucu: 'Bu müşteriye ayrılacak uzman süresinin aylık maliyeti.' })}
       ${field({ ad: 'est_physician_cost', etiket: 'Tahmini aylık hekim maliyeti (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: v('est_physician_cost') })}
       ${field({ ad: 'est_travel_other_cost', etiket: 'Tahmini yol ve diğer maliyet (TL)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: v('est_travel_other_cost') })}
+      ${field({ ad: 'service_fee', etiket: 'Hizmet bedeli (TL, tek seferlik)', tur: 'number', min: 0, adim: '0.01', inputmode: 'decimal', deger: v('service_fee'), tam: true })}
       ${field({ ad: 'description', etiket: 'Açıklama / kapsam', tur: 'textarea', tam: true, deger: v('description'), maksUzunluk: 3000 })}
+      ${field({ ad: 'scope', etiket: 'Kapsam', tur: 'textarea', tam: true, deger: v('scope'), maksUzunluk: 4000, ipucu: 'Teklif raporunda "Kapsam" başlığı altında görünür.' })}
       <div class="field field-full" id="hesap-alani"></div>`,
     async onSubmit(fd) {
       const g = (k) => String(fd.get(k) ?? '').trim();
       const h = {};
+      const tur = duzenle ? teklif.offer_type : (g('offer_type') || 'osgb'); const spot = tur === 'patlamadan_korunma';
       const firma = sabit && companyId ? companyId : g('company_id');
       const aday = sabit && leadId ? leadId : g('lead_id');
       if (!firma && !aday) h.company_id = 'Bir firma veya potansiyel müşteri seçin.';
       if (firma && aday) h.lead_id = 'Aynı anda hem firma hem potansiyel müşteri seçilemez.';
-      if (!/^\d{1,7}$/.test(g('employee_count'))) h.employee_count = 'Çalışan sayısı 0 veya daha büyük bir tam sayı olmalıdır.';
-      if (!g('hazard_class')) h.hazard_class = 'Tehlike sınıfını seçin.';
+      if (!spot && !/^\d{1,7}$/.test(g('employee_count'))) h.employee_count = 'Çalışan sayısı 0 veya daha büyük bir tam sayı olmalıdır.';
+      if (!spot && !g('hazard_class')) h.hazard_class = 'Tehlike sınıfını seçin.';
       const sayiMi = (k) => g(k) !== '' && Number(g(k)) >= 0;
-      if (g('pricing') === 'kisi_basi' && !sayiMi('unit_price')) h.unit_price = 'Kişi başı fiyatı girin (0 veya üstü).';
-      if (g('pricing') === 'sabit_aylik' && !sayiMi('fixed_monthly_price')) h.fixed_monthly_price = 'Sabit aylık tutarı girin (0 veya üstü).';
-      for (const k of ['est_expert_cost', 'est_physician_cost', 'est_travel_other_cost']) if (g(k) !== '' && !sayiMi(k)) h[k] = 'Tutar 0 veya daha büyük olmalıdır.';
+      if (spot && !sayiMi('service_fee')) h.service_fee = 'Hizmet bedelini girin (0 veya üstü).';
+      if (!spot && g('pricing') === 'kisi_basi' && !sayiMi('unit_price')) h.unit_price = 'Kişi başı fiyatı girin (0 veya üstü).';
+      if (!spot && g('pricing') === 'sabit_aylik' && !sayiMi('fixed_monthly_price')) h.fixed_monthly_price = 'Sabit aylık tutarı girin (0 veya üstü).';
+      if (!spot) for (const k of ['est_expert_cost', 'est_physician_cost', 'est_travel_other_cost']) if (g(k) !== '' && !sayiMi(k)) h[k] = 'Tutar 0 veya daha büyük olmalıdır.';
       const kdv = Number(g('vat_rate'));
       if (g('vat_rate') === '' || !(kdv >= 0 && kdv <= 100)) h.vat_rate = 'KDV oranı 0 ile 100 arasında olmalıdır.';
       const ind = Number(g('discount_pct') || 0);
-      if (!(ind >= 0 && ind <= 100)) h.discount_pct = 'İndirim 0 ile 100 arasında olmalıdır.';
+      if (!spot && !(ind >= 0 && ind <= 100)) h.discount_pct = 'İndirim 0 ile 100 arasında olmalıdır.';
       if (g('valid_until') && g('valid_until') < (teklif?.offer_date ?? bugun())) h.valid_until = 'Geçerlilik tarihi teklif tarihinden önce olamaz.';
       if (Object.keys(h).length) return { errors: h };
       const num = (k) => (g(k) === '' ? null : Number(g(k)));
       const kisi = g('pricing') === 'kisi_basi';
-      const degerler = {
-        company_id: bosIseNull(firma), lead_id: bosIseNull(aday), opportunity_id: bosIseNull(g('opportunity_id')),
-        employee_count: Number(g('employee_count')), hazard_class: g('hazard_class'), pricing: g('pricing'),
-        unit_price: kisi ? num('unit_price') : null, fixed_monthly_price: kisi ? null : num('fixed_monthly_price'),
-        vat_mode: g('vat_mode') || 'kdv_haric', vat_rate: kdv, discount_pct: ind, valid_until: bosIseNull(g('valid_until')),
-        est_expert_cost: num('est_expert_cost'), est_physician_cost: num('est_physician_cost'), est_travel_other_cost: num('est_travel_other_cost'),
-        description: bosIseNull(g('description')),
-      };
+      const ortak = { company_id: bosIseNull(firma), lead_id: bosIseNull(aday), opportunity_id: bosIseNull(g('opportunity_id')),
+        vat_mode: g('vat_mode') || 'kdv_haric', vat_rate: kdv, valid_until: bosIseNull(g('valid_until')), description: bosIseNull(g('description')) };
+      const degerler = spot
+        ? { ...ortak, offer_type: 'patlamadan_korunma', pricing: 'ozel', service_fee: num('service_fee'), scope: bosIseNull(g('scope')), employee_count: null, hazard_class: null,
+            unit_price: null, fixed_monthly_price: null, discount_pct: 0, est_expert_cost: null, est_physician_cost: null, est_travel_other_cost: null }
+        : { ...ortak, offer_type: 'osgb', employee_count: Number(g('employee_count')), hazard_class: g('hazard_class'), pricing: g('pricing'),
+            unit_price: kisi ? num('unit_price') : null, fixed_monthly_price: kisi ? null : num('fixed_monthly_price'), discount_pct: ind,
+            est_expert_cost: num('est_expert_cost'), est_physician_cost: num('est_physician_cost'), est_travel_other_cost: num('est_travel_other_cost'), service_fee: null, scope: null };
       if (duzenle) { await app.api.updateOffer(teklif.id, degerler); toast('Teklif güncellendi.'); }
       else { const yeni = await app.api.createOffer(degerler); yeniId = yeni.id; toast(`Taslak teklif oluşturuldu (${yeni.offer_no}).`); }
     },
@@ -129,9 +134,18 @@ export async function teklifFormuAc(app, { teklif = null, leadId = null, company
   const guncelle = () => {
     const g = (k) => String(form.elements[k]?.value ?? '').trim();
     const kisi = g('pricing') === 'kisi_basi';
-    form.querySelector('[data-field="unit_price"]').hidden = !kisi;
-    form.querySelector('[data-field="fixed_monthly_price"]').hidden = kisi;
+    const spot = g('offer_type') === 'patlamadan_korunma';
+    const goster = (ad, ok) => { const e = form.querySelector(`[data-field="${ad}"]`); if (e) e.hidden = !ok; };
+    for (const ad of ['employee_count', 'hazard_class', 'pricing', 'discount_pct', 'est_expert_cost', 'est_physician_cost', 'est_travel_other_cost']) goster(ad, !spot);
+    goster('unit_price', !spot && kisi); goster('fixed_monthly_price', !spot && !kisi); goster('service_fee', spot); goster('scope', spot);
+    const etiketEl = form.querySelector('[data-field="description"] label'); if (etiketEl) etiketEl.firstChild.textContent = spot ? 'Açıklama' : 'Açıklama / kapsam';
     const n = (k) => (g(k) === '' ? null : Number(g(k)));
+    if (spot) {
+      if (n('service_fee') === null) { alan.innerHTML = '<p class="muted">Hizmet bedelini girin.</p>'; return; }
+      const sp = spotHesabi({ service_fee: n('service_fee'), vat_mode: g('vat_mode'), vat_rate: n('vat_rate') ?? 20 });
+      alan.innerHTML = html`<div class="score-box" aria-live="polite"><p>KDV hariç <strong>${para(sp.haric)}</strong> · KDV <strong>${para(sp.kdv)}</strong> · Toplam <strong>${para(sp.dahil)}</strong></p></div>`.s;
+      return;
+    }
     alan.innerHTML = hesapOzeti({
       pricing: g('pricing'), unit_price: kisi ? n('unit_price') : null, fixed_monthly_price: kisi ? null : n('fixed_monthly_price'),
       employee_count: n('employee_count') ?? 0, vat_mode: g('vat_mode'), vat_rate: n('vat_rate') ?? 20, discount_pct: n('discount_pct') ?? 0,
@@ -179,11 +193,12 @@ export async function tekliflerSayfasi(app) {
   const sayilar = Object.fromEntries(Object.entries(GRUP).map(([k, f]) => [k, teklifler.filter(f).length]));
 
   const satir = (o) => {
-    let h = null; try { h = teklifHesabi(o, esik); } catch { h = null; }
-    return html`<tr class="${o.archived_at ? 'row-muted' : ''}">
-      <td><a class="cell-main" href="#/teklifler/${o.id}">${avatar(kimin(o))}<span><strong>${o.offer_no}</strong><small>${kimin(o)}</small></span></a></td>
+    const spot = spotTeklifMi(o);
+    let h = null; try { h = spot ? null : teklifHesabi(o, esik); } catch { h = null; }
+    return html`<tr class="${o.archived_at ? 'row-muted' : ''}" data-tur="${spot ? 'spot' : 'osgb'}">
+      <td><a class="cell-main" href="#/teklifler/${o.id}">${avatar(kimin(o))}<span><strong>${o.offer_no}</strong><small>${kimin(o)}${spot ? html` · Patlamadan Korunma` : ''}</small></span></a></td>
       <td class="hide-sm">${tarih(o.offer_date)}</td>
-      <td class="num">${h ? para(h.aylikGelirKdvHaric) : '—'}</td>
+      <td class="num">${spot ? html`${para(spotHesabi(o).haric)}<small class="block muted">tek seferlik</small>` : h ? para(h.aylikGelirKdvHaric) : '—'}</td>
       <td class="hide-md">${h ? (h.esikAltinda ? pill(yuzde(h.katkiMarji), 'danger') : yuzde(h.katkiMarji)) : '—'}</td>
       <td class="hide-md">${o.valid_until ? tarih(o.valid_until) : html`<span class="muted">—</span>`}</td>
       <td>${teklifPill(o.status)}${yanitOf(o) ? html`<small class="block">${yanitPill(yanitOf(o))}</small>` : ''}</td></tr>`;
@@ -195,7 +210,7 @@ export async function tekliflerSayfasi(app) {
     }
     let liste = teklifler.filter(GRUP[durum.filtre]);
     const q = durum.q.trim();
-    if (q) liste = liste.filter((o) => [o.offer_no, kimin(o), o.description].some((d) => d && icerir(d, q)));
+    if (q) liste = liste.filter((o) => [o.offer_no, kimin(o), o.description, o.scope, spotTeklifMi(o) ? 'patlamadan korunma' : ''].some((d) => d && icerir(d, q)));
     liste.sort((a, b) => String(b.offer_no).localeCompare(String(a.offer_no)));
     if (!liste.length) return emptyState({ simge: 'search', baslik: 'Eşleşen teklif yok', metin: 'Arama veya filtreyi değiştirmeyi deneyin.' });
     const sayfaSayisi = Math.max(1, Math.ceil(liste.length / SAYFA_BASI));
@@ -257,9 +272,11 @@ export async function teklifSayfasi(app, id) {
   const bagliSozlesme = sozlesmeler.find((c) => c.offer_id === o.id && !c.archived_at);
   const kdvDurum = (k) => `${KDV_MODU[k.vat_mode] ?? ''} %${sayi(Number(k.vat_rate))}`;
 
-  let h = null; try { h = teklifHesabi(o, esik); } catch { h = null; }
+  const spot = spotTeklifMi(o);
+  let h = null; try { h = spot ? null : teklifHesabi(o, esik); } catch { h = null; }
   let senaryo = null;
   try {
+    if (spot) throw new Error('spot');
     const fiyatlama = o.pricing === 'kisi_basi' ? 'kisi_basi' : 'sabit_aylik';
     senaryo = fiyatSenaryolari({
       fiyatlama, birimFiyat: Number(o.unit_price ?? 0), sabitFiyat: Number(o.fixed_monthly_price ?? 0), calisanSayisi: o.employee_count,
@@ -279,8 +296,8 @@ export async function teklifSayfasi(app, id) {
 
   const gecisDugmeleri = () => {
     if (!duzenleyebilir) return '';
-    const etiket = { onay_bekliyor: 'Onaya gönder', gonderildi: o.status === 'taslak' || o.status === 'onay_bekliyor' ? 'Müşteriye gönder' : 'Yeniden gönder', gorusuluyor: 'Görüşülüyor', reddedildi: 'Reddedildi', suresi_doldu: 'Süresi doldu', taslak: 'Taslağa al' };
-    return (TEKLIF_GECISLERI[o.status] ?? []).map((d) => html`<button type="button" class="btn btn-secondary" data-gecis="${d}">${etiket[d] ?? TEKLIF_DURUMLARI[d]}</button>`);
+    const etiket = { onay_bekliyor: 'Onaya gönder', gonderildi: o.status === 'taslak' || o.status === 'onay_bekliyor' ? 'Müşteriye gönder' : 'Yeniden gönder', gorusuluyor: 'Görüşülüyor', kabul_edildi: 'Kabul edildi (iş onaylandı)', reddedildi: 'Reddedildi', suresi_doldu: 'Süresi doldu', taslak: 'Taslağa al' };
+    return [...(TEKLIF_GECISLERI[o.status] ?? []), ...(spot && kabulEdilebilir(o.status) ? ['kabul_edildi'] : [])].map((d) => html`<button type="button" class="btn btn-secondary" data-gecis="${d}">${etiket[d] ?? TEKLIF_DURUMLARI[d]}</button>`);
   };
 
   const yanitliPay = (paylasimlar ?? []).find((x) => x.response);
@@ -301,7 +318,7 @@ export async function teklifSayfasi(app, id) {
         ${durum.ad === 'aktif' ? html`<p class="fine">Güvenlik gereği bağlantının kendisi yalnızca oluşturulduğu anda gösterilir. Kaybettiyseniz yeni bağlantı oluşturun; eskisi kapanır.</p>` : ''}
         ${yanitli ? html`<div class="notice ${yanitli.response === 'kabul' ? 'notice-ok' : 'notice-warn'}" role="status" id="musteri-yaniti"><strong>Müşteri yanıtı: ${yanitli.response === 'kabul' ? 'KABUL' : 'RED'}</strong> — ${yanitli.responder_name}, ${tarihSaat(yanitli.responded_at)}
           ${yanitli.responder_note ? html`<span class="block prewrap">Not: ${yanitli.responder_note}</span>` : ''}
-          <span class="block fine">${['gonderildi', 'gorusuluyor'].includes(o.status) ? (yanitli.response === 'kabul' ? 'Sıradaki adım: müşteriyle görüşüp "Sözleşme oluştur" düğmesini kullanın.' : 'Sıradaki adım: müşteriyle görüşün; sonuç değişmezse "Reddedildi" olarak işaretleyin.') : 'Teklif durumu işlenmiş.'} Teklif durumu kendiliğinden değişmez. Size bir görev eklendi; e-posta bildirimi kuruluysa ayrıca e-posta gelir.</span></div>` : ''}
+          <span class="block fine">${['gonderildi', 'gorusuluyor'].includes(o.status) ? (yanitli.response === 'kabul' ? (spot ? 'Sıradaki adım: müşteriyle görüşüp "Kabul edildi" düğmesini kullanın.' : 'Sıradaki adım: müşteriyle görüşüp "Sözleşme oluştur" düğmesini kullanın.') : 'Sıradaki adım: müşteriyle görüşün; sonuç değişmezse "Reddedildi" olarak işaretleyin.') : 'Teklif durumu işlenmiş.'} Teklif durumu kendiliğinden değişmez. Size bir görev eklendi; e-posta bildirimi kuruluysa ayrıca e-posta gelir.</span></div>` : ''}
       </div></section>`;
   };
 
@@ -313,29 +330,37 @@ export async function teklifSayfasi(app, id) {
     eylemler: html`${duzenleyebilir && !kilitli ? html`<button type="button" class="btn btn-secondary" data-action="duzenle">${icon('pencil', 18)} Düzenle</button>` : ''}
       <button type="button" class="btn btn-secondary" data-yazdir>${icon('file', 18)} Yazdır / PDF</button>
       ${app.can('offers', 'create') ? html`<button type="button" class="btn btn-secondary" data-action="kopyala">${icon('file', 18)} Kopyala</button>` : ''}
-      ${duzenleyebilir && kabulEdilebilir(o.status) && app.can('contracts', 'create') ? html`<button type="button" class="btn btn-primary" data-action="kabul">${icon('check', 18)} Sözleşme oluştur</button>` : ''}
+      ${!spot && duzenleyebilir && kabulEdilebilir(o.status) && app.can('contracts', 'create') ? html`<button type="button" class="btn btn-primary" data-action="kabul">${icon('check', 18)} Sözleşme oluştur</button>` : ''}
       ${app.can('offers', 'archive') && !o.archived_at ? html`<button type="button" class="btn btn-secondary" data-action="arsiv">${icon('archive', 18)} Arşivle</button>` : ''}`,
     govde: html`${o.archived_at ? html`<div class="notice notice-warn" role="status">Bu teklif arşivde.</div>` : ''}
       ${kilitli ? html`<div class="notice notice-info" role="status">Gönderilmiş teklifin fiyat bilgileri değiştirilemez. Değişiklik için <strong>Kopyala</strong> ile yeni sürüm hazırlayın.</div>` : ''}
-      ${kabulEdilebilir(o.status) && duzenleyebilir && !app.can('contracts', 'create') ? html`<div class="notice notice-info" role="status">Teklifi kabul edip sözleşmeye çevirmek için sözleşme oluşturma yetkisi gerekir; yetkili kullanıcıya iletin.</div>` : ''}
+      ${!spot && kabulEdilebilir(o.status) && duzenleyebilir && !app.can('contracts', 'create') ? html`<div class="notice notice-info" role="status">Teklifi kabul edip sözleşmeye çevirmek için sözleşme oluşturma yetkisi gerekir; yetkili kullanıcıya iletin.</div>` : ''}
       ${bagliSozlesme ? html`<div class="notice notice-ok" role="status">Bu teklif sözleşmeye çevrildi: <a class="link" href="#/sozlesmeler/${bagliSozlesme.id}">Sözleşmeyi aç</a></div>` : ''}
       ${gecisDugmeleri().length ? html`<div class="action-row">${gecisDugmeleri()}</div>` : ''}
       <div class="grid-2">
-        <section class="card"><h2 class="card-title">Fiyat</h2><dl class="kv-list">
+        ${spot ? html`<section class="card" id="spot-fiyat"><h2 class="card-title">Hizmet bedeli</h2><dl class="kv-list">
+          <div class="kv"><dt>Teklif türü</dt><dd>${TEKLIF_TURU.patlamadan_korunma}</dd></div>
+          <div class="kv"><dt>Hizmet bedeli (tek seferlik)</dt><dd>${para(o.service_fee)} <small class="muted">${kdvDurum(o)}</small></dd></div>
+          <div class="kv"><dt>KDV hariç</dt><dd>${para(spotHesabi(o).haric)}</dd></div>
+          <div class="kv"><dt>KDV (%${sayi(Number(o.vat_rate))})</dt><dd>${para(spotHesabi(o).kdv)}</dd></div>
+          <div class="kv"><dt>Toplam (KDV dahil)</dt><dd><strong>${para(spotHesabi(o).dahil)}</strong></dd></div>
+          <div class="kv"><dt>Hazırlayan</dt><dd>${uyeAdi.get(o.created_by) || html`<span class="muted">—</span>`}</dd></div>
+        </dl></section>` : html`<section class="card"><h2 class="card-title">Fiyat</h2><dl class="kv-list">
           <div class="kv"><dt>Çalışan / tehlike</dt><dd>${sayi(o.employee_count)} · ${TEHLIKE[o.hazard_class]}</dd></div>
           <div class="kv"><dt>Fiyatlama</dt><dd>${FIYATLAMA[o.pricing]}</dd></div>
           <div class="kv"><dt>${o.pricing === 'kisi_basi' ? 'Kişi başı fiyat' : 'Aylık fiyat'}</dt><dd>${para(o.pricing === 'kisi_basi' ? o.unit_price : o.fixed_monthly_price)} <small class="muted">${kdvDurum(o)}</small></dd></div>
           <div class="kv"><dt>İndirim</dt><dd>%${sayi(Number(o.discount_pct))}</dd></div>
           <div class="kv"><dt>Hazırlayan</dt><dd>${uyeAdi.get(o.created_by) || html`<span class="muted">—</span>`}</dd></div>
-        </dl></section>
-        <section class="card yazdirma-gizli"><h2 class="card-title">Kârlılık</h2>${h ? hesapOzeti(o, esik) : html`<p class="muted">Hesaplanamadı.</p>`}</section>
+        </dl></section>`}
+        ${spot ? '' : html`<section class="card yazdirma-gizli"><h2 class="card-title">Kârlılık</h2>${h ? hesapOzeti(o, esik) : html`<p class="muted">Hesaplanamadı.</p>`}</section>`}
         ${senaryo ? html`<section class="card grid-full yazdirma-gizli"><h2 class="card-title">Fiyat senaryoları</h2>
           <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Senaryo</th><th scope="col" class="num">Aylık gelir (KDV hariç)</th><th scope="col" class="num">Katkı kârı</th><th scope="col" class="num">Marj</th></tr></thead><tbody>
             <tr><td>Mevcut teklif</td><td class="num">${para(senaryo.mevcut.aylikGelirKdvHaric)}</td><td class="num">${para(senaryo.mevcut.katkiKari)}</td><td class="num">${yuzde(senaryo.mevcut.katkiMarji)}</td></tr>
             <tr><td>Ek %5 indirim verilirse</td><td class="num">${para(senaryo.indirimli.aylikGelirKdvHaric)}</td><td class="num">${para(senaryo.indirimli.katkiKari)}</td><td class="num">${yuzde(senaryo.indirimli.katkiMarji)}</td></tr>
             <tr><td>%${sayi(esik)} marjı korumak için en az</td><td class="num">${para(senaryo.hedefMarj.gerekenAylikGelirKdvHaric)}</td><td class="num">—</td><td class="num">%${sayi(esik)}</td></tr></tbody></table></div>
           <p class="fine">Maliyetler sizin girdiğiniz tahminlerdir; gerçek maliyet Aşama 7'de fiilî sürelerle hesaplanır.</p></section>` : ''}
-        ${o.description ? html`<section class="card grid-full"><h2 class="card-title">Kapsam / açıklama</h2><p class="prewrap">${o.description}</p></section>` : ''}
+        ${o.description ? html`<section class="card grid-full"><h2 class="card-title">${spot ? 'Açıklama' : 'Kapsam / açıklama'}</h2><p class="prewrap">${o.description}</p></section>` : ''}
+        ${spot && o.scope ? html`<section class="card grid-full" id="spot-kapsam"><h2 class="card-title">Kapsam</h2><p class="prewrap">${o.scope}</p></section>` : ''}
         <div class="grid-full">${kalemTablosu()}</div>
         ${paylasimKarti()}
       </div>`,

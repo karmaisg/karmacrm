@@ -3,6 +3,13 @@ import { teklifKarliligi, kdvAyir, yuvarla2 } from './hesaplama.js';
 import { gunFarki } from './format.js';
 
 export const FIYATLAMA = { kisi_basi: 'Kişi başı (aylık)', sabit_aylik: 'Sabit aylık', ozel: 'Özel' };
+export const TEKLIF_TURU = { osgb: 'OSGB hizmeti', patlamadan_korunma: 'Patlamadan Korunma Dokümanı' };
+export const spotTeklifMi = (o) => o?.offer_type === 'patlamadan_korunma' || o?.teklif_turu === 'patlamadan_korunma';
+/** Tek seferlik hizmet bedeli (spot teklif): girilen tutar KDV hariç veya dahil olabilir. */
+export function spotHesabi(o) {
+  const v = kdvAyir(yuvarla2(Number(o.service_fee ?? o.hizmet_bedeli ?? 0)), o.vat_mode, Number(o.vat_rate ?? 20));
+  return { haric: v.haric, kdv: v.kdv, dahil: v.dahil };
+}
 export const KDV_MODU = { kdv_haric: 'KDV hariç', kdv_dahil: 'KDV dahil' };
 
 export const TEKLIF_DURUMLARI = {

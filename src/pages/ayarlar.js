@@ -74,7 +74,7 @@ export async function ayarlarSayfasi(app) {
 
   const DURUM = { gonderildi: ['Gönderildi', 'success'], atlandi: ['Atlandı', 'info'], hata: ['Hata', 'danger'] };
   const ozetKart = () => html`<section class="card card-flush pad-t" id="ozet-kart"><div class="card-head"><div><h2 class="card-title">Günlük özet e-postası</h2>
-    <p class="card-sub">Her sabah 08:00'de yalnızca sizin e-posta adresinize gider: vadesi geçmiş ve yaklaşan faturalar, biten sözleşmeler, geciken görevler. Müşterilere hiçbir şey gönderilmez. Bildirilecek bir şey yoksa e-posta gönderilmez.</p></div>
+    <p class="card-sub">Her sabah 08:00'de sizin e-posta adresinize (ve isteğe bağlı olarak OZET_EK_ALICILAR ile tanımladığınız kişilere) gider: bugünkü ve yaklaşan işler, yapıldı işaretlenmemiş geçmiş hatırlatmalar (kaç gün gecikti bilgisiyle), vadesi geçmiş ve yaklaşan faturalar, biten sözleşmeler, geciken görevler. Müşterilere hiçbir şey gönderilmez. Bildirilecek bir şey yoksa e-posta gönderilmez.</p></div>
     ${degistirebilir ? html`<button type="button" class="btn btn-secondary btn-sm" id="ozet-test">${icon('mail', 16)} Test e-postası gönder</button>` : ''}</div>
     ${ozetGunlugu.hata ? html`<div class="notice notice-info" role="note">Günlük özet henüz kurulmamış görünüyor (10_asama10.sql çalıştırılmamış olabilir). Kurulum rehberindeki Aşama 10 adımlarına bakın.</div>`
       : ozetGunlugu.satirlar.length ? html`<div class="table-wrap"><table class="table" id="ozet-gunlugu"><thead><tr><th scope="col">Zaman</th><th scope="col">Tür</th><th scope="col">Durum</th><th scope="col" class="hide-sm">Ayrıntı</th></tr></thead><tbody>

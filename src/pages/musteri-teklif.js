@@ -46,13 +46,21 @@ export async function musteriTeklifSayfasi(api, token) {
       : p.teklif_durumu === 'reddedildi' ? html`<div class="notice notice-info" role="status">Bu teklif kapatılmıştır.</div>`
       : p.sure_bitti || p.teklif_durumu === 'suresi_doldu' ? html`<div class="notice notice-warn" role="status">Bu teklifin geçerlilik süresi dolmuştur. Güncel teklif için lütfen bizimle iletişime geçin.</div>` : '';
     mount(kok, kapsayici(html`
-      <header class="musteri-ust"><div><p class="musteri-kurum">${p.kurum}</p><h1>Teklif ${p.teklif_no}</h1>
+      <header class="musteri-ust"><div><p class="musteri-kurum">${p.kurum}</p><h1>${o.spot ? 'Patlamadan Korunma Dokümanı Teklifi' : 'Teklif'} ${p.teklif_no}</h1>
         <p class="muted">${tarih(p.teklif_tarihi)}${p.gecerlilik ? ` · ${tarih(p.gecerlilik)} tarihine kadar geçerlidir` : ''}</p></div>
         <button type="button" class="btn btn-secondary yazdirma-gizli" id="yazdir">${icon('file', 18)} Yazdır / PDF</button></header>
       ${durumNotu}
       <section class="card pad"><p>Sayın <strong>${p.alici}</strong>,</p>
         ${p.musteri_notu ? html`<p class="prewrap" id="musteri-notu">${p.musteri_notu}</p>` : ''}</section>
-      <section class="card card-flush"><div class="card-head"><h2 class="card-title">Hizmet bedeli</h2></div>
+      ${o.spot ? html`${p.aciklama ? html`<section class="card pad" id="spot-aciklama"><h2 class="card-title">Açıklama</h2><p class="prewrap">${p.aciklama}</p></section>` : ''}
+        ${p.kapsam ? html`<section class="card pad" id="spot-kapsam"><h2 class="card-title">Kapsam</h2><p class="prewrap">${p.kapsam}</p></section>` : ''}
+        <section class="card card-flush"><div class="card-head"><h2 class="card-title">Hizmet bedeli</h2></div>
+          <dl class="kv-list pad">
+            <div class="kv"><dt>Hizmet bedeli (tek seferlik, ${KDV_MODU[o.kdvModu]})</dt><dd>${tl(o.brut)}</dd></div>
+            <div class="kv"><dt>KDV hariç</dt><dd>${tl(o.haric)}</dd></div>
+            <div class="kv"><dt>KDV (%${o.kdvOrani})</dt><dd>${tl(o.kdv)}</dd></div>
+            <div class="kv"><dt><strong>Toplam (KDV dahil)</strong></dt><dd><strong id="spot-toplam">${tl(o.dahil)}</strong></dd></div>
+          </dl></section>` : html`<section class="card card-flush"><div class="card-head"><h2 class="card-title">Hizmet bedeli</h2></div>
         <dl class="kv-list pad">
           <div class="kv"><dt>Çalışan sayısı / tehlike sınıfı</dt><dd>${p.calisan_sayisi} · ${TEHLIKE[p.tehlike] ?? p.tehlike}</dd></div>
           <div class="kv"><dt>Fiyatlama</dt><dd>${FIYATLAMA[p.fiyatlama] ?? p.fiyatlama}</dd></div>
@@ -62,13 +70,13 @@ export async function musteriTeklifSayfasi(api, token) {
           <div class="kv"><dt>Aylık, KDV hariç</dt><dd>${tl(o.aylikHaric)}</dd></div>
           <div class="kv"><dt>KDV (%${o.kdvOrani})</dt><dd>${tl(o.aylikKdv)}</dd></div>
           <div class="kv"><dt><strong>Aylık toplam (KDV dahil)</strong></dt><dd><strong id="aylik-toplam">${tl(o.aylikDahil)}</strong></dd></div>
-        </dl></section>
-      ${o.kalemler.length ? html`<section class="card card-flush pad-t"><div class="card-head"><div><h2 class="card-title">Ek hizmetler</h2><p class="card-sub">Aylık bedele dahil değildir.</p></div></div>
+        </dl></section>`}
+      ${o.kalemler.length ? html`<section class="card card-flush pad-t"><div class="card-head"><div><h2 class="card-title">Ek hizmetler</h2><p class="card-sub">${o.spot ? 'Hizmet bedeline dahil değildir.' : 'Aylık bedele dahil değildir.'}</p></div></div>
         <div class="table-wrap"><table class="table" id="kalem-tablo"><thead><tr><th scope="col">Açıklama</th><th scope="col" class="num">Miktar</th><th scope="col" class="num">Birim fiyat</th><th scope="col" class="num">KDV hariç</th><th scope="col" class="num">KDV dahil</th></tr></thead><tbody>
           ${o.kalemler.map((k) => html`<tr><td>${k.aciklama}<small class="block muted">${KDV_MODU[k.kdvModu]} %${k.kdvOrani}</small></td><td class="num">${k.miktar}</td><td class="num">${tl(k.birimFiyat)}</td><td class="num">${tl(k.haric)}</td><td class="num">${tl(k.dahil)}</td></tr>`)}
           <tr><th scope="row">Toplam</th><td></td><td></td><td class="num"><strong>${tl(o.kalemHaric)}</strong></td><td class="num"><strong>${tl(o.kalemDahil)}</strong></td></tr></tbody></table></div></section>` : ''}
       ${p.yanit_verilebilir ? html`<section class="card pad pad-t yazdirma-gizli" id="yanit-kart"><h2 class="card-title">Yanıtınız</h2>
-        <p class="card-sub">Yanıtınız teklif sahibine iletilir. Hizmet sözleşmesi ayrıca düzenlenir.</p>
+        <p class="card-sub">${o.spot ? 'Yanıtınız teklif sahibine iletilir.' : 'Yanıtınız teklif sahibine iletilir. Hizmet sözleşmesi ayrıca düzenlenir.'}</p>
         <div class="musteri-dugmeler" id="yanit-dugmeler"><button type="button" class="btn btn-success" data-karar="kabul">${icon('check', 18)} Teklifi kabul ediyorum</button>
           <button type="button" class="btn btn-danger" data-karar="red">${icon('x', 18)} Kabul etmiyorum</button></div>
         <form id="yanit-form" class="form" novalidate hidden><div class="form-grid">

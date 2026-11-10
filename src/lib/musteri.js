@@ -1,7 +1,7 @@
 // OSGB 360 - Müşteri teklif bağlantısı: saf yardımcılar (adres, fiyat özeti, yanıt doğrulama). Testler: tests/musteri.test.js
 // Müşteriye gösterilen her şey veri tabanı fonksiyonunun (teklif_paylasim_goruntule) döndürdüğü izinli alanlardan hesaplanır;
 // maliyet/kâr gibi iç bilgiler bu tarafa hiç gelmez.
-import { teklifHesabi } from './ticari.js';
+import { teklifHesabi, spotTeklifMi, spotHesabi } from './ticari.js';
 import { kdvAyir, yuvarla2 } from './hesaplama.js';
 
 export const TOKEN_DESENI = /^[0-9a-f]{64}$/;
@@ -24,7 +24,8 @@ export function teklifOzeti(p) {
   const fiyatlama = p.fiyatlama === 'ozel' ? (p.birim_fiyat !== null && p.birim_fiyat !== undefined ? 'kisi_basi' : 'sabit_aylik') : p.fiyatlama;
   const calisan = Number(p.calisan_sayisi ?? 0);
   const brut = yuvarla2(fiyatlama === 'kisi_basi' ? Number(p.birim_fiyat ?? 0) * calisan : Number(p.sabit_fiyat ?? 0));
-  const h = teklifHesabi({ pricing: p.fiyatlama, unit_price: p.birim_fiyat, fixed_monthly_price: p.sabit_fiyat, employee_count: calisan,
+  const spot = spotTeklifMi(p);
+  const h = spot ? null : teklifHesabi({ pricing: p.fiyatlama, unit_price: p.birim_fiyat, fixed_monthly_price: p.sabit_fiyat, employee_count: calisan,
     vat_mode: p.kdv_modu, vat_rate: p.kdv_orani, discount_pct: p.indirim });
   const indirimYuzde = Number(p.indirim ?? 0);
   const kalemler = (p.kalemler ?? []).map((k) => {
@@ -33,6 +34,11 @@ export function teklifOzeti(p) {
     return { aciklama: k.aciklama, miktar: Number(k.miktar), birimFiyat: Number(k.birim_fiyat), kdvModu: k.kdv_modu, kdvOrani: Number(k.kdv_orani), haric: v.haric, kdv: v.kdv, dahil: v.dahil };
   });
   const topla = (a) => yuvarla2(kalemler.reduce((t, k) => t + k[a], 0));
+  if (spot) {                                   // Patlamadan korunma: tek seferlik hizmet bedeli + KDV
+    const sp = spotHesabi({ service_fee: p.hizmet_bedeli, vat_mode: p.kdv_modu, vat_rate: p.kdv_orani });
+    return { spot: true, brut: yuvarla2(Number(p.hizmet_bedeli ?? 0)), kdvModu: p.kdv_modu, kdvOrani: Number(p.kdv_orani), haric: sp.haric, kdv: sp.kdv, dahil: sp.dahil,
+      kalemler, kalemHaric: topla('haric'), kalemKdv: topla('kdv'), kalemDahil: topla('dahil') };
+  }
   return {
     fiyatlama, calisan, birimFiyat: p.birim_fiyat === null || p.birim_fiyat === undefined ? null : Number(p.birim_fiyat),
     brut, kdvModu: p.kdv_modu, kdvOrani: Number(p.kdv_orani), indirimYuzde, indirimTutari: yuvarla2(brut - brut * (1 - indirimYuzde / 100)),
