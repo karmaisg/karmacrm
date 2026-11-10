@@ -3375,6 +3375,42 @@ await test('Patlamadan korunma teklifi: yalnızca hizmet bedeli, KDV, açıklama
   if (!satir.includes('Patlamadan Korunma') || !satir.includes('10.000') || !satir.toLowerCase().includes('tek seferlik')) throw new Error(`liste satırı: ${satir}`);
 });
 
+await test('İdari İşler: Maaş hesaplayıcı (net maaş kayıtlı kalır, banka girilir, diğer = net − banka, toplamlar)', async (s) => {
+  await girisYap(s);
+  await git(s, '#/idari'); await s.waitForSelector('[data-sekme="maas"]');
+  const sekmeler = await s.locator('[role=tablist] [data-sekme]').allInnerTexts();
+  esit(sekmeler.map((x) => x.trim()).join('|'), 'Özlük belgeleri|Personel izinleri|Şirket araçları|Şirket belgeleri|Maaş hesaplayıcı', 'Maaş hesaplayıcı şirket belgelerinin yanında');
+  await s.click('[data-sekme="maas"]'); await s.waitForSelector('[data-maas-ekle]');
+  await s.locator('[data-maas-ekle]').first().click();
+  const m = modal(s); await m.locator('#f-full_name').fill('Ayşe Demir'); await m.locator('#f-net_salary').fill('abc'); await m.locator('button[type=submit]').click();
+  if (!(await m.innerText()).includes('Net maaşı girin')) throw new Error('geçersiz net maaş reddedilmeli');
+  await m.locator('#f-net_salary').fill('35.000,50'); await m.locator('button[type=submit]').click();
+  await s.waitForSelector('tr[data-maas-satir]');
+  esit(await s.locator('[data-maas="net_salary"]').inputValue(), '35000,5', 'net maaş kayıtlı');
+  esit((await s.locator('[data-maas-diger]').innerText()).trim(), '—', 'banka girilmeden diğer yok');
+  const banka = s.locator('[data-maas="bank_amount"]'); await banka.fill('28.075,50'); await banka.press('Tab');
+  await s.waitForFunction(() => document.querySelector('[data-maas-diger]').innerText.replace(/\s/g, '').includes('6.925'));      // 35.000,50 − 28.075,50 = 6.925,00
+  const t1 = (await s.locator('#maas-toplam').innerText()).replace(/\s+/g, ' ');
+  if (!t1.includes('35.000,5') || !t1.includes('28.075,5') || !t1.includes('6.925')) throw new Error(`toplam: ${t1}`);
+  // banka net maaştan büyük olamaz
+  await banka.fill('99999'); await banka.press('Tab');
+  await s.waitForFunction(() => document.querySelector('[data-maas="bank_amount"]').value === '28075,5');
+  const kayit = await s.evaluate(() => globalThis.__fake.tablo.salary_calcs[0]);
+  esit([kayit.full_name, kayit.net_salary, kayit.bank_amount].join('|'), 'Ayşe Demir|35000.5|28075.5', 'kayıt');
+  // net maaş yenilemeden sonra da yerinde (varsayılan olarak kalır); net düşürülürse diğer yeniden hesaplanır
+  await git(s, '#/idari'); await s.click('[data-sekme="maas"]'); await s.waitForSelector('tr[data-maas-satir]');
+  esit(await s.locator('[data-maas="net_salary"]').inputValue(), '35000,5', 'yenilemeden sonra net maaş duruyor');
+  const net = s.locator('[data-maas="net_salary"]'); await net.fill('36000'); await net.press('Tab');
+  await s.waitForFunction(() => document.querySelector('[data-maas-diger]').innerText.replace(/\s/g, '').includes('7.924,5'));
+  // ikinci personel + silme
+  await s.locator('[data-maas-ekle]').first().click(); await modal(s).locator('#f-full_name').fill('Veli Kaya'); await modal(s).locator('#f-net_salary').fill('20000'); await modal(s).locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelectorAll('tr[data-maas-satir]').length === 2);
+  esit((await s.locator('#maas-toplam').innerText()).replace(/\s+/g, ' ').toLowerCase().includes('toplam (2 personel)'), true, 'toplam satırı');
+  await s.locator('[data-maas-sil]').nth(1).click(); await s.locator('[data-ok]').click();
+  await s.waitForFunction(() => document.querySelectorAll('tr[data-maas-satir]').length === 1);
+  esit(await s.evaluate(() => globalThis.__fake.tablo.salary_calcs.filter((x) => !x.archived_at).length), 1, 'arşivlendi');
+});
+
 await tarayici.close(); sunucu.close();
 console.log(`\n${gecen} geçti, ${basarisiz.length} kaldı.`);
 if (basarisiz.length) { console.log(`Başarısız: ${basarisiz.join('; ')}`); process.exit(1); }
