@@ -625,3 +625,14 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 `38_asama37.sql` sonrasında `39_asama38.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Banka tutarı net maaştan büyükse Diğer sütunu eksi değer (ör. −1.000,00) gösterir.
 
 **Diğer (+) / (−) toplamları (Aşama 39, SQL gerekmez):** Tablonun altında Diğer'in artı değerlerinin toplamı ile eksi değerlerinin toplamı ayrı satırlarda gösterilir; "Toplam" satırındaki Diğer ise ikisinin net toplamıdır.
+
+## İSG hizmeti teklifi: Word (.docx) çıktısı ve sözleşme bitiş tarihi (Aşama 39) — `supabase/40_asama39.sql` çalıştırılmalı
+
+`39_asama38.sql` sonrasında `40_asama39.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Siteyi yayınladıktan sonra tarayıcıda sayfayı yenileyin (Ctrl+F5).
+
+- **Word teklifi:** OSGB (İSG hizmeti) teklifinin sayfasında **"Word teklifi"** düğmesi vardır; firmanın örnek teklif Word biçimi aynen kullanılır, yalnızca alanlar doldurulur. (Patlamadan Korunma gibi spot tekliflerde bu düğme yoktur; onların raporu ayrıdır.)
+- **Doldurulan alanlar:** firma adı **büyük harfle** (üç yerde); "Sayın …" satırına yetkili adı (firmanın karar verici kişisi, yoksa ilk kişisi; potansiyel müşteride aday kartındaki yetkili adı; yoksa "Sayın Yetkili"); "İzmir Gaziemir'de faaliyet gösteren" yeri firmanın il/ilçesinden (girilmemişse bu ifade çıkar); çalışan sayısı; tehlike sınıfı.
+- **E maddesi süreleri tehlike sınıfına göre değişir** (çalışan başına ayda en az): Az tehlikeli — uzman 10 dk, hekim 5 dk · Tehlikeli — uzman 20 dk, hekim 15 dk · Çok tehlikeli — uzman 40 dk, hekim 20 dk.
+- **Fiyat (F maddesi, kalın):** Sabit aylık seçildiyse "aylık 7000 TL + KDV"; Kişi başı seçildiyse "kişi başı aylık 125 TL + KDV" (teklifte girilen kişi başı fiyat). Fiyat "KDV dahil" girildiyse "(KDV dahil)" yazar. Teklifteki indirim yüzdesi Word'e işlenmez; girilen fiyat aynen yazılır.
+- **Sözleşme bitiş tarihi:** Teklif formunda "Sözleşme bitiş tarihi belirtilsin mi?" kutusu vardır. İşaretlenirse tarih seçilir ve Word'de "Sözleşme GG.AA.YYYY tarihine kadar yapılacak olup, yeni sözleşme dönemi fiyatları yıllık enflasyon ve asgari ücret artış tutarları göz önüne alınarak karşılıklı olarak belirlenecektir." cümlesi yer alır. İşaretlenmezse cümle Word'den çıkar. Teklif kopyalanınca tarih de taşınır.
+- Dosya adı: `firma-adi-is-sagligi-teklifi.docx`. Word şablonunu değiştirmek isterseniz `tools/sablon_hazirla.py` örnek belgeden alan işaretli şablonu yeniden üretir (`src/assets/teklif_sablonu.docx`).
