@@ -372,6 +372,13 @@ export function createApi(db) {
 
     // ----- zaman kayıtları (tarih aralığı: work_date dahil)
     listTimeEntries: (bas, bit) => hepsiniOku(() => T('time_entries').select('*').gte('work_date', bas).lte('work_date', bit).order('id')),
+    // Ziyaret planlama: firma konumu, Google Haritalar anahtarı, ziyaret planı
+    getMapsKey: async () => { const l = await bir(T('integration_settings').select('value').eq('key', 'google_maps_api_key')); return l[0]?.value ?? null; },
+    saveIntegration: (anahtar, deger) => bir(db.rpc('entegrasyon_kaydet', { p_anahtar: anahtar, p_deger: deger })),
+    saveCompanyLocation: ({ company, enlem, boylam, sorgu, kaynak }) => bir(db.rpc('firma_konum_kaydet', { p_company: company, p_lat: enlem, p_lng: boylam, p_sorgu: sorgu, p_kaynak: kaynak })),
+    listVisitPlans: (bas, bit) => hepsiniOku(() => T('visit_plans').select('*').is('archived_at', null).gte('planned_date', bas).lte('planned_date', bit).order('planned_date').order('id')),
+    createVisitPlans: (satirlar) => bir(T('visit_plans').insert(satirlar).select()),
+    archiveVisitPlan: (id) => bir(T('visit_plans').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),
     createTimeEntry: (degerler) => bir(T('time_entries').insert(degerler).select().single()),
     updateTimeEntry: (id, degerler) => bir(T('time_entries').update(degerler).eq('id', id).select().single()),
     archiveTimeEntry: (id) => bir(T('time_entries').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),

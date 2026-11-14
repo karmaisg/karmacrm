@@ -40,6 +40,7 @@ import { personelListeSayfasi, personelSayfasi } from './pages/personel.js';
 import { gorevlendirmelerSayfasi } from './pages/gorevlendirmeler.js';
 import { zamanSayfasi } from './pages/zaman.js';
 import { kapasiteSayfasi } from './pages/kapasite.js';
+import { ziyaretPlanlamaSayfasi } from './pages/ziyaret-planlama.js';
 import { yakindaSayfasi } from './pages/placeholder.js';
 
 const app = {
@@ -82,6 +83,7 @@ function rotaCoz(parcalar) {
   if (ilk === 'personel' && ikinci) return { menu: 'uzmanlar', modul: 'staff', yukle: () => personelSayfasi(app, ikinci) };
   if (ilk === 'gorevlendirmeler') return { menu: 'gorevlendirmeler', modul: 'assignments', yukle: () => gorevlendirmelerSayfasi(app) };
   if (ilk === 'zaman') return { menu: 'zaman', modul: 'time', yukle: () => zamanSayfasi(app) };
+  if (ilk === 'ziyaret-planlama') return { menu: 'ziyaret-planlama', modul: 'time', yukle: () => ziyaretPlanlamaSayfasi(app) };
   if (ilk === 'kapasite') return { menu: 'kapasite', modul: 'capacity', yukle: () => kapasiteSayfasi(app) };
   if (ilk === 'tahsilat') return { menu: 'tahsilat', modul: 'invoices', yukle: () => tahsilatSayfasi(app) };
   if (ilk === 'cari') return { menu: 'cari', modul: 'invoices', yukle: () => cariSayfasi(app) };

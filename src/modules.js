@@ -76,6 +76,8 @@ export const MENU = [
     aciklama: 'Uzman ve hekimlerin firmalara görevlendirmesi, hizmet payları ve yürürlük tarihleri.' },
   { id: 'zaman', grup: 'operasyon', modul: 'time', ad: 'Zaman ve ziyaret takibi', simge: 'clock', yapildi: true,
     aciklama: 'Fiilî çalışma, yol ve bekleme süreleri; zaman çakışması kontrolü.' },
+  { id: 'ziyaret-planlama', grup: 'operasyon', modul: 'time', ad: 'Ziyaret planlama', simge: 'pin', yapildi: true,
+    aciklama: 'Firmaları haritada gösterir; aylık uzman ve hekim ziyaretlerini planlar, takip eder ve rota çıkarır.' },
   { id: 'kapasite', grup: 'operasyon', modul: 'capacity', ad: 'Kapasite analizi', simge: 'gauge', yapildi: true,
     aciklama: 'Teorik yük ve fiilî süreye göre uzman ve hekim doluluk oranları.' },
   { id: 'takvim', grup: 'operasyon', modul: 'tasks', ad: 'Takvim', simge: 'calendar', yapildi: true,
