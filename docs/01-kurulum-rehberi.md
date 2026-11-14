@@ -645,3 +645,23 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 - **Müşteri sayfası:** PDF yüklüyse "Hizmet bedeli" kartının hemen üstünde **Teklif Detayı Gör** düğmesi çıkar; tıklayınca PDF indirilir. Yüklü değilse düğme görünmez. Dosyaya yalnızca geçerli (iptal edilmemiş, süresi dolmamış) bağlantıyla ulaşılır.
 - **Yönetici tarafı:** Teklif sayfasındaki "Müşteri bağlantısı" kartında yüklü PDF'in adı/boyutu, **İndir** ve **PDF'i kaldır** düğmeleri vardır. Üstteki **Yazdır / PDF** düğmesi PDF yüklüyse **yüklenen PDF'i** yazdırır (yüklü değilse eskisi gibi sayfayı yazdırır). Tarayıcı yazdırmaya izin vermezse PDF yeni sekmede açılır; oradan Ctrl+P ile yazdırın.
 - Yükleme ve kaldırma denetim kayıtlarında görünür (dosyanın içeriği değil, adı ve boyutu). Müşteriye mesaj gönderilmez; bağlantıyı yine siz iletirsiniz.
+
+## Operasyon: Ziyaret planlama ve Google Haritası (Aşama 41) — `supabase/42_asama41.sql` çalıştırılmalı
+
+`41_asama40.sql` sonrasında `42_asama41.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Siteyi yayınladıktan sonra Ctrl+F5 ile yenileyin. (`index.html` güvenlik ayarı ve yeni `harita.html` sayfası güncellendiği için tüm dosyaları yükleyin.)
+
+**1) Google Cloud'da anahtar oluşturma (bir kere):**
+1. Google Cloud'da proje açın ve **faturalandırma hesabı** bağlayın (Google Haritalar için zorunludur; aylık ücretsiz kullanım kotası vardır, bu ölçekte genellikle yetmesi beklenir).
+2. **APIs & Services → Library**'den **Maps JavaScript API** ve **Geocoding API**'yi etkinleştirin.
+3. **Credentials → Create credentials → API key** ile anahtar üretin.
+4. Anahtarı kısıtlayın: **Application restrictions: Websites (HTTP referrers)** → `https://karmasg.github.io/*` ; **API restrictions** → yalnızca bu iki API. (Kısıtlanmamış anahtar başkalarınca kullanılabilir; mutlaka kısıtlayın.)
+5. Yazılımda **Sistem ayarları → Google Haritalar** kartından anahtarı yapıştırıp kaydedin. Anahtar kod deposunda tutulmaz, veritabanında saklanır; ekranda yalnızca maskeli (`AIza…abcd`) görünür. **Kaldır** düğmesiyle silinir.
+
+**2) Kullanım (Operasyon → Ziyaret planlama):**
+- Yalnızca **firmalar** listelenir (potansiyel müşteriler değil). Her firma için o ay **uzman** ve **hekim** ziyareti beklenir (o ay görevlendirmesi olan türler için).
+- **Aylık durum** otomatik hesaplanır: "Zaman ve ziyaret takibi"ndeki ziyaret kayıtları ile görevlendirmeler karşılaştırılır → Yapıldı / Planlı / Bekliyor / Gerekmez. Firma özeti: Tamamlandı, Kısmen, Ziyaret bekliyor, Beklenen ziyaret yok. Harita iğneleri bu duruma göre renklenir.
+- **Konumları bul:** Konumu olmayan firmaların adresi Google ile bulunup veritabanına kaydedilir (bir kere; sonraki açılışlarda tekrar sorgulanmaz). Adres değişirse "eski" işaretlenir ve yeniden bulunabilir. Yaklaşık bulunanlar ve bulunamayanlar listelenir; iğneyi sürükleyerek elle düzeltebilirsiniz (kaynak "manuel" olur ve korunur).
+- **Seçim, plan, rota:** Firmaları seçip **Ziyaret planla** ile tarih/tür (uzman, hekim) planlayın (görevli tek ise otomatik atanır; aynı firma-tür-tarih iki kez planlanamaz). **Rota aç** seçili firmalar için Google Haritalar yol tarifini yeni sekmede açar.
+- Filtreler: ay, il, ilçe, görevli, ay özeti, konum durumu, arama.
+
+**Yetki ve sınırlar:** Menü "Zaman" yetkisi olan rollerde görünür (operasyon, yönetici). Saha personeli (uzman/hekim rolü) plan ve konum oluşturamaz, yalnızca kendi ziyaretlerini görür. Rota bağlantısı en çok 10 durak içerir. Harita, ana siteden ayrı bir iç sayfada (iframe) çalışır; böylece Google betiği ana uygulamanın sıkı güvenlik ayarını gevşetmez. Google `Marker` sınıfını eski ilan etmiştir ancak çalışmaya devam etmektedir. Gerçek Google anahtarıyla canlı deneme geliştirme ortamında yapılamadı; testler sahte Google nesnesiyle yapıldı — ilk kullanımda birkaç firmayla deneyin.
