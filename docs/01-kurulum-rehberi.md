@@ -665,3 +665,13 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 - Filtreler: ay, il, ilçe, görevli, ay özeti, konum durumu, arama.
 
 **Yetki ve sınırlar:** Menü "Zaman" yetkisi olan rollerde görünür (operasyon, yönetici). Saha personeli (uzman/hekim rolü) plan ve konum oluşturamaz, yalnızca kendi ziyaretlerini görür. Rota bağlantısı en çok 10 durak içerir. Harita, ana siteden ayrı bir iç sayfada (iframe) çalışır; böylece Google betiği ana uygulamanın sıkı güvenlik ayarını gevşetmez. Google `Marker` sınıfını eski ilan etmiştir ancak çalışmaya devam etmektedir. Gerçek Google anahtarıyla canlı deneme geliştirme ortamında yapılamadı; testler sahte Google nesnesiyle yapıldı — ilk kullanımda birkaç firmayla deneyin.
+
+## Fatura adresi / İşyeri adresi ve uzman-hekim işyeri görünümü (Aşama 42) — `supabase/43_asama42.sql` çalıştırılmalı
+
+`42_asama41.sql` sonrasında `43_asama42.sql` dosyasını Supabase SQL Editor'de çalıştırın (tekrar çalıştırılabilir). Siteyi yayınladıktan sonra Ctrl+F5 yapın.
+
+- **Fatura adresi:** Firmalarda şimdiye kadar girilmiş İl / İlçe / Adres bilgileri artık **Fatura adresi** olarak adlandırılır (veri aynen korunur). Firma formunda ve firma sayfasında bu adıyla görünür.
+- **İşyeri adresi:** Firma formunda ayrı **İşyeri adresi** (İl, İlçe, Adres) alanları vardır. Aynıysa **"İşyeri adresi = fatura adresi"** düğmesi kopyalar. Firma sayfasında iki adres ayrı gösterilir.
+- **Harita:** Ziyaret planlama artık konumu yalnızca **işyeri adresinden** bulur; il/ilçe filtreleri ve arama da işyeri adresine göredir. İşyeri adresi girilmemiş firmalar haritaya girmez ("Adres eksik" görünür). Fatura adresinden bulunmuş eski konumlar bu güncellemede temizlenir; işyeri adreslerini girdikten sonra **Konumları bul**'a basın (elle yerleştirdikleriniz için de aynı geçerli, işyeri adresi girilene kadar temizlenir).
+- **Uzman / hekim işyerleri:** Ziyaret planlama'da yeni **"Tüm işyerleri"** filtresi: iş güvenliği uzmanı olan, işyeri hekimi olan, ikisi de olan veya hiçbiri atanmamış işyerleri. Seçime göre hem liste hem harita değişir. Haritadaki iğnenin üzerinde harf görünür: **U** = uzman, **H** = hekim, **UH** = ikisi de; renk ay durumunu gösterir. Belirli bir kişiyi görmek için mevcut "Görevli" filtresini kullanın.
+- **Sınırlar:** Excel ile firma içe aktarmada işyeri adresi henüz yoktur (firma açıldıktan sonra formdan girilir). Potansiyel müşteri (aday) kartında tek adres alanı vardır; firmaya dönüştüğünde fatura adresine geçer, işyeri adresini firma formundan girin.
