@@ -261,7 +261,7 @@ await test('yetki: finans ve uzman/hekim rolleri', async (s, ctx) => {
   await s.waitForSelector('#f-email');
   await s.fill('#f-email', 'uzman@test.com'); await s.fill('#f-password', 'GucluSifre123'); await s.click('button[type=submit]');
   await s.waitForSelector('#kabuk');
-  esit(await s.locator('.nav-item').count(), 5, 'uzman/hekim: firmalar, görevlendirmeler, zaman, takvim, görevler');
+  esit(await s.locator('.nav-item').count(), 6, 'uzman/hekim: firmalar, görevlendirmeler, zaman, ziyaret planlama, takvim, görevler');
   var_(s.locator('.nav-item:has-text("Zaman ve ziyaret takibi")'), 'zaman menüsü');
   esit(await s.locator('.nav-item:has-text("Kapasite analizi")').count(), 0, 'uzman kapasite görmez');
   await var_(s.locator('h3:has-text("Bu sayfayı görme izniniz yok")'), 'panel engeli');
@@ -3501,6 +3501,150 @@ await test('Teklif PDF\'i: bağlantı oluştururken yüklenir, müşteri "Teklif
   await s.click('[data-action="pdf-kaldir"]'); await s.locator('[data-ok]').click(); await s.waitForSelector('#teklif-pdf-bilgi:has-text("yüklenmedi")');
   const c4 = await musteriSayfasi(s, ctx, link3); await c4.waitForSelector('#aylik-toplam'); esit(await c4.locator('#teklif-detay').count(), 0, 'PDF yokken düğme yok'); await c4.close();
   void link2;
+});
+
+const GM_KUKLA = `(() => {
+  const gm = window.__gm = { markers: [], geocodes: [], bilgi: 0 };
+  const L = (la, lo) => ({ lat: () => la, lng: () => lo });
+  window.google = { maps: {
+    Map: class { constructor() { this.c = { lat: 39, lng: 35 }; this.z = 6; gm.harita = this; } setCenter(c) { this.c = c; } getCenter() { return L(this.c.lat, this.c.lng); } setZoom(z) { this.z = z; } getZoom() { return this.z; } fitBounds(b) { gm.sigdir = b.n; } panTo() {} },
+    Marker: class { constructor(o) { this.o = o; this.l = {}; gm.markers.push(this); } setMap(m) { this.o.map = m; } addListener(e, f) { this.l[e] = f; } getPosition() { return L(this.o.position.lat, this.o.position.lng); } setDraggable(d) { this.o.draggable = d; } },
+    InfoWindow: class { setContent(c) { this.c = c; } open() { gm.bilgi += 1; gm.sonBilgi = this.c.textContent; } },
+    LatLngBounds: class { constructor() { this.n = 0; } extend() { this.n += 1; } getCenter() { return L(0, 0); } },
+    Size: class {}, Point: class {},
+    Geocoder: class { geocode(req, cb) {
+      gm.geocodes.push(req.address);
+      if (req.address.includes('Bulunamaz')) { cb([], 'ZERO_RESULTS'); return; }
+      const sira = gm.geocodes.length;
+      cb([{ geometry: { location: L(38 + sira / 10, 27 + sira / 10), location_type: req.address.includes('Yaklasik') ? 'APPROXIMATE' : 'ROOFTOP' }, partial_match: false }], 'OK');
+    } },
+    event: { trigger(m, e) { if (m.l[e]) m.l[e](); } },
+  } };
+  window[new URL(document.currentScript.src).searchParams.get('callback')]();
+})();`;
+const haritaKukla = (s) => s.route('**/maps.googleapis.com/maps/api/js**', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: GM_KUKLA }));
+const haritaCercevesi = (s) => s.frames().find((f) => f.url().includes('harita.html'));
+const ziyaretTohumu = (s, { anahtar = true } = {}) => s.evaluate((a) => {
+  const t = globalThis.__fake.tablo; const org = t.organizations[0].id; const id = () => crypto.randomUUID(); const bugunIso = new Date().toISOString().slice(0, 10);
+  const firma = (name, city, district, address) => { const f = { id: id(), organization_id: org, name, customer_status: 'musteri', city, district, address, archived_at: null, latitude: null, longitude: null, geo_query: null, geo_source: null }; t.companies.push(f); return f; };
+  const A = firma('Ege Çelik A.Ş.', 'İzmir', 'Gaziemir', 'Sarnıç Mah. 1. Sk. No:5'); const B = firma('Bornova Gıda Ltd.', 'İzmir', 'Bornova', 'Yaklasik Cd. 7');
+  const C = firma('Akhisar Tekstil', 'Manisa', 'Akhisar', 'Bulunamaz Sk. 3'); const D = firma('Adressiz Firma', '', '', '');
+  const emp = (full_name, staff_type) => { const e = { id: id(), organization_id: org, full_name, staff_type, role_kind: null, is_active: true, monthly_capacity_min: 11700, archived_at: null }; t.employees.push(e); return e; };
+  const U = emp('Uzman Ali', 'is_guvenligi_uzmani'); const H = emp('Hekim Veli', 'isyeri_hekimi');
+  const atama = (f, e) => t.assignments.push({ id: id(), organization_id: org, company_id: f.id, employee_id: e.id, staff_type: e.staff_type, share_pct: 100, valid_from: '2020-01-01', valid_to: null, archived_at: null });
+  for (const f of [A, B]) { atama(f, U); atama(f, H); } atama(C, U); atama(D, U);
+  t.time_entries.push({ id: id(), organization_id: org, employee_id: U.id, company_id: A.id, activity_type: 'ziyaret', work_date: bugunIso, minutes: 60, archived_at: null });
+  if (a) t.integration_settings.push({ id: id(), organization_id: org, key: 'google_maps_api_key', value: 'AIzaSyD-ornekAnahtar0123456789abcdefgh' });
+  return { A: A.id, B: B.id, C: C.id, D: D.id };
+}, anahtar);
+const satirMetni = async (s, ad) => (await s.locator(`#zp-tablo tbody tr:has-text("${ad}")`).innerText()).replace(/\s+/g, ' ');
+
+await test('Ziyaret planlama: menü, aylık uzman/hekim durumu, filtreler, konumları bulma, harita işaretleri', async (s) => {
+  await girisYap(s); await haritaKukla(s); const id = await ziyaretTohumu(s);
+  await s.waitForSelector('a[href="#/ziyaret-planlama"]');
+  esit(await s.locator('a[href="#/ziyaret-planlama"]').first().innerText().then((t) => t.trim()), 'Ziyaret planlama', 'menü adı');
+  await git(s, '#/ziyaret-planlama'); await s.waitForSelector('#zp-tablo');
+  esit(await s.locator('#zp-tablo tbody tr').count(), 4, 'dört firma');
+  const a = await satirMetni(s, 'Ege Çelik'); if (!a.includes('Yapıldı') || !a.includes('Bekliyor') || !a.includes('Kısmen yapıldı') || !a.includes('Uzman Ali')) throw new Error(`A satırı: ${a}`);
+  const b = await satirMetni(s, 'Bornova'); if (!b.includes('Ziyaret bekliyor') || b.includes('Yapıldı')) throw new Error(`B satırı: ${b}`);
+  if (!(await satirMetni(s, 'Adressiz')).includes('Adres eksik')) throw new Error('adressiz firma "Adres eksik" olmalı');
+  esit(await s.locator('#zp-konumsuz-sayi').innerText(), '3', 'konumsuz sayısı');
+  // harita hazır olunca "Konumları bul" açılır
+  await s.waitForFunction(() => !document.querySelector('#zp-konum-bul').disabled, null, { timeout: 8000 });
+  esit(await s.locator('#zp-bulunacak').innerText(), '3', 'bulunacak firma');
+  await s.click('#zp-konum-bul'); await s.waitForSelector('#zp-sonuc-kutu', { timeout: 15000 });
+  const sonuc = (await s.locator('#zp-sonuc-kutu').innerText()).replace(/\s+/g, ' ');
+  if (!sonuc.includes('2 firmanın konumu bulundu') || !sonuc.includes('Akhisar Tekstil') || !sonuc.includes('Bornova Gıda')) throw new Error(`sonuç: ${sonuc}`);   // Bornova: yaklaşık
+  const kay = await s.evaluate(() => globalThis.__fake.tablo.companies.filter((c) => c.latitude !== null).map((c) => [c.name, c.geo_source, c.geo_query]));
+  esit(kay.length, 2, 'iki firmanın konumu kaydedildi'); esit(kay.every((k) => k[1] === 'google' && k[2].endsWith('Türkiye')), true, 'kaynak ve sorgu');
+  esit(await s.locator('#zp-konumsuz-sayi').innerText(), '1', 'konumsuz sayısı güncellendi');
+  const cer = haritaCercevesi(s); esit(await cer.evaluate(() => window.__gm.markers.filter((m) => m.o.map).length), 2, 'haritada iki iğne');
+  esit(await cer.evaluate(() => window.__gm.geocodes[0].includes('Türkiye')), true, 'arama adresi');
+  // iğne tıklayınca bilgi penceresi
+  await s.click(`[data-haritada="${id.A}"]`); await cer.waitForFunction(() => window.__gm.sonBilgi);
+  const bilgi = await cer.evaluate(() => window.__gm.sonBilgi); if (!String(bilgi).includes('Ege Çelik') || !String(bilgi).includes('Kısmen yapıldı') || !String(bilgi).includes('Uzman: Yapıldı')) throw new Error(`bilgi: ${bilgi}`);
+  // filtreler
+  await s.selectOption('#zp-il', 'İzmir'); esit(await s.locator('#zp-tablo tbody tr').count(), 2, 'il süzgeci');
+  const ilceler = await s.locator('#zp-ilce option').allInnerTexts(); esit(ilceler.join('|'), 'Tüm ilçeler|Bornova|Gaziemir', 'ilçe seçenekleri ile bağlı');
+  await s.selectOption('#zp-ilce', 'Bornova'); esit(await s.locator('#zp-tablo tbody tr').count(), 1, 'ilçe süzgeci');
+  await s.selectOption('#zp-il', ''); await s.selectOption('#zp-ozet', 'kismi'); esit(await s.locator('#zp-tablo tbody tr').count(), 1, 'özet süzgeci');
+  await s.selectOption('#zp-ozet', ''); await s.selectOption('#zp-konum', 'yok'); esit(await s.locator('#zp-tablo tbody tr').count(), 2, 'konumsuzlar');
+  await s.selectOption('#zp-konum', ''); await s.fill('#zp-ara', 'tekstil'); await s.waitForFunction(() => document.querySelectorAll('#zp-tablo tbody tr').length === 1); await s.fill('#zp-ara', '');
+  await s.waitForFunction(() => document.querySelectorAll('#zp-tablo tbody tr').length === 4);
+  // ay değişince durum değişir: geçen ay kayıt yok
+  const onceki = await s.locator('#zp-ay option').nth(2).getAttribute('value'); await s.selectOption('#zp-ay', onceki);
+  await s.waitForFunction(() => !document.querySelector('#zp-tablo').innerText.includes('Kısmen yapıldı'));
+  if (!(await satirMetni(s, 'Ege Çelik')).includes('Ziyaret bekliyor')) throw new Error('geçen ay A: ziyaret bekliyor olmalı');
+});
+
+await test('Ziyaret planlama: ziyaret planı, rota bağlantısı, elle konum düzeltme', async (s) => {
+  await girisYap(s); await haritaKukla(s); const id = await ziyaretTohumu(s);
+  await git(s, '#/ziyaret-planlama'); await s.waitForSelector('#zp-tablo');
+  await s.waitForFunction(() => !document.querySelector('#zp-konum-bul').disabled, null, { timeout: 8000 }); await s.click('#zp-konum-bul'); await s.waitForSelector('#zp-sonuc-kutu', { timeout: 15000 });
+  // rota: iki firma seçilir, bağlantı yeni sekmede açılır
+  await s.evaluate(() => { window.__acilan = null; window.open = (u) => { window.__acilan = u; return null; }; });
+  await s.check(`[data-sec="${id.A}"]`); await s.check(`[data-sec="${id.B}"]`); esit((await s.locator('#zp-secim-sayi').innerText()).trim(), '2 firma seçildi', 'seçim sayısı');
+  await s.click('#zp-rota'); const url = await s.evaluate(() => window.__acilan);
+  if (!url || !url.startsWith('https://www.google.com/maps/dir/?api=1') || !url.includes('destination=') || !url.includes('waypoints=')) throw new Error(`rota: ${url}`);
+  // plan: iki firma x iki tür = 4 plan; tek görevli olduğu için personel otomatik atanır
+  await s.click('#zp-planla'); const m = modal(s); await m.locator('#f-planned_date').fill('2026-12-15'); await m.locator('#f-note').fill('Aylık ziyaret'); await m.locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelectorAll('#zp-plan-tablo tbody tr').length >= 0 && globalThis.__fake.tablo.visit_plans.length === 4);
+  const planlar = await s.evaluate(() => globalThis.__fake.tablo.visit_plans.map((p) => [p.staff_type, !!p.employee_id, p.planned_date, p.note]));
+  esit(planlar.every((p) => p[1] && p[2] === '2026-12-15' && p[3] === 'Aylık ziyaret'), true, 'personel otomatik atandı');
+  esit(await s.locator('#zp-secim-bar').isHidden(), true, 'planlanınca seçim temizlenir');
+  // plan başka ayda: bu ayın listesinde yok → aya geç
+  const aylar = await s.locator('#zp-ay option').evaluateAll((l) => l.map((o) => o.value));
+  if (aylar.includes('2026-12-01')) {
+    await s.selectOption('#zp-ay', '2026-12-01'); await s.waitForTimeout(600); await s.waitForSelector('#zp-plan-tablo');
+    esit(await s.locator('#zp-plan-tablo tbody tr').count(), 4, 'aralık ayında dört plan');
+    if (!(await satirMetni(s, 'Ege Çelik')).includes('plan: 15.12')) throw new Error('tabloda plan tarihi görünmeli');
+    // aynı plan tekrar edilemez
+    await s.click(`[data-planla-firma="${id.A}"]`); const m2 = modal(s); await m2.locator('#f-planned_date').fill('2026-12-15'); await m2.locator('button[type=submit]').click();
+    await m2.locator('.field-error:has-text("zaten var")').waitFor({ timeout: 5000 }); await m2.locator('button.btn-secondary[data-close]').click();
+    await s.locator('[data-plan-sil]').first().click(); await s.locator('[data-ok]').click();
+    await s.waitForFunction(() => document.querySelectorAll('#zp-plan-tablo tbody tr').length === 3);
+    esit(await s.evaluate(() => globalThis.__fake.tablo.visit_plans.filter((p) => !p.archived_at).length), 3, 'silinen plan arşive alındı');
+  }
+  // elle konum düzeltme: iğne sürüklenince kaydedilir (kaynak: manuel)
+  await s.selectOption('#zp-ay', await s.locator('#zp-ay option').first().getAttribute('value'));
+  const cer = haritaCercevesi(s);
+  await s.click(`[data-haritada="${id.A}"]`);
+  await cer.evaluate(() => window.parent.postMessage({ t: 'x' }, '*'));   // yanlış kaynaklı/yabancı iletiler yok sayılır
+  await cer.evaluate(() => { const m = window.__gm.markers.find((x) => x.o.map && x.o.title.startsWith('Ege')); m.o.position = { lat: 38.5, lng: 27.25 }; m.l.dragend(); });
+  await s.waitForFunction((a) => { const c = globalThis.__fake.tablo.companies.find((x) => x.id === a); return c.geo_source === 'manuel' && c.latitude === 38.5 && c.longitude === 27.25; }, id.A);
+  // konumu olmayan firma: haritaya iğne konur, sürüklenince kaydedilir
+  await s.click(`[data-haritada="${id.C}"]`); await s.waitForSelector('#zp-duzelt-bar:not([hidden])');
+  if (!(await s.locator('#zp-duzelt-bar').innerText()).includes('Akhisar Tekstil')) throw new Error('düzeltme çubuğu');
+  await cer.waitForFunction(() => window.__gm.markers.some((x) => x.o.map && x.o.title.startsWith('Akhisar')));
+  await cer.evaluate(() => { const m = window.__gm.markers.find((x) => x.o.map && x.o.title.startsWith('Akhisar')); m.o.position = { lat: 39.0, lng: 27.4 }; m.l.dragend(); });
+  await s.waitForFunction((c) => globalThis.__fake.tablo.companies.find((x) => x.id === c).geo_source === 'manuel', id.C);
+  await s.click('#zp-duzelt-bitti'); await s.waitForSelector('#zp-duzelt-bar[hidden]', { state: 'attached' });
+});
+
+await test('Ziyaret planlama: anahtar yokken liste çalışır; Ayarlar sayfasından Google anahtarı eklenir/kaldırılır', async (s) => {
+  await girisYap(s); await ziyaretTohumu(s, { anahtar: false });
+  await git(s, '#/ziyaret-planlama'); await s.waitForSelector('#zp-tablo');
+  await s.waitForSelector('#zp-harita-yok'); esit(await s.locator('#zp-cerceve').count(), 0, 'anahtar yokken çerçeve yok');
+  esit(await s.locator('#zp-tablo tbody tr').count(), 4, 'liste yine çalışır');
+  // Ayarlar: anahtar ekle
+  await git(s, '#/ayarlar'); await s.waitForSelector('#harita-kart'); if (!(await s.locator('#harita-anahtar-durum').innerText()).includes('girilmedi')) throw new Error('anahtar girilmedi görünmeli');
+  await s.click('#harita-anahtar'); const m = modal(s);
+  await m.locator('#f-anahtar').fill('kısa!'); await m.locator('button[type=submit]').click(); await m.locator('.field-error:has-text("biçimi geçerli değil")').waitFor({ timeout: 5000 });
+  await m.locator('#f-anahtar').fill('AIzaSyD-ornekAnahtar0123456789abcdefgh'); await m.locator('button[type=submit]').click();
+  await s.waitForFunction(() => document.querySelector('#harita-anahtar-durum')?.innerText.includes('AIza…efgh'));
+  if ((await s.locator('#harita-kart').innerText()).includes('ornekAnahtar0123')) throw new Error('anahtar tamamı gösterilmemeli');
+  await git(s, '#/ziyaret-planlama'); await s.waitForSelector('#zp-cerceve');
+  await git(s, '#/ayarlar'); await s.waitForSelector('#harita-anahtar-kaldir'); await s.click('#harita-anahtar-kaldir'); await s.locator('[data-ok]').click();
+  await s.waitForFunction(() => document.querySelector('#harita-anahtar-durum')?.innerText.includes('girilmedi'));
+  esit(await s.evaluate(() => globalThis.__fake.tablo.integration_settings.length), 0, 'anahtar silindi');
+  await s.evaluate(() => { localStorage.clear(); });
+});
+
+await test('Ziyaret planlama: zaman modülü yetkisi olmayan rol menüyü görmez', async (s) => {
+  await girisYap(s, 'satis@test.com'); 
+  esit(await s.locator('a[href="#/ziyaret-planlama"]').count(), 0, 'satış rolü menüde göremez');
+  await git(s, '#/ziyaret-planlama'); await s.waitForTimeout(400);
+  esit(await s.locator('#zp-tablo').count(), 0, 'doğrudan adresle de açılmaz');
 });
 
 await tarayici.close(); sunucu.close();

@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['offer_pdfs', 'salary_calcs', 'budget_personnel_lines', 'budget_expense_lines', 'budget_lines', 'signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
+for (const ad of ['visit_plans', 'integration_settings', 'offer_pdfs', 'salary_calcs', 'budget_personnel_lines', 'budget_expense_lines', 'budget_lines', 'signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -78,7 +78,7 @@ function kurucu(ad) {
     gunluk.push(`${durum.islem} ${ad}`);
     const satirlar = tablo[ad];
     if (!satirlar) return { data: null, error: hata(`tablo yok: ${ad}`) };
-    let eslesen = satirlar.filter((r) => durum.filtre.every(([k, v, op]) => (op === 'gte' ? r[k] >= v : op === 'lte' ? r[k] <= v : r[k] === v)));
+    let eslesen = satirlar.filter((r) => durum.filtre.every(([k, v, op]) => (op === 'gte' ? r[k] >= v : op === 'lte' ? r[k] <= v : v === null ? (r[k] ?? null) === null : r[k] === v)));
     const ben = tablo.users.find((u) => u.id === oturum?.user?.id);
     const alanPersoneli = ben && ben.role_id === rid('uzman_hekim');
     if (durum.islem !== 'insert' && alanPersoneli && ['time_entries', 'assignments'].includes(ad)) eslesen = eslesen.filter((r) => r.employee_id === ben.employee_id);
@@ -742,6 +742,26 @@ const rpcler = {
       zaman: tablo.time_entries.filter((t) => !t.archived_at && t.work_date >= bas && t.work_date <= bit).map((t) => ({ employee_id: t.employee_id, company_id: t.company_id, work_date: t.work_date, activity_type: t.activity_type, onsite_minutes: t.onsite_minutes, reporting_minutes: t.reporting_minutes, archived_at: null })),
       personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type ?? null, role_kind: e.role_kind ?? null, title: e.title ?? null, is_management: !!e.is_management, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
     } };
+  },
+  firma_konum_kaydet({ p_company, p_lat, p_lng, p_sorgu, p_kaynak }) {
+    if (!(izinVar('time', 'can_create') || izinVar('companies', 'can_edit'))) return { error: hata('Firma konumunu kaydetme yetkiniz yok.', 'P0001') };
+    const f = tablo.companies.find((x) => x.id === p_company && !x.archived_at);
+    if (!f) return { error: hata('Firma bulunamadı.', 'P0001') };
+    if (p_lat === null || p_lng === null) Object.assign(f, { latitude: null, longitude: null, geo_query: null, geo_source: null, geo_at: null });
+    else {
+      if (p_lat < -90 || p_lat > 90 || p_lng < -180 || p_lng > 180) return { error: hata('Konum geçerli değil.', 'P0001') };
+      Object.assign(f, { latitude: Math.round(p_lat * 1e6) / 1e6, longitude: Math.round(p_lng * 1e6) / 1e6, geo_query: String(p_sorgu ?? '').slice(0, 500), geo_source: p_kaynak, geo_at: new Date().toISOString() });
+    }
+    return { data: { ...f } };
+  },
+  entegrasyon_kaydet({ p_anahtar, p_deger }) {
+    if (!(izinVar('settings', 'can_create') && izinVar('settings', 'can_edit'))) return { error: hata('Sistem ayarlarını değiştirme yetkiniz yok.', 'P0001') };
+    const v = String(p_deger ?? '').trim();
+    tablo.integration_settings = tablo.integration_settings.filter((x) => x.key !== p_anahtar);
+    if (!v) return { data: false };
+    if (!/^[A-Za-z0-9_-]{20,120}$/.test(v)) return { error: hata('Anahtar biçimi geçerli değil.', 'P0001') };
+    tablo.integration_settings.push({ id: uid(), organization_id: ORG, key: p_anahtar, value: v });
+    return { data: true };
   },
   teklif_pdf_yukle({ p_offer, p_ad, p_veri }) {
     if (!izinVar('offers', 'can_edit')) return { error: hata('Teklifi düzenleme yetkiniz yok.', 'P0001') };
