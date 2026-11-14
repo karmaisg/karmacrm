@@ -10,7 +10,7 @@ const duyur = (metin) => { durumEl.textContent = metin ?? ''; };
 let harita = null; let bilgiPenceresi = null; let geocoder = null; let yukleniyor = false;
 let isaretler = new Map(); let duzeltilen = null;
 
-const SVG = (renk, secili) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${secili ? 40 : 32}" height="${secili ? 52 : 42}" viewBox="0 0 32 42"><path d="M16 1C8 1 1.5 7.4 1.5 15.3 1.5 26 16 41 16 41s14.5-15 14.5-25.7C30.5 7.4 24 1 16 1z" fill="${renk}" stroke="${secili ? '#111827' : '#fff'}" stroke-width="${secili ? 3 : 2}"/><circle cx="16" cy="15" r="5.5" fill="#fff"/></svg>`)}`;
+const SVG = (renk, secili, harf = '') => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${secili ? 40 : 32}" height="${secili ? 52 : 42}" viewBox="0 0 32 42"><path d="M16 1C8 1 1.5 7.4 1.5 15.3 1.5 26 16 41 16 41s14.5-15 14.5-25.7C30.5 7.4 24 1 16 1z" fill="${renk}" stroke="${secili ? '#111827' : '#fff'}" stroke-width="${secili ? 3 : 2}"/>${harf ? `<circle cx="16" cy="15" r="9" fill="#fff"/><text x="16" y="${harf.length > 1 ? 19 : 20}" font-family="Arial,sans-serif" font-size="${harf.length > 1 ? 10 : 13}" font-weight="700" text-anchor="middle" fill="#111827">${harf}</text>` : '<circle cx="16" cy="15" r="5.5" fill="#fff"/>'}</svg>`)}`;
 
 function bilgiIcerigi(m) {
   const kok = document.createElement('div'); kok.className = 'bilgi';
@@ -30,7 +30,7 @@ function isaretleriCiz(liste, sigdir) {
   isaretler = new Map(); const sinir = new google.maps.LatLngBounds();
   for (const m of liste) {
     const konum = { lat: Number(m.enlem), lng: Number(m.boylam) };
-    const marker = new google.maps.Marker({ map: harita, position: konum, title: m.baslik, icon: { url: SVG(m.renk, m.secili), scaledSize: new google.maps.Size(m.secili ? 40 : 32, m.secili ? 52 : 42), anchor: new google.maps.Point(m.secili ? 20 : 16, m.secili ? 52 : 42) }, draggable: m.id === duzeltilen, zIndex: m.secili ? 10 : 1 });
+    const marker = new google.maps.Marker({ map: harita, position: konum, title: m.baslik, icon: { url: SVG(m.renk, m.secili, ['U', 'H', 'UH'].includes(m.harf) ? m.harf : ''), scaledSize: new google.maps.Size(m.secili ? 40 : 32, m.secili ? 52 : 42), anchor: new google.maps.Point(m.secili ? 20 : 16, m.secili ? 52 : 42) }, draggable: m.id === duzeltilen, zIndex: m.secili ? 10 : 1 });
     marker.addListener('click', () => { bilgiPenceresi.setContent(bilgiIcerigi(m)); bilgiPenceresi.open({ map: harita, anchor: marker }); });
     marker.addListener('dragend', () => { const p = marker.getPosition(); gonder({ t: 'tasindi', id: m.id, enlem: p.lat(), boylam: p.lng() }); });
     isaretler.set(m.id, { marker, m }); sinir.extend(konum);

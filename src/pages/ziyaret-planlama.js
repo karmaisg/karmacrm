@@ -6,7 +6,7 @@ import { pill, emptyState, field, checkbox, openFormModal, confirmDialog, toast 
 import { PERSONEL_TURU, PERSONEL_TURU_KISA, ayBitisi } from '../lib/operasyon.js';
 import { humanError } from '../lib/api.js';
 import {
-  ZIYARET_TURLERI, ROTA_AZAMI_DURAK, OZET_ETIKETI, DURUM_ETIKETI, OZET_RENGI, adresSorgusu, ayZiyaretDurumlari, ziyaretSatirlari, filtrele, ayrikDegerler, rotaBaglantisi,
+  ZIYARET_TURLERI, ROTA_AZAMI_DURAK, OZET_ETIKETI, DURUM_ETIKETI, OZET_RENGI, adresSorgusu, ayZiyaretDurumlari, ziyaretSatirlari, filtrele, ayrikDegerler, rotaBaglantisi, turHarfi,
 } from '../lib/ziyaret.js';
 
 const KONUM_PILL = { guncel: ['Konum var', 'success'], eski: ['Adres değişti', 'warning'], yok: ['Konum yok', 'warning'], 'adres-eksik': ['Adres eksik', 'neutral'] };
@@ -16,7 +16,7 @@ const bekle = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function ziyaretPlanlamaSayfasi(app) {
   const bugunStr = bugun();
-  const durum = { ay: ayBasi(bugunStr), filtre: { il: '', ilce: '', gorevli: '', ozet: '', konum: '', ara: '' }, secili: new Set(), duzelt: null };
+  const durum = { ay: ayBasi(bugunStr), filtre: { il: '', ilce: '', gorevli: '', ozet: '', konum: '', tur: '', ara: '' }, secili: new Set(), duzelt: null };
   const planlayabilir = app.can('time', 'create');
   const ayarlaraGidebilir = app.can('settings', 'view');
 
@@ -68,7 +68,7 @@ export async function ziyaretPlanlamaSayfasi(app) {
       <th scope="col"><input type="checkbox" id="zp-hepsini-sec" aria-label="Görünen tüm firmaları seç"></th><th scope="col">Firma</th><th scope="col">Konum</th><th scope="col">Uzman</th><th scope="col">Hekim</th><th scope="col" class="hide-sm">Ay özeti</th><th scope="col"><span class="sr-only">İşlem</span></th></tr></thead><tbody>
       ${h.gorunen.map((s) => { const k = KONUM_PILL[s.konum]; return html`<tr data-firma="${s.firma.id}">
         <td><input type="checkbox" data-sec="${s.firma.id}" aria-label="${s.firma.name} seç" ${secildi(s.firma.id) ? html`checked` : ''}></td>
-        <td><a class="link" href="#/firmalar/${s.firma.id}">${s.firma.name}</a><small class="block muted">${[s.firma.district, s.firma.city].filter(Boolean).join(', ') || 'Adres bilgisi yok'}</small></td>
+        <td><a class="link" href="#/firmalar/${s.firma.id}">${s.firma.name}</a><small class="block muted">${[s.firma.workplace_district, s.firma.workplace_city].filter(Boolean).join(', ') || 'İşyeri adresi girilmemiş'}</small></td>
         <td>${pill(k[0], k[1])}</td><td>${turHucre(s, 'is_guvenligi_uzmani')}</td><td>${turHucre(s, 'isyeri_hekimi')}</td>
         <td class="hide-sm">${pill(OZET_ETIKETI[s.ozet], OZET_TONU[s.ozet])}</td>
         <td class="actions">${haritaVar && s.konum !== 'adres-eksik' ? html`<button type="button" class="btn btn-secondary btn-sm" data-haritada="${s.firma.id}" title="Haritada göster">${icon('pin', 16)}</button>` : ''}
@@ -98,7 +98,7 @@ export async function ziyaretPlanlamaSayfasi(app) {
   const haritaKart = () => !haritaVar
     ? html`<section class="card pad" id="zp-harita-yok"><div class="notice notice-info" role="note">Harita için Google Haritalar anahtarı gerekir. ${ayarlaraGidebilir ? html`<a class="link" href="#/ayarlar">Sistem ayarlarından</a> anahtarı girin` : 'Anahtarı sistem yöneticiniz Sistem ayarları sayfasından girer'}; o zamana kadar bu sayfa liste olarak çalışır.</div></section>`
     : html`<section class="card card-flush" id="zp-harita-karti"><div class="card-head"><div><h2 class="card-title">Harita</h2>
-        <p class="card-sub"><span class="zp-dot zp-dot-tamam"></span> Tamamlandı <span class="zp-dot zp-dot-kismi"></span> Kısmen <span class="zp-dot zp-dot-eksik"></span> Ziyaret bekliyor <span class="zp-dot zp-dot-gerekmez"></span> Beklenen ziyaret yok</p></div>
+        <p class="card-sub"><span class="zp-dot zp-dot-tamam"></span> Tamamlandı <span class="zp-dot zp-dot-kismi"></span> Kısmen <span class="zp-dot zp-dot-eksik"></span> Ziyaret bekliyor <span class="zp-dot zp-dot-gerekmez"></span> Beklenen ziyaret yok · İğne üzerindeki harf: <strong>U</strong> iş güvenliği uzmanı, <strong>H</strong> işyeri hekimi, <strong>UH</strong> ikisi de · Konum <strong>işyeri adresinden</strong> bulunur</p></div>
         ${planlayabilir && kurulu ? html`<div class="action-row"><button type="button" class="btn btn-secondary btn-sm" id="zp-konum-bul">${icon('pin', 16)} Konumları bul <span class="chip-n" id="zp-bulunacak">0</span></button>
           <button type="button" class="btn btn-secondary btn-sm" id="zp-konum-dur" hidden>Durdur</button></div>` : ''}</div>
       <p class="fine pad" id="zp-ilerleme" role="status" hidden></p><div class="notice notice-info" role="note" id="zp-duzelt-bar" hidden></div><div class="notice notice-info" role="alert" id="zp-harita-hata" hidden></div>
@@ -106,7 +106,7 @@ export async function ziyaretPlanlamaSayfasi(app) {
       <div class="zp-harita"><iframe id="zp-cerceve" src="harita.html" title="Firma haritası" loading="eager"></iframe></div></section>`;
 
   const filtreSecenek = (liste, deger, bos) => html`<option value="">${bos}</option>${liste.map(([v, e]) => html`<option value="${v}" ${v === deger ? html`selected` : ''}>${e}</option>`)}`;
-  const ilceler = () => ayrikDegerler(firmalar.filter((f) => !durum.filtre.il || (f.city ?? '').trim() === durum.filtre.il), 'district');
+  const ilceler = () => ayrikDegerler(firmalar.filter((f) => !durum.filtre.il || (f.workplace_city ?? '').trim() === durum.filtre.il), 'workplace_district');
   const gorevliler = () => personel.filter((p) => p.staff_type && p.is_active !== false).sort((a, b) => a.full_name.localeCompare(b.full_name, 'tr'));
 
   return {
@@ -114,9 +114,10 @@ export async function ziyaretPlanlamaSayfasi(app) {
     govde: html`${kurulu ? '' : html`<div class="notice notice-info" role="note" id="zp-kurulu-degil">Ziyaret planlama için Supabase'de <strong>42_asama41.sql</strong> dosyasını çalıştırın. O zamana kadar firmalar ve ay durumu görüntülenir, konum ve plan kaydedilemez.</div>`}
       <section class="card"><div class="toolbar">
         <label class="select-inline"><span class="muted">Ay</span><select id="zp-ay">${aySecenekleri().map((a) => html`<option value="${a}" ${a === durum.ay ? html`selected` : ''}>${ayAdi(a)}</option>`)}</select></label>
-        <label class="select-inline"><span class="sr-only">İl</span><select id="zp-il">${filtreSecenek(ayrikDegerler(firmalar, 'city').map((x) => [x, x]), '', 'Tüm iller')}</select></label>
+        <label class="select-inline"><span class="sr-only">İl</span><select id="zp-il">${filtreSecenek(ayrikDegerler(firmalar, 'workplace_city').map((x) => [x, x]), '', 'Tüm iller')}</select></label>
         <label class="select-inline"><span class="sr-only">İlçe</span><select id="zp-ilce">${filtreSecenek(ilceler().map((x) => [x, x]), '', 'Tüm ilçeler')}</select></label>
         <label class="select-inline"><span class="sr-only">Görevli</span><select id="zp-gorevli">${filtreSecenek(gorevliler().map((p) => [p.id, `${PERSONEL_TURU_KISA[p.staff_type]} · ${p.full_name}`]), '', 'Tüm görevliler')}</select></label>
+        <label class="select-inline"><span class="sr-only">Ziyaret türü</span><select id="zp-tur"><option value="">Tüm işyerleri</option><option value="uzman">İş güvenliği uzmanı olan işyerleri</option><option value="hekim">İşyeri hekimi olan işyerleri</option><option value="ikisi">Uzman ve hekimi olan</option><option value="yok">Uzman/hekim atanmamış</option></select></label>
         <label class="select-inline"><span class="sr-only">Ay özeti</span><select id="zp-ozet">${filtreSecenek(Object.entries(OZET_ETIKETI), '', 'Tüm durumlar')}</select></label>
         <label class="select-inline"><span class="sr-only">Konum</span><select id="zp-konum"><option value="">Konum: tümü</option><option value="var">Konumu olanlar</option><option value="yok">Konumu olmayanlar</option></select></label>
         <label class="search-field">${icon('search', 18)}<span class="sr-only">Ara</span><input type="search" id="zp-ara" placeholder="Firma veya adres ara" autocomplete="off"></label></div>
@@ -134,9 +135,9 @@ export async function ziyaretPlanlamaSayfasi(app) {
       const mesaj = (m) => { cerceve?.contentWindow?.postMessage(m, window.location.origin); };
 
       // ---- harita işaretleri
-      const isaretListesi = () => h.gorunen.filter((s) => s.firma.latitude != null && s.firma.longitude != null).map((s) => {
+      const isaretListesi = () => h.gorunen.filter((s) => s.firma.latitude != null && s.firma.longitude != null && ['guncel', 'eski'].includes(s.konum)).map((s) => {
         const f = s.firma; const satir = (t) => { const x = s.turler[t]; return `${PERSONEL_TURU_KISA[t]}: ${x.gerekli || x.durum !== 'gerekmez' ? DURUM_ETIKETI[x.durum] : 'görevli yok'}${x.gorevliler.length ? ` (${x.gorevliler.join(', ')})` : ''}`; };
-        return { id: f.id, baslik: f.name, adres: [f.address, f.district, f.city].filter(Boolean).join(', '), enlem: Number(f.latitude), boylam: Number(f.longitude), renk: OZET_RENGI[s.ozet],
+        return { id: f.id, baslik: f.name, adres: [f.workplace_address, f.workplace_district, f.workplace_city].filter(Boolean).join(', '), enlem: Number(f.latitude), boylam: Number(f.longitude), renk: OZET_RENGI[s.ozet], harf: turHarfi(s),
           secili: durum.secili.has(f.id), satirlar: [OZET_ETIKETI[s.ozet], ...ZIYARET_TURLERI.map(satir)], planlanabilir: planlayabilir && kurulu, duzeltilebilir: planlayabilir && kurulu };
       });
       const haritayiGuncelle = (sigdir = false) => { if (hazir) mesaj({ t: 'isaretler', liste: isaretListesi(), sigdir }); };
@@ -242,8 +243,8 @@ export async function ziyaretPlanlamaSayfasi(app) {
         if (t.id === 'zp-ay') {
           durum.ay = t.value; durum.secili.clear();
           try { const g = await ayYukle(durum.ay); zamanlar = g.zamanlar; planlar = g.planlar ?? []; tumunuGuncelle(false); } catch (err) { toast(humanError(err), 'hata'); }
-        } else if (['zp-il', 'zp-ilce', 'zp-gorevli', 'zp-ozet', 'zp-konum'].includes(t.id)) {
-          const alan = { 'zp-il': 'il', 'zp-ilce': 'ilce', 'zp-gorevli': 'gorevli', 'zp-ozet': 'ozet', 'zp-konum': 'konum' }[t.id]; durum.filtre[alan] = t.value;
+        } else if (['zp-il', 'zp-ilce', 'zp-gorevli', 'zp-ozet', 'zp-konum', 'zp-tur'].includes(t.id)) {
+          const alan = { 'zp-il': 'il', 'zp-ilce': 'ilce', 'zp-gorevli': 'gorevli', 'zp-ozet': 'ozet', 'zp-konum': 'konum', 'zp-tur': 'tur' }[t.id]; durum.filtre[alan] = t.value;
           if (t.id === 'zp-il') { durum.filtre.ilce = ''; $('#zp-ilce').innerHTML = filtreSecenek(ilceler().map((x) => [x, x]), '', 'Tüm ilçeler').s; }
           tumunuGuncelle(true);
         } else if (t.dataset?.sec) {

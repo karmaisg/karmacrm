@@ -192,9 +192,13 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
     ${field({ ad: 'tax_no', etiket: 'Vergi numarası veya kurum tanımlayıcısı', deger: v('tax_no'), inputmode: 'numeric', maksUzunluk: 30, ipucu: 'Vergi no 10, TC kimlik no 11 haneli olur. Aynı numaralı ikinci aktif firma açılamaz.' })}
     ${field({ ad: 'tax_office', etiket: 'Vergi dairesi', deger: v('tax_office'), maksUzunluk: 100, ipucu: 'Cari hesap ekstresinde (Excel) görünür.' })}
     ${field({ ad: 'sector', etiket: 'Sektör', deger: v('sector'), maksUzunluk: 100 })}
-    ${field({ ad: 'city', etiket: 'İl', deger: v('city'), maksUzunluk: 60 })}
-    ${field({ ad: 'district', etiket: 'İlçe', deger: v('district'), maksUzunluk: 60 })}
-    ${field({ ad: 'address', etiket: 'Adres', deger: v('address'), tam: true, maksUzunluk: 300 })}
+    ${field({ ad: 'city', etiket: 'Fatura adresi: İl', deger: v('city'), maksUzunluk: 60 })}
+    ${field({ ad: 'district', etiket: 'Fatura adresi: İlçe', deger: v('district'), maksUzunluk: 60 })}
+    ${field({ ad: 'address', etiket: 'Fatura adresi', deger: v('address'), tam: true, maksUzunluk: 300 })}
+    <div class="field field-full"><button type="button" class="btn btn-secondary btn-sm" id="isyeri-ayni">İşyeri adresi = fatura adresi</button></div>
+    ${field({ ad: 'workplace_city', etiket: 'İşyeri adresi: İl', deger: v('workplace_city'), maksUzunluk: 80 })}
+    ${field({ ad: 'workplace_district', etiket: 'İşyeri adresi: İlçe', deger: v('workplace_district'), maksUzunluk: 80 })}
+    ${field({ ad: 'workplace_address', etiket: 'İşyeri adresi', deger: v('workplace_address'), tam: true, maksUzunluk: 500, ipucu: 'Haritada (Ziyaret planlama) konum bu adresten bulunur. Fatura adresinden farklıysa buraya işyerinin gerçek adresini yazın.' })}
     ${field({ ad: 'phone', etiket: 'Telefon', tur: 'tel', deger: v('phone'), otomatik: 'tel', maksUzunluk: 25 })}
     ${field({ ad: 'email', etiket: 'E-posta', tur: 'email', deger: v('email'), maksUzunluk: 120 })}
     ${field({ ad: 'website', etiket: 'Web sitesi', deger: v('website'), yerTutucu: 'www.firma.com', maksUzunluk: 200 })}
@@ -213,7 +217,7 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
 
   let yeniId = null;
 
-  openFormModal({
+  const pencere = openFormModal({
     baslik: duzenle ? 'Firma bilgilerini düzenle' : 'Yeni firma',
     altBaslik: duzenle ? firma.name : 'Müşteri kartı oluşturun',
     govde, boyut: 'lg', gonderEtiketi: duzenle ? 'Değişiklikleri kaydet' : 'Firmayı oluştur',
@@ -263,20 +267,28 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
         customer_status: g('customer_status') || 'musteri', responsible_user: bosIseNull(g('responsible_user')),
         notes: bosIseNull(g('notes')),
       };
+      // 43_asama42.sql çalıştırılmadıysa (sütun yok) ve işyeri adresi boşsa kayıt yine de çalışsın
+      const isyeri = { workplace_city: bosIseNull(g('workplace_city')), workplace_district: bosIseNull(g('workplace_district')), workplace_address: bosIseNull(g('workplace_address')) };
+      if (Object.values(isyeri).some(Boolean) || (duzenle && 'workplace_address' in firma)) Object.assign(degerler, isyeri);
       if (!altiVar) degerler.parent_company_id = bosIseNull(g('parent_company_id'));
       if (duzenle) {
         await app.api.updateCompany(firma.id, degerler);
         toast('Firma bilgileri güncellendi.');
       } else {
-        const { parent_company_id: anaId, ...digerleri } = degerler;
+        const { parent_company_id: anaId, workplace_city: _a, workplace_district: _b, workplace_address: _c, ...digerleri } = degerler;
         const yeni = await app.api.createCompany(digerleri, profil);
-        if (anaId) await app.api.updateCompany(yeni.id, { parent_company_id: anaId });
+        if (anaId || Object.values(isyeri).some(Boolean)) await app.api.updateCompany(yeni.id, { ...(anaId ? { parent_company_id: anaId } : {}), ...(Object.values(isyeri).some(Boolean) ? isyeri : {}) });
         yeniId = yeni.id;
         toast('Firma oluşturuldu.');
       }
       app.aramaOnbellegiTemizle();
     },
     onDone: () => (yeniId ? app.git(`firmalar/${yeniId}`) : app.yenile()),
+  });
+  pencere.el.querySelector('#isyeri-ayni')?.addEventListener('click', () => {
+    for (const [kaynak, hedef] of [['city', 'workplace_city'], ['district', 'workplace_district'], ['address', 'workplace_address']]) {
+      const a = pencere.el.querySelector(`[name="${kaynak}"]`); const b = pencere.el.querySelector(`[name="${hedef}"]`); if (a && b) b.value = a.value;
+    }
   });
 }
 

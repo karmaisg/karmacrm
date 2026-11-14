@@ -90,8 +90,10 @@ export async function firmaSayfasi(app, id) {
       ${bilgi('Vergi no / tanımlayıcı', firma.tax_no)}
       ${bilgi('Vergi dairesi', firma.tax_office)}
       ${bilgi('Sektör', firma.sector)}
-      ${bilgi('Konum', [firma.city, firma.district].filter(Boolean).join(' / '))}
-      ${bilgi('Adres', firma.address)}
+      ${bilgi('Fatura adresi: İl / ilçe', [firma.city, firma.district].filter(Boolean).join(' / '))}
+      ${bilgi('Fatura adresi', firma.address)}
+      ${bilgi('İşyeri adresi: İl / ilçe', [firma.workplace_city, firma.workplace_district].filter(Boolean).join(' / '))}
+      ${bilgi('İşyeri adresi', firma.workplace_address)}
       ${bilgi('Mevcut OSGB', firma.current_provider)}
       ${bilgi('Sorumlu kullanıcı', uyeAdi.get(firma.responsible_user))}
     </dl></section>

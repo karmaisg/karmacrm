@@ -7,9 +7,9 @@ export const ROTA_AZAMI_DURAK = 10;
 
 const temiz = (x) => String(x ?? '').trim();
 
-/** Konum aramak için adres metni. İl veya ilçe yoksa (yalnızca açık adres) arama güvenilmez olacağından boş döner. */
+/** Konum aramak için İŞYERİ adresi metni (fatura adresi değil). İl veya ilçe yoksa (yalnızca açık adres) arama güvenilmez olacağından boş döner. */
 export function adresSorgusu(f) {
-  const adres = temiz(f.address); const ilce = temiz(f.district); const il = temiz(f.city);
+  const adres = temiz(f.workplace_address); const ilce = temiz(f.workplace_district); const il = temiz(f.workplace_city);
   if (!il && !ilce) return '';
   return [adres, ilce, il, 'Türkiye'].filter(Boolean).join(', ');
 }
@@ -19,7 +19,8 @@ export function konumDurumu(f) {
   const var_ = f.latitude !== null && f.latitude !== undefined && f.longitude !== null && f.longitude !== undefined;
   const sorgu = adresSorgusu(f);
   if (!var_) return sorgu ? 'yok' : 'adres-eksik';
-  if (f.geo_source === 'manuel') return 'guncel';   // elle işaretlenen konum adres değişse de korunur
+  if (f.geo_source === 'manuel') return 'guncel';
+  if (!sorgu) return 'adres-eksik';   // eski (fatura adresinden bulunmuş) konum işyeri adresi olmadan gösterilmez   // elle işaretlenen konum adres değişse de korunur
   return f.geo_query === sorgu ? 'guncel' : 'eski';
 }
 
@@ -76,16 +77,18 @@ export function ziyaretSatirlari({ firmalar, durumlar }) {
 }
 
 /** Süzgeç: il, ilçe, görevli personel, ay özeti, konum durumu, arama. Boş değer = süzme. */
-export function filtrele(satirlar, { il = '', ilce = '', gorevli = '', ozet = '', konum = '', ara = '' } = {}) {
+export function filtrele(satirlar, { il = '', ilce = '', gorevli = '', ozet = '', konum = '', tur = '', ara = '' } = {}) {
   const q = temiz(ara).toLocaleLowerCase('tr');
   return satirlar.filter((s) => {
-    if (il && temiz(s.firma.city) !== il) return false;
-    if (ilce && temiz(s.firma.district) !== ilce) return false;
+    if (il && temiz(s.firma.workplace_city) !== il) return false;
+    if (ilce && temiz(s.firma.workplace_district) !== ilce) return false;
     if (gorevli && !ZIYARET_TURLERI.some((t) => s.turler[t].gorevliIdler.includes(gorevli))) return false;
     if (ozet && s.ozet !== ozet) return false;
+    if (tur) { const u = s.turler.is_guvenligi_uzmani.gerekli; const h = s.turler.isyeri_hekimi.gerekli;
+      if (tur === 'uzman' && !u) return false; if (tur === 'hekim' && !h) return false; if (tur === 'ikisi' && !(u && h)) return false; if (tur === 'yok' && (u || h)) return false; }
     if (konum === 'yok' && !['yok', 'adres-eksik'].includes(s.konum)) return false;
     if (konum === 'var' && !['guncel', 'eski'].includes(s.konum)) return false;
-    if (q && !`${s.firma.name} ${s.firma.district ?? ''} ${s.firma.city ?? ''} ${s.firma.address ?? ''}`.toLocaleLowerCase('tr').includes(q)) return false;
+    if (q && !`${s.firma.name} ${s.firma.workplace_district ?? ''} ${s.firma.workplace_city ?? ''} ${s.firma.workplace_address ?? ''}`.toLocaleLowerCase('tr').includes(q)) return false;
     return true;
   });
 }
@@ -129,3 +132,9 @@ export function rotaBaglantisi(firmalar, { sirala = true } = {}) {
 
 export const turEtiketi = (t) => PERSONEL_TURU_KISA[t] ?? t;
 export { ayBitisi };
+
+/** Haritadaki iğnenin üzerindeki harf: U = iş güvenliği uzmanı, H = işyeri hekimi, UH = ikisi de, boş = görevli yok. */
+export function turHarfi(satir) {
+  const u = satir.turler.is_guvenligi_uzmani.gerekli; const h = satir.turler.isyeri_hekimi.gerekli;
+  return u && h ? 'UH' : u ? 'U' : h ? 'H' : '';
+}
