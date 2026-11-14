@@ -3526,7 +3526,7 @@ const haritaKukla = (s) => s.route('**/maps.googleapis.com/maps/api/js**', (r) =
 const haritaCercevesi = (s) => s.frames().find((f) => f.url().includes('harita.html'));
 const ziyaretTohumu = (s, { anahtar = true } = {}) => s.evaluate((a) => {
   const t = globalThis.__fake.tablo; const org = t.organizations[0].id; const id = () => crypto.randomUUID(); const bugunIso = new Date().toISOString().slice(0, 10);
-  const firma = (name, city, district, address) => { const f = { id: id(), organization_id: org, name, customer_status: 'musteri', city, district, address, archived_at: null, latitude: null, longitude: null, geo_query: null, geo_source: null }; t.companies.push(f); return f; };
+  const firma = (name, city, district, address) => { const f = { id: id(), organization_id: org, name, customer_status: 'musteri', city: 'Ankara', district: 'Çankaya', address: 'Fatura Adresi Cd. 99', workplace_city: city, workplace_district: district, workplace_address: address, archived_at: null, latitude: null, longitude: null, geo_query: null, geo_source: null }; t.companies.push(f); return f; };
   const A = firma('Ege Çelik A.Ş.', 'İzmir', 'Gaziemir', 'Sarnıç Mah. 1. Sk. No:5'); const B = firma('Bornova Gıda Ltd.', 'İzmir', 'Bornova', 'Yaklasik Cd. 7');
   const C = firma('Akhisar Tekstil', 'Manisa', 'Akhisar', 'Bulunamaz Sk. 3'); const D = firma('Adressiz Firma', '', '', '');
   const emp = (full_name, staff_type) => { const e = { id: id(), organization_id: org, full_name, staff_type, role_kind: null, is_active: true, monthly_capacity_min: 11700, archived_at: null }; t.employees.push(e); return e; };
@@ -3560,6 +3560,16 @@ await test('Ziyaret planlama: menü, aylık uzman/hekim durumu, filtreler, konum
   esit(await s.locator('#zp-konumsuz-sayi').innerText(), '1', 'konumsuz sayısı güncellendi');
   const cer = haritaCercevesi(s); esit(await cer.evaluate(() => window.__gm.markers.filter((m) => m.o.map).length), 2, 'haritada iki iğne');
   esit(await cer.evaluate(() => window.__gm.geocodes[0].includes('Türkiye')), true, 'arama adresi');
+  // iğne üstündeki harf: uzman+hekim atanmış firmalarda UH, yalnız uzman atanmışta U
+  const harfler = await cer.evaluate(() => window.__gm.markers.filter((m) => m.o.map).map((m) => [m.o.title, decodeURIComponent(m.o.icon.url)]));
+  for (const [ad, url] of harfler) { const bekle = ad.startsWith('Akhisar') ? '>U</text>' : '>UH</text>'; if (!url.includes(bekle)) throw new Error(`iğne harfi ${ad}: ${url.slice(-120)}`); }
+  // uzman / hekim işyerlerini ayrı görme
+  for (const [deger, say] of [['hekim', 2], ['uzman', 4], ['ikisi', 2], ['yok', 0]]) {
+    await s.selectOption('#zp-tur', deger); await s.waitForFunction((n) => document.querySelectorAll('#zp-tablo tbody tr').length === n, say);
+  }
+  await s.selectOption('#zp-tur', 'hekim');
+  esit(await cer.evaluate(() => window.__gm.markers.filter((m) => m.o.map).length), 2, 'hekim filtresinde iki iğne');
+  await s.selectOption('#zp-tur', '');
   // iğne tıklayınca bilgi penceresi
   await s.click(`[data-haritada="${id.A}"]`); await cer.waitForFunction(() => window.__gm.sonBilgi);
   const bilgi = await cer.evaluate(() => window.__gm.sonBilgi); if (!String(bilgi).includes('Ege Çelik') || !String(bilgi).includes('Kısmen yapıldı') || !String(bilgi).includes('Uzman: Yapıldı')) throw new Error(`bilgi: ${bilgi}`);
@@ -3645,6 +3655,21 @@ await test('Ziyaret planlama: zaman modülü yetkisi olmayan rol menüyü görme
   esit(await s.locator('a[href="#/ziyaret-planlama"]').count(), 0, 'satış rolü menüde göremez');
   await git(s, '#/ziyaret-planlama'); await s.waitForTimeout(400);
   esit(await s.locator('#zp-tablo').count(), 0, 'doğrudan adresle de açılmaz');
+});
+
+await test('Firma formu: fatura adresi ve işyeri adresi ayrı; "işyeri = fatura" düğmesi', async (s) => {
+  await girisYap(s); await git(s, '#/firmalar'); await s.waitForSelector('[data-action="yeni-firma"]'); await s.click('[data-action="yeni-firma"]');
+  const m = modal(s); const etiketler = await m.locator('label').allTextContents();
+  for (const e of ['Fatura adresi: İl', 'Fatura adresi: İlçe', 'Fatura adresi', 'İşyeri adresi: İl', 'İşyeri adresi: İlçe', 'İşyeri adresi']) if (!etiketler.some((x) => x.replace(/\s+/g, ' ').trim().startsWith(e))) throw new Error(`etiket yok: ${e}`);
+  await m.locator('#f-name').fill('Adresli Firma'); await m.locator('#f-city').fill('Ankara'); await m.locator('#f-district').fill('Çankaya'); await m.locator('#f-address').fill('Fatura Cd. 1');
+  await m.locator('#isyeri-ayni').click();
+  esit(await m.locator('#f-workplace_city').inputValue(), 'Ankara', 'işyeri ili kopyalandı'); esit(await m.locator('#f-workplace_address').inputValue(), 'Fatura Cd. 1', 'işyeri adresi kopyalandı');
+  await m.locator('#f-workplace_city').fill('İzmir'); await m.locator('#f-workplace_district').fill('Gaziemir'); await m.locator('#f-workplace_address').fill('Sanayi Sk. 5');
+  await m.locator('button[type=submit]').click(); await s.waitForSelector('.company-head');
+  const k = await s.evaluate(() => globalThis.__fake.tablo.companies.find((x) => x.name === 'Adresli Firma'));
+  esit([k.city, k.address, k.workplace_city, k.workplace_district, k.workplace_address].join('|'), 'Ankara|Fatura Cd. 1|İzmir|Gaziemir|Sanayi Sk. 5', 'iki adres ayrı kaydedildi');
+  const metin = (await s.locator('main').innerText()).replace(/\s+/g, ' ');
+  if (!metin.includes('Fatura adresi') || !metin.includes('İşyeri adresi') || !metin.includes('Sanayi Sk. 5')) throw new Error('firma sayfasında iki adres görünmeli');
 });
 
 await tarayici.close(); sunucu.close();

@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { adresSorgusu, konumDurumu, ayZiyaretDurumlari, firmaOzeti, ziyaretSatirlari, filtrele, ayrikDegerler, mesafeKm, yakinSiraya, rotaBaglantisi, ROTA_AZAMI_DURAK } from '../src/lib/ziyaret.js';
 
-const f = (id, ad, ek = {}) => ({ id, name: ad, customer_status: 'musteri', city: 'İzmir', district: 'Gaziemir', address: 'Sarnıç Mah. 1. Sk. No:5', latitude: null, longitude: null, ...ek });
+const f = (id, ad, ek = {}) => ({ id, name: ad, customer_status: 'musteri', city: 'Ankara', district: 'Çankaya', address: 'Fatura Cd. 1', workplace_city: 'İzmir', workplace_district: 'Gaziemir', workplace_address: 'Sarnıç Mah. 1. Sk. No:5', latitude: null, longitude: null, ...ek });
 test('adres sorgusu ve konum durumu', () => {
   assert.equal(adresSorgusu(f('1', 'A')), 'Sarnıç Mah. 1. Sk. No:5, Gaziemir, İzmir, Türkiye');
-  assert.equal(adresSorgusu({ address: 'Sadece sokak' }), '');
-  assert.equal(adresSorgusu({ city: 'Manisa' }), 'Manisa, Türkiye');
+  assert.equal(adresSorgusu({ workplace_address: 'Sadece sokak' }), '');
+  assert.equal(adresSorgusu({ workplace_city: 'Manisa' }), 'Manisa, Türkiye');
   assert.equal(konumDurumu(f('1', 'A')), 'yok'); assert.equal(konumDurumu({ name: 'B' }), 'adres-eksik');
   const q = adresSorgusu(f('1', 'A'));
   assert.equal(konumDurumu(f('1', 'A', { latitude: 38.4, longitude: 27.1, geo_query: q, geo_source: 'google' })), 'guncel');
@@ -36,7 +36,7 @@ test('aylık ziyaret durumu: uzman ve hekim ayrı, plan ve yapıldı', () => {
   assert.equal(firmaOzeti({ x: { gerekli: true, durum: 'bekliyor' }, y: { gerekli: true, durum: 'planli' } }), 'eksik');
 });
 test('süzgeç, ayrık değerler', () => {
-  const firmalar = [f('a', 'Ege Çelik'), f('b', 'Bergama Gıda', { district: 'Bergama' }), f('c', 'Ankara Yapı', { city: 'Ankara', district: 'Çankaya', latitude: 39.9, longitude: 32.8, geo_query: 'x', geo_source: 'manuel' })];
+  const firmalar = [f('a', 'Ege Çelik'), f('b', 'Bergama Gıda', { workplace_district: 'Bergama' }), f('c', 'Ankara Yapı', { workplace_city: 'Ankara', workplace_district: 'Çankaya', latitude: 39.9, longitude: 32.8, geo_query: 'x', geo_source: 'manuel' })];
   const atamalar = [atama('a', 'u1', 'is_guvenligi_uzmani'), atama('b', 'h1', 'isyeri_hekimi')];
   const satirlar = ziyaretSatirlari({ firmalar, durumlar: ayZiyaretDurumlari({ firmalar, atamalar, personel, zamanlar: [], planlar: [], ayBasi: '2026-11-01' }) });
   assert.deepEqual(satirlar.map((s) => s.firma.name), ['Ankara Yapı', 'Bergama Gıda', 'Ege Çelik']);
@@ -47,7 +47,7 @@ test('süzgeç, ayrık değerler', () => {
   assert.deepEqual(filtrele(satirlar, { konum: 'var' }).map((s) => s.firma.id), ['c']);
   assert.deepEqual(filtrele(satirlar, { konum: 'yok' }).map((s) => s.firma.id), ['b', 'a']);
   assert.deepEqual(filtrele(satirlar, { ara: 'çelik' }).map((s) => s.firma.id), ['a']);
-  assert.deepEqual(ayrikDegerler(firmalar, 'city'), ['Ankara', 'İzmir']);
+  assert.deepEqual(ayrikDegerler(firmalar, 'workplace_city'), ['Ankara', 'İzmir']);
 });
 test('mesafe ve rota bağlantısı', () => {
   const izmir = { latitude: 38.4237, longitude: 27.1428 }; const ankara = { latitude: 39.9334, longitude: 32.8597 };
