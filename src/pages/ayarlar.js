@@ -30,6 +30,8 @@ export async function ayarlarSayfasi(app) {
   let ozetGunlugu = await gunlukOku();
   // Google Haritalar anahtarı: undefined = 42_asama41.sql çalıştırılmamış, null = girilmemiş
   let haritaAnahtari = await app.api.getMapsKey().catch(() => undefined);
+  // Karma OSGB aktarımı: undefined = 44_asama43.sql çalıştırılmamış
+  let karma = await app.api.karmaDurumu().catch(() => undefined);
   const degistirebilir = app.can('settings', 'create') && app.can('settings', 'edit');
 
   const genelKart = () => {
@@ -94,11 +96,28 @@ export async function ayarlarSayfasi(app) {
       : html`<p class="pad muted" id="harita-anahtar-durum">Anahtar girilmedi; Ziyaret planlama sayfası haritasız (yalnızca liste) çalışır.</p>`}
     <p class="fine pad">Google Cloud'da anahtarı yalnızca <strong>Maps JavaScript API</strong> ve <strong>Geocoding API</strong> ile, <strong>uygulama kısıtı: web siteleri (HTTP yönlendiren)</strong> olarak ve sitenizin adresiyle (örn. <code>https://karmasg.github.io/*</code>) sınırlayın. Kurulum adımları kurulum rehberindedir.</p></section>`;
 
-  const hepsi = () => html`${genelKart()}${kuralKart()}${ozetKart()}${haritaKart()}${gecmisKart()}${digerKart()}`;
+  const karmaKart = () => {
+    const s = karma?.senkron;
+    return html`<section class="card card-flush pad-t" id="karma-kart"><div class="card-head"><div><h2 class="card-title">Karma OSGB ziyaret aktarımı</h2>
+    <p class="card-sub">Uzman ve hekimlerin Karma OSGB yazılımına işlediği ziyaretler otomatik çekilir ve "Zaman ve ziyaret takibi"ne yazılır. Firma, <strong>firma kısaltmasıyla</strong>; personel, <strong>e-posta adresiyle</strong> eşleşir.</p></div>
+    ${degistirebilir && karma ? html`<button type="button" class="btn btn-secondary btn-sm" id="karma-cek">${icon('restore', 16)} Şimdi çek</button>
+      ${karma.bekleyenler.length ? html`<button type="button" class="btn btn-secondary btn-sm" id="karma-tekrar">Eşleşmeyenleri yeniden dene</button>` : ''}` : ''}</div>
+    ${karma === undefined ? html`<div class="notice notice-info" role="note">Bu özellik için Supabase'de <strong>44_asama43.sql</strong> dosyasını çalıştırın.</div>`
+      : html`<p class="pad" id="karma-durum">${!s ? html`<span class="muted">Henüz çekim yapılmadı. Kurulum tamamlandıysa "Şimdi çek"e basın.</span>`
+        : html`${pill(s.son_durum === 'tamam' ? 'Son çekim başarılı' : 'Son çekim hatalı', s.son_durum === 'tamam' ? 'success' : 'danger')} <span class="muted">${tarihSaat(s.son_calisma)}</span>${s.son_mesaj ? html` · ${s.son_mesaj}` : ''}`}
+        <span class="muted"> · Aktarılan ziyaret: <strong>${karma.islenen}</strong></span></p>
+      ${karma.bekleyenler.length ? html`<div class="table-wrap"><table class="table" id="karma-bekleyen"><caption class="sr-only">Eşleşmeyen veya hatalı ziyaret kayıtları</caption><thead><tr><th scope="col">Tarih</th><th scope="col">Firma kısaltması</th><th scope="col">Personel</th><th scope="col">Neden</th></tr></thead><tbody>
+        ${karma.bekleyenler.map((x) => html`<tr><td>${tarih(x.tarih)}</td><td>${x.firma_kisaltma ?? ''}</td><td>${x.personel_eposta ?? ''}</td><td class="muted">${x.neden ?? ''}</td></tr>`)}</tbody></table></div>
+        <p class="fine pad">Firma formundaki "Firma kısaltması" ve Personel kaydındaki e-posta düzeltildikten sonra "Eşleşmeyenleri yeniden dene"ye basın (otomatik çekimde de denenir).</p>`
+        : html`<p class="fine pad">Eşleşmeyen kayıt yok.</p>`}`}
+    <p class="fine pad">Bağlantı adresi ve anahtar güvenlik için Supabase'de gizli ayar olarak tutulur; bu sayfada gösterilmez.</p></section>`;
+  };
+
+  const hepsi = () => html`${genelKart()}${kuralKart()}${ozetKart()}${haritaKart()}${karmaKart()}${gecmisKart()}${digerKart()}`;
 
   async function yenile(kok) {
     try { [ayarlar, kurallar] = await Promise.all([app.api.listSettings(), app.api.listServiceRules()]); } catch (e) { toast(humanError(e), 'hata'); return; }
-    ozetGunlugu = await gunlukOku(); haritaAnahtari = await app.api.getMapsKey().catch(() => undefined);
+    ozetGunlugu = await gunlukOku(); haritaAnahtari = await app.api.getMapsKey().catch(() => undefined); karma = await app.api.karmaDurumu().catch(() => undefined);
     kok.querySelector('#ayarlar-kok').innerHTML = hepsi().s;
   }
 
@@ -128,6 +147,14 @@ export async function ayarlarSayfasi(app) {
     await yenile(kok);
   }
 
+  let karmaMesgul = false;
+  async function karmaIslem(kok, is, basarili) {
+    if (karmaMesgul) return; karmaMesgul = true;
+    kok.querySelectorAll('#karma-cek, #karma-tekrar').forEach((d) => { d.disabled = true; });
+    try { const r = await is(); toast(basarili(r)); } catch (e) { toast(humanError(e), 'hata'); }
+    karmaMesgul = false; await yenile(kok);
+  }
+
   function kuralFormu(kok, anahtar) {
     const [tur, tehlike] = anahtar.split('|'); const x = kuralDurumlari(kurallar, bugun())[anahtar];
     openFormModal({
@@ -154,6 +181,8 @@ export async function ayarlarSayfasi(app) {
         const a = e.target.closest('[data-ayar]'); if (a) { ayarFormu(kok, a.dataset.ayar); return; }
         const k = e.target.closest('[data-kural]'); if (k) { kuralFormu(kok, k.dataset.kural); return; }
         if (e.target.closest('#ozet-test')) ozetTesti(kok);
+        if (e.target.closest('#karma-cek')) karmaIslem(kok, () => app.api.karmaCek(), (r) => r?.mesaj || 'Ziyaretler çekildi.');
+        if (e.target.closest('#karma-tekrar')) karmaIslem(kok, () => app.api.karmaYenidenDene(), (r) => `Yeniden denendi: ${r?.islendi ?? 0} ziyaret işlendi.`);
         if (e.target.closest('#harita-anahtar')) {
           openFormModal({
             baslik: 'Google Haritalar anahtarı', altBaslik: 'Google Cloud Console → API\'ler ve hizmetler → Kimlik bilgileri',

@@ -90,6 +90,7 @@ export async function firmaSayfasi(app, id) {
       ${bilgi('Vergi no / tanımlayıcı', firma.tax_no)}
       ${bilgi('Vergi dairesi', firma.tax_office)}
       ${bilgi('Sektör', firma.sector)}
+      ${bilgi('Firma kısaltması', firma.short_code)}
       ${bilgi('Fatura adresi: İl / ilçe', [firma.city, firma.district].filter(Boolean).join(' / '))}
       ${bilgi('Fatura adresi', firma.address)}
       ${bilgi('İşyeri adresi: İl / ilçe', [firma.workplace_city, firma.workplace_district].filter(Boolean).join(' / '))}

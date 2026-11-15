@@ -195,6 +195,7 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
     ${field({ ad: 'city', etiket: 'Fatura adresi: İl', deger: v('city'), maksUzunluk: 60 })}
     ${field({ ad: 'district', etiket: 'Fatura adresi: İlçe', deger: v('district'), maksUzunluk: 60 })}
     ${field({ ad: 'address', etiket: 'Fatura adresi', deger: v('address'), tam: true, maksUzunluk: 300 })}
+    ${field({ ad: 'short_code', etiket: 'Firma kısaltması', deger: v('short_code'), maksUzunluk: 30, ipucu: 'Karma OSGB yazılımında personelin ziyaret girerken kullandığı kısaltma. Ziyaretler bu kısaltmayla firmaya eşleşir; her firmada farklı olmalı.' })}
     <div class="field field-full"><button type="button" class="btn btn-secondary btn-sm" id="isyeri-ayni">İşyeri adresi = fatura adresi</button></div>
     ${field({ ad: 'workplace_city', etiket: 'İşyeri adresi: İl', deger: v('workplace_city'), maksUzunluk: 80 })}
     ${field({ ad: 'workplace_district', etiket: 'İşyeri adresi: İlçe', deger: v('workplace_district'), maksUzunluk: 80 })}
@@ -270,14 +271,17 @@ export async function firmaFormuAc(app, { firma = null } = {}) {
       // 43_asama42.sql çalıştırılmadıysa (sütun yok) ve işyeri adresi boşsa kayıt yine de çalışsın
       const isyeri = { workplace_city: bosIseNull(g('workplace_city')), workplace_district: bosIseNull(g('workplace_district')), workplace_address: bosIseNull(g('workplace_address')) };
       if (Object.values(isyeri).some(Boolean) || (duzenle && 'workplace_address' in firma)) Object.assign(degerler, isyeri);
+      const kisaltma = { short_code: bosIseNull(g('short_code')) };
+      if (kisaltma.short_code || (duzenle && 'short_code' in firma)) Object.assign(degerler, kisaltma);
       if (!altiVar) degerler.parent_company_id = bosIseNull(g('parent_company_id'));
       if (duzenle) {
         await app.api.updateCompany(firma.id, degerler);
         toast('Firma bilgileri güncellendi.');
       } else {
-        const { parent_company_id: anaId, workplace_city: _a, workplace_district: _b, workplace_address: _c, ...digerleri } = degerler;
+        const { parent_company_id: anaId, short_code: _s, workplace_city: _a, workplace_district: _b, workplace_address: _c, ...digerleri } = degerler;
         const yeni = await app.api.createCompany(digerleri, profil);
-        if (anaId || Object.values(isyeri).some(Boolean)) await app.api.updateCompany(yeni.id, { ...(anaId ? { parent_company_id: anaId } : {}), ...(Object.values(isyeri).some(Boolean) ? isyeri : {}) });
+        const ekler = { ...(anaId ? { parent_company_id: anaId } : {}), ...(Object.values(isyeri).some(Boolean) ? isyeri : {}), ...(kisaltma.short_code ? kisaltma : {}) };
+        if (Object.keys(ekler).length) await app.api.updateCompany(yeni.id, ekler);
         yeniId = yeni.id;
         toast('Firma oluşturuldu.');
       }

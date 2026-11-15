@@ -24,6 +24,7 @@ export function humanError(e) {
   if (code === '23505') {
     if (msg.includes('companies_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir firma zaten var.';
     if (msg.includes('leads_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir potansiyel müşteri zaten var.';
+    if (msg.includes('companies_short_code_uq')) return 'Bu firma kısaltması başka bir aktif firmada kullanılıyor.';
     if (msg.includes('offers_no_uq')) return 'Bu teklif numarası zaten kullanılıyor.';
     if (msg.includes('tasks_source_ref_uq')) return 'Bu iş için otomatik görev zaten oluşturulmuş.';
     if (msg.includes('invoices_organization_id_invoice_no_key')) return 'Bu fatura numarası zaten kullanılıyor.';
@@ -372,6 +373,25 @@ export function createApi(db) {
 
     // ----- zaman kayıtları (tarih aralığı: work_date dahil)
     listTimeEntries: (bas, bit) => hepsiniOku(() => T('time_entries').select('*').gte('work_date', bas).lte('work_date', bit).order('id')),
+    // Karma OSGB ziyaret aktarımı (Aşama 43)
+    async karmaDurumu() {
+      const [sen, liste] = await Promise.all([bir(T('karma_senkron').select('*')), bir(T('karma_ziyaretler').select('id, dis_id, durum, neden, firma_kisaltma, personel_eposta, tarih, sure_dakika, updated_at').in('durum', ['eslesmedi', 'hata']).order('tarih', { ascending: false }).limit(200))]);
+      const { count } = await db.from('karma_ziyaretler').select('id', { count: 'exact', head: true }).eq('durum', 'islendi');
+      return { senkron: sen[0] ?? null, bekleyenler: liste, islenen: count ?? 0 };
+    },
+    karmaYenidenDene: () => bir(db.rpc('karma_eslesmeyenleri_yeniden_dene', {})),
+    async karmaCek() {
+      const { data, error } = await db.functions.invoke('karma-ziyaret-cekme', { body: {} });
+      if (error) {
+        let govde = null;
+        try { govde = await error.context?.json?.(); } catch { /* gövde okunamadı */ }
+        if (error.context?.status === 404) throw new AppError('Karma OSGB çekme fonksiyonu henüz kurulmamış. Kurulum rehberindeki Aşama 43 adımlarını izleyin.');
+        if (govde?.mesaj || govde?.hata) throw new AppError(govde.mesaj || govde.hata);
+        throw new AppError('Ziyaretler çekilemedi: fonksiyona ulaşılamadı. Kurulumu ve internet bağlantısını kontrol edin.');
+      }
+      if (data && data.ok === false) throw new AppError(data.mesaj || 'Ziyaretler çekilemedi.');
+      return data;
+    },
     // Ziyaret planlama: firma konumu, Google Haritalar anahtarı, ziyaret planı
     getMapsKey: async () => { const l = await bir(T('integration_settings').select('value').eq('key', 'google_maps_api_key')); return l[0]?.value ?? null; },
     saveIntegration: (anahtar, deger) => bir(db.rpc('entegrasyon_kaydet', { p_anahtar: anahtar, p_deger: deger })),
