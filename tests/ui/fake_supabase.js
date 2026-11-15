@@ -762,6 +762,17 @@ const rpcler = {
     }
     return { data: { ...f } };
   },
+  isyeri_konum_kaydet({ p_site, p_lat, p_lng, p_sorgu, p_kaynak }) {
+    if (!(izinVar('time', 'can_create') || izinVar('companies', 'can_edit'))) return { error: hata('İşyeri konumunu kaydetme yetkiniz yok.', 'P0001') };
+    const f = tablo.company_sites.find((x) => x.id === p_site && !x.archived_at);
+    if (!f) return { error: hata('İşyeri bulunamadı.', 'P0001') };
+    if (p_lat === null || p_lng === null) Object.assign(f, { latitude: null, longitude: null, geo_query: null, geo_source: null, geo_at: null });
+    else {
+      if (p_lat < -90 || p_lat > 90 || p_lng < -180 || p_lng > 180) return { error: hata('Konum geçerli değil.', 'P0001') };
+      Object.assign(f, { latitude: Math.round(p_lat * 1e6) / 1e6, longitude: Math.round(p_lng * 1e6) / 1e6, geo_query: String(p_sorgu ?? '').slice(0, 500), geo_source: p_kaynak, geo_at: new Date().toISOString() });
+    }
+    return { data: { ...f } };
+  },
   entegrasyon_kaydet({ p_anahtar, p_deger }) {
     if (!(izinVar('settings', 'can_create') && izinVar('settings', 'can_edit'))) return { error: hata('Sistem ayarlarını değiştirme yetkiniz yok.', 'P0001') };
     const v = String(p_deger ?? '').trim();

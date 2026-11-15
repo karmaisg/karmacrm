@@ -3554,7 +3554,7 @@ await test('Ziyaret planlama: menü, aylık uzman/hekim durumu, filtreler, konum
   esit(await s.locator('#zp-bulunacak').innerText(), '3', 'bulunacak firma');
   await s.click('#zp-konum-bul'); await s.waitForSelector('#zp-sonuc-kutu', { timeout: 15000 });
   const sonuc = (await s.locator('#zp-sonuc-kutu').innerText()).replace(/\s+/g, ' ');
-  if (!sonuc.includes('2 firmanın konumu bulundu') || !sonuc.includes('Akhisar Tekstil') || !sonuc.includes('Bornova Gıda')) throw new Error(`sonuç: ${sonuc}`);   // Bornova: yaklaşık
+  if (!sonuc.includes('2 konum bulundu') || !sonuc.includes('Akhisar Tekstil') || !sonuc.includes('Bornova Gıda')) throw new Error(`sonuç: ${sonuc}`);   // Bornova: yaklaşık
   const kay = await s.evaluate(() => globalThis.__fake.tablo.companies.filter((c) => c.latitude !== null).map((c) => [c.name, c.geo_source, c.geo_query]));
   esit(kay.length, 2, 'iki firmanın konumu kaydedildi'); esit(kay.every((k) => k[1] === 'google' && k[2].endsWith('Türkiye')), true, 'kaynak ve sorgu');
   esit(await s.locator('#zp-konumsuz-sayi').innerText(), '1', 'konumsuz sayısı güncellendi');
@@ -3699,6 +3699,44 @@ await test('Karma OSGB aktarımı: tablo yoksa kart kurulum uyarısı verir, dü
   await git(s, '#/ayarlar'); await s.waitForSelector('#karma-kart');
   if (!(await s.locator('#karma-kart').innerText()).includes('44_asama43.sql')) throw new Error('kurulum uyarısı');
   if (await s.locator('#karma-cek').count()) throw new Error('tablo yokken düğme olmamalı');
+});
+
+await test('Çok işyerli firma: İşyerleri bölümünde Karma kısaltması ve adres eklenir ve düzenlenir', async (s) => {
+  await girisYap(s); const id = await ziyaretTohumu(s);
+  await git(s, `#/firmalar/${id.A}`); await s.waitForSelector('[data-sekme="isyerleri"], #sekme-cubugu');
+  await s.evaluate(() => { const b = [...document.querySelectorAll('#sekme-cubugu [role="tab"], #sekme-cubugu button')].find((x) => /İşyerleri/.test(x.textContent)); b?.click(); });
+  await s.waitForSelector('[data-action="isyeri-ekle"]'); await s.click('[data-action="isyeri-ekle"]');
+  const m = modal(s); await m.locator('#f-site_name').waitFor();
+  await m.locator('#f-site_name').fill('Gebze Fabrika'); await m.locator('#f-short_code').fill('EGE-GEB'); await m.locator('#f-city').fill('Kocaeli'); await m.locator('#f-district').fill('Gebze'); await m.locator('#f-address').fill('OSB 5. Cd. No:3');
+  await m.locator('button[type=submit]').click(); await s.waitForSelector('#isyeri-tablo');
+  const k = await s.evaluate(() => globalThis.__fake.tablo.company_sites.find((x) => x.site_name === 'Gebze Fabrika'));
+  esit([k.short_code, k.city, k.district, k.address, k.is_manual].join('|'), 'EGE-GEB|Kocaeli|Gebze|OSB 5. Cd. No:3|true', 'işyeri kısaltma ve adres kaydedildi');
+  const satir = (await s.locator('#isyeri-tablo').innerText()).replace(/\s+/g, ' ');
+  if (!satir.includes('Karma kısaltması: EGE-GEB') || !satir.includes('Adres: OSB 5. Cd. No:3')) throw new Error(`işyeri satırı: ${satir}`);
+  // düzenle: kısaltmayı değiştir, adresi boşalt
+  await s.click('[data-isyeri-duzenle]'); const d = modal(s); await d.locator('#f-short_code').waitFor();
+  await d.locator('#f-short_code').fill('EGE-GBZ'); await d.locator('#f-address').fill(''); await d.locator('button[type=submit]').click();
+  await s.waitForFunction(() => globalThis.__fake.tablo.company_sites.some((x) => x.short_code === 'EGE-GBZ' && x.address === null));
+});
+
+await test('Ziyaret planlama: kendi adresi olan işyeri haritada ayrı iğne alır (adresi boş işyeri almaz)', async (s) => {
+  await girisYap(s); await haritaKukla(s); const id = await ziyaretTohumu(s);
+  await s.evaluate((a) => { const t = globalThis.__fake.tablo; const ek = { organization_id: t.organizations[0].id, company_id: a, is_manual: true, is_active: true, archived_at: null, latitude: null, longitude: null, geo_source: null };
+    t.company_sites.push({ id: 'site-gebze', sgk_no: 'MAN00009', site_name: 'Gebze Fabrika', short_code: 'EGE-GEB', city: 'Kocaeli', district: 'Gebze', address: 'OSB 5. Cd.', ...ek }, { id: 'site-ayni', sgk_no: 'MAN00010', site_name: 'Aynı Adres Depo', short_code: 'EGE-DEP', city: null, district: null, address: null, ...ek }); }, id.A);
+  await git(s, '#/ziyaret-planlama'); await s.waitForSelector('#zp-tablo');
+  if (!(await satirMetni(s, 'Ege Çelik')).includes('+1 işyeri')) throw new Error('firma satırında +1 işyeri görünmeli');
+  await s.waitForFunction(() => !document.querySelector('#zp-konum-bul').disabled, null, { timeout: 8000 });
+  esit(await s.locator('#zp-bulunacak').innerText(), '4', 'bulunacak: 3 firma + 1 ayrı adresli işyeri');
+  await s.click('#zp-konum-bul'); await s.waitForSelector('#zp-sonuc-kutu', { timeout: 15000 });
+  const cer = haritaCercevesi(s);
+  await cer.waitForFunction(() => window.__gm.markers.filter((m) => m.o.map).some((m) => m.o.title.includes('Gebze Fabrika')));
+  esit(await cer.evaluate(() => window.__gm.markers.filter((m) => m.o.map).length), 3, 'iki firma + bir işyeri iğnesi');
+  if (await cer.evaluate(() => window.__gm.markers.some((m) => m.o.title.includes('Aynı Adres Depo')))) throw new Error('adresi boş işyeri ayrı iğne almamalı');
+  const gs = await s.evaluate(() => globalThis.__fake.tablo.company_sites.find((x) => x.id === 'site-gebze'));
+  esit(gs.geo_source, 'google', 'işyeri konumu Google ile kaydedildi'); if (gs.latitude == null) throw new Error('işyeri konumu yok');
+  // iğneyi sürükle: manuel
+  await cer.evaluate(() => { const m = window.__gm.markers.find((x) => x.o.map && x.o.title.includes('Gebze Fabrika')); m.o.position = { lat: 40.7, lng: 29.5 }; m.l.dragend(); });
+  await s.waitForFunction(() => globalThis.__fake.tablo.company_sites.find((x) => x.id === 'site-gebze').geo_source === 'manuel');
 });
 
 await tarayici.close(); sunucu.close();
