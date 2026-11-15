@@ -25,6 +25,7 @@ export function humanError(e) {
     if (msg.includes('companies_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir firma zaten var.';
     if (msg.includes('leads_tax_no_uq')) return 'Bu vergi numarasıyla kayıtlı aktif bir potansiyel müşteri zaten var.';
     if (msg.includes('companies_short_code_uq')) return 'Bu firma kısaltması başka bir aktif firmada kullanılıyor.';
+    if (msg.includes('company_sites_short_uq')) return 'Bu kısaltma başka bir işyerinde kullanılıyor.';
     if (msg.includes('offers_no_uq')) return 'Bu teklif numarası zaten kullanılıyor.';
     if (msg.includes('tasks_source_ref_uq')) return 'Bu iş için otomatik görev zaten oluşturulmuş.';
     if (msg.includes('invoices_organization_id_invoice_no_key')) return 'Bu fatura numarası zaten kullanılıyor.';
@@ -396,6 +397,7 @@ export function createApi(db) {
     getMapsKey: async () => { const l = await bir(T('integration_settings').select('value').eq('key', 'google_maps_api_key')); return l[0]?.value ?? null; },
     saveIntegration: (anahtar, deger) => bir(db.rpc('entegrasyon_kaydet', { p_anahtar: anahtar, p_deger: deger })),
     saveCompanyLocation: ({ company, enlem, boylam, sorgu, kaynak }) => bir(db.rpc('firma_konum_kaydet', { p_company: company, p_lat: enlem, p_lng: boylam, p_sorgu: sorgu, p_kaynak: kaynak })),
+    saveSiteLocation: ({ site, enlem, boylam, sorgu, kaynak }) => bir(db.rpc('isyeri_konum_kaydet', { p_site: site, p_lat: enlem, p_lng: boylam, p_sorgu: sorgu, p_kaynak: kaynak })),
     listVisitPlans: (bas, bit) => hepsiniOku(() => T('visit_plans').select('*').is('archived_at', null).gte('planned_date', bas).lte('planned_date', bit).order('planned_date').order('id')),
     createVisitPlans: (satirlar) => bir(T('visit_plans').insert(satirlar).select()),
     archiveVisitPlan: (id) => bir(T('visit_plans').update({ archived_at: new Date().toISOString() }).eq('id', id).select().single()),

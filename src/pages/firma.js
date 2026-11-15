@@ -260,12 +260,13 @@ export async function firmaSayfasi(app, id) {
       ${siteler.length ? html`<div class="pad-x">${isyeriOzeti()}</div><div class="table-wrap"><table class="table" id="isyeri-tablo"><thead><tr><th scope="col">İşyeri</th><th scope="col" class="num hide-sm">Çalışan</th><th scope="col">Tehlike sınıfı</th><th scope="col">Fatura adı</th><th scope="col">Ayrı fatura</th><th scope="col"><span class="sr-only">Eylemler</span></th></tr></thead><tbody>
         ${siteler.map((x) => {
           const elle = x.is_manual && duzenleyebilir;
-          return html`<tr data-isyeri="${x.id}"><td><strong>${x.site_name}</strong><small class="block muted">${x.is_manual ? 'Elle girildi' : `Sicil: ${x.sgk_no}${x.is_active ? '' : ' · dosyada yok'}`}</small></td>
+          return html`<tr data-isyeri="${x.id}"><td><strong>${x.site_name}</strong><small class="block muted">${x.is_manual ? 'Elle girildi' : `Sicil: ${x.sgk_no}${x.is_active ? '' : ' · dosyada yok'}`}</small>
+          ${x.short_code ? html`<small class="block muted">Karma kısaltması: <strong>${x.short_code}</strong></small>` : ''}${[x.address, x.district, x.city].filter(Boolean).length && 'short_code' in x ? html`<small class="block muted">Adres: ${[x.address, x.district, x.city].filter(Boolean).join(', ')}</small>` : ''}</td>
           <td class="num hide-sm">${elle ? html`<input type="number" min="0" step="1" inputmode="numeric" class="input-sm" data-isyeri-calisan="${x.id}" value="${x.employee_count ?? ''}" aria-label="${x.site_name} çalışan sayısı">` : (x.employee_count ?? '—')}</td>
           <td>${elle ? html`<select data-isyeri-tehlike="${x.id}" aria-label="${x.site_name} tehlike sınıfı">${TEHLIKE_SECENEKLERI.map(([k, ad]) => html`<option value="${k}" ${(x.hazard_class ?? '') === k ? html`selected` : ''}>${ad}</option>`)}</select>` : (x.hazard_class ? TEHLIKE_ADI[x.hazard_class] : html`<span class="muted">Belirtilmedi</span>`)}${!x.hazard_class ? html`<small class="block muted">hesaba katılmaz</small>` : (!x.is_active ? html`<small class="block muted">pasif: hesaba katılmaz</small>` : '')}</td>
           <td>${duzenleyebilir ? html`<input type="text" maxlength="120" data-isyeri-ad="${x.id}" value="${x.invoice_alias ?? ''}" placeholder="Örn. UKEM" aria-label="${x.site_name} fatura adı">` : (x.invoice_alias || '—')}</td>
           <td>${duzenleyebilir ? html`<label class="check-inline"><input type="checkbox" data-isyeri-ayri="${x.id}" ${x.separate_invoice ? html`checked` : ''}> <span>Ayrı fatura</span></label>` : (x.separate_invoice ? 'Evet' : 'Hayır')}</td>
-          <td class="actions">${duzenleyebilir ? html`<button type="button" class="icon-btn" data-isyeri-sil="${x.id}" aria-label="${x.site_name} işyerini sil" title="Listeden sil">${icon('trash', 16)}</button>` : ''}</td></tr>`;
+          <td class="actions">${duzenleyebilir && 'short_code' in x ? html`<button type="button" class="icon-btn" data-isyeri-duzenle="${x.id}" aria-label="${x.site_name} kısaltma ve adres" title="Karma kısaltması ve adres">${icon('pencil', 16)}</button>` : ''}${duzenleyebilir ? html`<button type="button" class="icon-btn" data-isyeri-sil="${x.id}" aria-label="${x.site_name} işyerini sil" title="Listeden sil">${icon('trash', 16)}</button>` : ''}</td></tr>`;
         })}</tbody></table></div>`
         : emptyState({ simge: 'building', baslik: 'Bu firmaya bağlı işyeri yok', metin: 'İSG-Katip aktarımı yapıldığında firmanın işyerleri burada görünür; "İşyeri ekle" ile elle girebilir veya "Mevcut işyerini ekle" ile sistemde kayıtlı bir işyerini bu firmaya bağlayabilirsiniz.' })}</section>`;
   };
@@ -294,12 +295,38 @@ export async function firmaSayfasi(app, id) {
     });
   }
 
+  /** Kısaltma/adres alanları: 45_asama44.sql çalıştırılmadıysa ve alanlar boşsa kayıt yine çalışsın. */
+  const konumAlanlari = (g) => {
+    const d = { short_code: bosIseNull(g('short_code')), city: bosIseNull(g('city')), district: bosIseNull(g('district')), address: bosIseNull(g('address')) };
+    return Object.values(d).some(Boolean) ? d : {};
+  };
+
+  function isyeriDuzenleFormu(x) {
+    openFormModal({
+      baslik: 'İşyeri: Karma kısaltması ve adres', altBaslik: x.site_name, gonderEtiketi: 'Kaydet', boyut: 'lg',
+      govde: html`${field({ ad: 'short_code', etiket: 'Karma OSGB kısaltması', deger: x.short_code ?? '', maksUzunluk: 30, tam: true, ipucu: 'Personelin Karma OSGB yazılımında bu işyeri için girdiği kısaltma. Firmalar ve işyerleri arasında benzersiz olmalı.' })}
+        ${field({ ad: 'city', etiket: 'İşyeri adresi: İl', deger: x.city ?? '', maksUzunluk: 80, ipucu: 'Adres alanlarını boş bırakırsanız firmanın işyeri adresi geçerli olur.' })}
+        ${field({ ad: 'district', etiket: 'İşyeri adresi: İlçe', deger: x.district ?? '', maksUzunluk: 80 })}
+        ${field({ ad: 'address', etiket: 'İşyeri adresi', deger: x.address ?? '', tam: true, maksUzunluk: 500 })}`,
+      async onSubmit(fd) {
+        const g = (k) => String(fd.get(k) ?? '').trim();
+        const yeni = await app.api.updateSite(x.id, { short_code: bosIseNull(g('short_code')), city: bosIseNull(g('city')), district: bosIseNull(g('district')), address: bosIseNull(g('address')) });
+        Object.assign(x, yeni); toast('İşyeri bilgisi kaydedildi.');
+      },
+      onDone: () => app.yenile(),
+    });
+  }
+
   function isyeriFormu() {
     openFormModal({
       baslik: 'İşyeri ekle', altBaslik: `${firma.name} · İSG-Katip'te bulunmayan işyeri`, gonderEtiketi: 'Ekle', boyut: 'lg',
       govde: html`${field({ ad: 'site_name', etiket: 'İşyeri adı', zorunlu: true, tam: true, maksUzunluk: 200, yerTutucu: 'Örn. Ukem Sağlık Hizmetleri Şubesi' })}
         ${field({ ad: 'invoice_alias', etiket: 'Fatura adı (takma ad)', maksUzunluk: 120, yerTutucu: 'Örn. UKEM' })}
         ${field({ ad: 'employee_count', etiket: 'Çalışan sayısı', tur: 'number', min: 0, adim: 1, inputmode: 'numeric' })}
+        ${field({ ad: 'short_code', etiket: 'Karma OSGB kısaltması', maksUzunluk: 30, yerTutucu: 'Örn. EGE-GEB', ipucu: 'Personelin Karma OSGB yazılımında bu işyeri için girdiği kısaltma. Ziyaretler bu kısaltmayla firmaya ve bu işyerine eşleşir; firmalar ve işyerleri arasında benzersiz olmalı.' })}
+        ${field({ ad: 'city', etiket: 'İşyeri adresi: İl', maksUzunluk: 80, ipucu: 'Adres alanlarını boş bırakırsanız firmanın işyeri adresi geçerli olur (aynı adreste birden fazla işyeri).' })}
+        ${field({ ad: 'district', etiket: 'İşyeri adresi: İlçe', maksUzunluk: 80 })}
+        ${field({ ad: 'address', etiket: 'İşyeri adresi', tam: true, maksUzunluk: 500 })}
         ${field({ ad: 'hazard_class', etiket: 'Tehlike sınıfı', deger: '', secenekler: [{ deger: '', etiket: 'Belirtilmedi' }, { deger: 'az_tehlikeli', etiket: 'Az tehlikeli' }, { deger: 'tehlikeli', etiket: 'Tehlikeli' }, { deger: 'cok_tehlikeli', etiket: 'Çok tehlikeli' }] })}
         ${checkbox({ ad: 'separate_invoice', etiket: 'Bu işyerine ayrı fatura kesilir', isaretli: false })}`,
       async onSubmit(fd) {
@@ -309,7 +336,7 @@ export async function firmaSayfasi(app, id) {
         if (Object.keys(h).length) return { errors: h };
         const rastgele = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => (b % 36).toString(36)).join('').toUpperCase();
         await app.api.createSite({ company_id: id, sgk_no: `EL${rastgele}`, site_name: g('site_name'), invoice_alias: bosIseNull(g('invoice_alias')),
-          employee_count: g('employee_count') === '' ? null : Number(g('employee_count')), hazard_class: bosIseNull(g('hazard_class')), separate_invoice: fd.get('separate_invoice') === '1', is_manual: true, is_active: true });
+          employee_count: g('employee_count') === '' ? null : Number(g('employee_count')), hazard_class: bosIseNull(g('hazard_class')), separate_invoice: fd.get('separate_invoice') === '1', is_manual: true, is_active: true, ...konumAlanlari(g) });
         await profilEsitle();
         toast('İşyeri eklendi.');
       },
@@ -463,6 +490,8 @@ export async function firmaSayfasi(app, id) {
         }
       });
       kok.addEventListener('click', async (e) => {
+        const duz = e.target.closest('[data-isyeri-duzenle]');
+        if (duz) { const x = siteler.find((y) => y.id === duz.dataset.isyeriDuzenle); if (x) isyeriDuzenleFormu(x); return; }
         const sil = e.target.closest('[data-isyeri-sil]');
         if (sil) {
           const x = siteler.find((y) => y.id === sil.dataset.isyeriSil); if (!x) return;

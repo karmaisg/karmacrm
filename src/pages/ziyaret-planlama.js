@@ -6,7 +6,7 @@ import { pill, emptyState, field, checkbox, openFormModal, confirmDialog, toast 
 import { PERSONEL_TURU, PERSONEL_TURU_KISA, ayBitisi } from '../lib/operasyon.js';
 import { humanError } from '../lib/api.js';
 import {
-  ZIYARET_TURLERI, ROTA_AZAMI_DURAK, OZET_ETIKETI, DURUM_ETIKETI, OZET_RENGI, adresSorgusu, ayZiyaretDurumlari, ziyaretSatirlari, filtrele, ayrikDegerler, rotaBaglantisi, turHarfi,
+  ZIYARET_TURLERI, ROTA_AZAMI_DURAK, OZET_ETIKETI, DURUM_ETIKETI, OZET_RENGI, adresSorgusu, konumDurumu, ayZiyaretDurumlari, ziyaretSatirlari, filtrele, ayrikDegerler, rotaBaglantisi, turHarfi,
 } from '../lib/ziyaret.js';
 
 const KONUM_PILL = { guncel: ['Konum var', 'success'], eski: ['Adres değişti', 'warning'], yok: ['Konum yok', 'warning'], 'adres-eksik': ['Adres eksik', 'neutral'] };
@@ -20,9 +20,15 @@ export async function ziyaretPlanlamaSayfasi(app) {
   const planlayabilir = app.can('time', 'create');
   const ayarlaraGidebilir = app.can('settings', 'view');
 
-  const [firmalar, personel, atamalar, anahtar] = await Promise.all([
+  const [firmalar, personel, atamalar, anahtar, tumSiteler] = await Promise.all([
     app.api.listCompanies(), app.api.listEmployees().catch(() => []), app.api.listAssignments().catch(() => []), app.api.getMapsKey().catch(() => undefined),
+    app.api.listSites().catch(() => []),
   ]);
+  // Kendi adresi olan işyerleri (Aşama 44): adresi boş işyeri firmanın işyeri adresini kullanır, ayrı iğne almaz.
+  const kendiAdresliIsyerleri = (firmaId) => (tumSiteler ?? []).filter((w) => w.company_id === firmaId && !w.archived_at && w.is_active !== false && String(w.address ?? '').trim());
+  const isyeriBicimi = (w) => ({ ...w, workplace_city: w.city, workplace_district: w.district, workplace_address: w.address });
+  const siteById = new Map((tumSiteler ?? []).map((w) => [w.id, w]));
+  const noktaBul = (id) => (String(id).startsWith('w:') ? (() => { const w = siteById.get(String(id).slice(2)); return w ? { site: w, firma: firmaById.get(w.company_id) } : null; })() : (() => { const f = firmaById.get(id); return f ? { site: null, firma: f } : null; })());
   // İlk yüklemede tablo yoksa (42_asama41.sql çalıştırılmadı) planlar undefined döner; sonraki yüklemelerde hata gösterilir.
   const ayYukle = async (ay, ilk = false) => {
     const [z, p] = await Promise.all([app.api.listTimeEntries(ay, ayBitisi(ay)).catch((e) => { if (ilk) return []; throw e; }), app.api.listVisitPlans(ay, ayBitisi(ay)).catch((e) => { if (ilk) return undefined; throw e; })]);
@@ -68,7 +74,7 @@ export async function ziyaretPlanlamaSayfasi(app) {
       <th scope="col"><input type="checkbox" id="zp-hepsini-sec" aria-label="Görünen tüm firmaları seç"></th><th scope="col">Firma</th><th scope="col">Konum</th><th scope="col">Uzman</th><th scope="col">Hekim</th><th scope="col" class="hide-sm">Ay özeti</th><th scope="col"><span class="sr-only">İşlem</span></th></tr></thead><tbody>
       ${h.gorunen.map((s) => { const k = KONUM_PILL[s.konum]; return html`<tr data-firma="${s.firma.id}">
         <td><input type="checkbox" data-sec="${s.firma.id}" aria-label="${s.firma.name} seç" ${secildi(s.firma.id) ? html`checked` : ''}></td>
-        <td><a class="link" href="#/firmalar/${s.firma.id}">${s.firma.name}</a><small class="block muted">${[s.firma.workplace_district, s.firma.workplace_city].filter(Boolean).join(', ') || 'İşyeri adresi girilmemiş'}</small></td>
+        <td><a class="link" href="#/firmalar/${s.firma.id}">${s.firma.name}</a><small class="block muted">${[s.firma.workplace_district, s.firma.workplace_city].filter(Boolean).join(', ') || 'İşyeri adresi girilmemiş'}${kendiAdresliIsyerleri(s.firma.id).length ? ` · +${kendiAdresliIsyerleri(s.firma.id).length} işyeri (ayrı adres)` : ''}</small></td>
         <td>${pill(k[0], k[1])}</td><td>${turHucre(s, 'is_guvenligi_uzmani')}</td><td>${turHucre(s, 'isyeri_hekimi')}</td>
         <td class="hide-sm">${pill(OZET_ETIKETI[s.ozet], OZET_TONU[s.ozet])}</td>
         <td class="actions">${haritaVar && s.konum !== 'adres-eksik' ? html`<button type="button" class="btn btn-secondary btn-sm" data-haritada="${s.firma.id}" title="Haritada göster">${icon('pin', 16)}</button>` : ''}
@@ -135,13 +141,34 @@ export async function ziyaretPlanlamaSayfasi(app) {
       const mesaj = (m) => { cerceve?.contentWindow?.postMessage(m, window.location.origin); };
 
       // ---- harita işaretleri
-      const isaretListesi = () => h.gorunen.filter((s) => s.firma.latitude != null && s.firma.longitude != null && ['guncel', 'eski'].includes(s.konum)).map((s) => {
-        const f = s.firma; const satir = (t) => { const x = s.turler[t]; return `${PERSONEL_TURU_KISA[t]}: ${x.gerekli || x.durum !== 'gerekmez' ? DURUM_ETIKETI[x.durum] : 'görevli yok'}${x.gorevliler.length ? ` (${x.gorevliler.join(', ')})` : ''}`; };
-        return { id: f.id, baslik: f.name, adres: [f.workplace_address, f.workplace_district, f.workplace_city].filter(Boolean).join(', '), enlem: Number(f.latitude), boylam: Number(f.longitude), renk: OZET_RENGI[s.ozet], harf: turHarfi(s),
-          secili: durum.secili.has(f.id), satirlar: [OZET_ETIKETI[s.ozet], ...ZIYARET_TURLERI.map(satir)], planlanabilir: planlayabilir && kurulu, duzeltilebilir: planlayabilir && kurulu };
-      });
+      const isaretListesi = () => {
+        const sonuc = [];
+        for (const s of h.gorunen) {
+          const f = s.firma; const satir = (t) => { const x = s.turler[t]; return `${PERSONEL_TURU_KISA[t]}: ${x.gerekli || x.durum !== 'gerekmez' ? DURUM_ETIKETI[x.durum] : 'görevli yok'}${x.gorevliler.length ? ` (${x.gorevliler.join(', ')})` : ''}`; };
+          const ortak = { renk: OZET_RENGI[s.ozet], harf: turHarfi(s), secili: durum.secili.has(f.id), satirlar: [OZET_ETIKETI[s.ozet], ...ZIYARET_TURLERI.map(satir)], planlanabilir: planlayabilir && kurulu, duzeltilebilir: planlayabilir && kurulu };
+          if (f.latitude != null && f.longitude != null && ['guncel', 'eski'].includes(s.konum)) {
+            sonuc.push({ id: f.id, baslik: f.name, adres: [f.workplace_address, f.workplace_district, f.workplace_city].filter(Boolean).join(', '), enlem: Number(f.latitude), boylam: Number(f.longitude), ...ortak });
+          }
+          for (const w of kendiAdresliIsyerleri(f.id)) {
+            if (w.latitude == null || w.longitude == null || !['guncel', 'eski'].includes(konumDurumu(isyeriBicimi(w)))) continue;
+            sonuc.push({ id: `w:${w.id}`, baslik: `${f.name} — ${w.site_name}`, adres: [w.address, w.district, w.city].filter(Boolean).join(', '), enlem: Number(w.latitude), boylam: Number(w.longitude), ...ortak });
+          }
+        }
+        return sonuc;
+      };
       const haritayiGuncelle = (sigdir = false) => { if (hazir) mesaj({ t: 'isaretler', liste: isaretListesi(), sigdir }); };
-      const bulunacaklar = () => h.hepsi.filter((s) => ['yok', 'eski'].includes(s.konum) && adresSorgusu(s.firma));
+      const bulunacaklar = () => {
+        const liste = [];
+        for (const s of h.hepsi) {
+          const f = s.firma;
+          if (['yok', 'eski'].includes(s.konum) && adresSorgusu(f)) liste.push({ id: f.id, ad: f.name, sorgu: adresSorgusu(f), kaydet: (e, b, k) => konumKaydet(f, e, b, k) });
+          for (const w of kendiAdresliIsyerleri(f.id)) {
+            const b = isyeriBicimi(w);
+            if (['yok', 'eski'].includes(konumDurumu(b)) && adresSorgusu(b)) liste.push({ id: `w:${w.id}`, ad: `${f.name} — ${w.site_name}`, sorgu: adresSorgusu(b), kaydet: (e, bo, k) => isyeriKonumKaydet(w, e, bo, k) });
+          }
+        }
+        return liste;
+      };
       const sayaclar = () => {
         const b = $('#zp-bulunacak'); if (b) b.textContent = String(bulunacaklar().length);
         const dugme = $('#zp-konum-bul'); if (dugme) dugme.disabled = konumBulunuyor || !hazir || bulunacaklar().length === 0;
@@ -162,10 +189,14 @@ export async function ziyaretPlanlamaSayfasi(app) {
         const g = await app.api.saveCompanyLocation({ company: firma.id, enlem, boylam, sorgu, kaynak });
         Object.assign(firma, { latitude: g.latitude, longitude: g.longitude, geo_query: g.geo_query, geo_source: g.geo_source, geo_at: g.geo_at });
       };
+      const isyeriKonumKaydet = async (w, enlem, boylam, kaynak) => {
+        const g = await app.api.saveSiteLocation({ site: w.id, enlem, boylam, sorgu: adresSorgusu(isyeriBicimi(w)), kaynak });
+        Object.assign(w, { latitude: g.latitude, longitude: g.longitude, geo_query: g.geo_query, geo_source: g.geo_source, geo_at: g.geo_at });
+      };
       const duzeltBari = (firma) => {
         const bar = $('#zp-duzelt-bar'); if (!bar) return;
         if (!firma) { bar.hidden = true; bar.textContent = ''; return; }
-        bar.innerHTML = html`<strong>${firma.name}</strong>: iğneyi doğru yere sürükleyin; bıraktığınızda konum kaydedilir. <button type="button" class="btn btn-secondary btn-sm" id="zp-duzelt-bitti">Bitti</button>`.s; bar.hidden = false;
+        bar.innerHTML = html`<strong>${firma.ad ?? firma.name}</strong>: iğneyi doğru yere sürükleyin; bıraktığınızda konum kaydedilir. <button type="button" class="btn btn-secondary btn-sm" id="zp-duzelt-bitti">Bitti</button>`.s; bar.hidden = false;
       };
       const mesajAl = async (e) => {
         if (!document.body.contains(cerceve)) { window.removeEventListener('message', mesajAl); return; }
@@ -174,12 +205,12 @@ export async function ziyaretPlanlamaSayfasi(app) {
         if (m.t === 'cerceve') { if (anahtar) mesaj({ t: 'baslat', anahtar }); }
         else if (m.t === 'hazir') { hazir = true; haritayiGuncelle(true); sayaclar(); }
         else if (m.t === 'hata') hataGoster(m.mesaj);
-        else if (m.t === 'sec') { if (durum.secili.has(m.id)) durum.secili.delete(m.id); else durum.secili.add(m.id); tumunuGuncelle(false); }
-        else if (m.t === 'planla') { const f = firmaById.get(m.id); if (f) planFormu([f.id]); }
-        else if (m.t === 'duzelt') { const f = firmaById.get(m.id); if (f) { durum.duzelt = f.id; mesaj({ t: 'duzelt', id: f.id }); duzeltBari(f); } }
+        else if (m.t === 'sec') { const n = noktaBul(m.id); if (!n) return; const fid = n.firma.id; if (durum.secili.has(fid)) durum.secili.delete(fid); else durum.secili.add(fid); tumunuGuncelle(false); }
+        else if (m.t === 'planla') { const n = noktaBul(m.id); if (n) planFormu([n.firma.id]); }
+        else if (m.t === 'duzelt') { const n = noktaBul(m.id); if (n) { durum.duzelt = m.id; mesaj({ t: 'duzelt', id: m.id }); duzeltBari({ ad: n.site ? `${n.firma.name} — ${n.site.site_name}` : n.firma.name }); } }
         else if (m.t === 'tasindi') {
-          const f = firmaById.get(m.id); if (!f || !planlayabilir) return;
-          try { await konumKaydet(f, m.enlem, m.boylam, 'manuel'); toast(`${f.name} konumu kaydedildi.`); yenidenHesapla(); cizListe(); }
+          const n = noktaBul(m.id); if (!n || !planlayabilir) return;
+          try { if (n.site) await isyeriKonumKaydet(n.site, m.enlem, m.boylam, 'manuel'); else await konumKaydet(n.firma, m.enlem, m.boylam, 'manuel'); toast(`${n.site ? n.site.site_name : n.firma.name} konumu kaydedildi.`); yenidenHesapla(); cizListe(); }
           catch (err) { toast(humanError(err), 'hata'); }
         } else if (m.t === 'bulundu' || m.t === 'bulunamadi') { const r = bekleyenler.get(m.id); if (r) { bekleyenler.delete(m.id); r(m); } }
       };
@@ -193,17 +224,17 @@ export async function ziyaretPlanlamaSayfasi(app) {
         const il = $('#zp-ilerleme'); il.hidden = false; $('#zp-konum-dur').hidden = false;
         const sonuc = { bulundu: 0, yaklasik: [], bulunamayan: [], hata: 0 };
         for (let i = 0; i < liste.length && !durdur; i += 1) {
-          const f = liste[i].firma; il.textContent = `Konum bulunuyor… ${i + 1} / ${liste.length} · ${f.name}`;
-          const yanit = await new Promise((coz) => { bekleyenler.set(f.id, coz); mesaj({ t: 'bul', id: f.id, sorgu: adresSorgusu(f) }); setTimeout(() => { if (bekleyenler.delete(f.id)) coz({ t: 'bulunamadi', durum: 'ZAMAN_ASIMI' }); }, 15000); });
+          const o = liste[i]; il.textContent = `Konum bulunuyor… ${i + 1} / ${liste.length} · ${o.ad}`;
+          const yanit = await new Promise((coz) => { bekleyenler.set(o.id, coz); mesaj({ t: 'bul', id: o.id, sorgu: o.sorgu }); setTimeout(() => { if (bekleyenler.delete(o.id)) coz({ t: 'bulunamadi', durum: 'ZAMAN_ASIMI' }); }, 15000); });
           if (yanit.t === 'bulundu') {
-            try { await konumKaydet(f, yanit.enlem, yanit.boylam, 'google'); sonuc.bulundu += 1; if (yanit.kesinlik === 'dusuk') sonuc.yaklasik.push(f.name); } catch (err) { sonuc.hata += 1; toast(humanError(err), 'hata'); break; }
-          } else sonuc.bulunamayan.push(f.name);
+            try { await o.kaydet(yanit.enlem, yanit.boylam, 'google'); sonuc.bulundu += 1; if (yanit.kesinlik === 'dusuk') sonuc.yaklasik.push(o.ad); } catch (err) { sonuc.hata += 1; toast(humanError(err), 'hata'); break; }
+          } else sonuc.bulunamayan.push(o.ad);
           await bekle(150);
         }
         konumBulunuyor = false; il.hidden = true; $('#zp-konum-dur').hidden = true;
         yenidenHesapla(); cizListe(); haritayiGuncelle(true);
         const par = (baslik, adlar) => (adlar.length ? html`<p><strong>${baslik}</strong> ${adlar.slice(0, 12).join(', ')}${adlar.length > 12 ? ` ve ${adlar.length - 12} firma daha` : ''}</p>` : '');
-        $('#zp-konum-sonuc').innerHTML = html`<div class="notice notice-info" role="status" id="zp-sonuc-kutu"><p><strong>${sonuc.bulundu}</strong> firmanın konumu bulundu${durdur ? ' (işlem durduruldu)' : ''}.</p>
+        $('#zp-konum-sonuc').innerHTML = html`<div class="notice notice-info" role="status" id="zp-sonuc-kutu"><p><strong>${sonuc.bulundu}</strong> konum bulundu${durdur ? ' (işlem durduruldu)' : ''}.</p>
           ${par('Yaklaşık konum (ilçe/mahalle düzeyi — doğrusunu iğneyi sürükleyerek düzeltebilirsiniz):', sonuc.yaklasik)}${par('Adres bulunamadı (adresi tamamlayın ya da haritada elle işaretleyin):', sonuc.bulunamayan)}</div>`.s;
         toast(`${sonuc.bulundu} konum bulundu${sonuc.bulunamayan.length ? `, ${sonuc.bulunamayan.length} bulunamadı` : ''}.`);
       }
@@ -279,6 +310,8 @@ export async function ziyaretPlanlamaSayfasi(app) {
           const f = firmaById.get(hr.dataset.haritada); if (!f) return;
           if (!hazir) { toast('Harita henüz hazır değil.', 'bilgi'); return; }
           if (f.latitude != null) { $('#zp-cerceve').scrollIntoView({ block: 'center' }); mesaj({ t: 'odak', id: f.id }); return; }
+          const wk = kendiAdresliIsyerleri(f.id).find((w) => w.latitude != null);
+          if (wk) { $('#zp-cerceve').scrollIntoView({ block: 'center' }); mesaj({ t: 'odak', id: `w:${wk.id}` }); return; }
           if (!planlayabilir || !kurulu) { toast('Bu firmanın konumu yok. "Konumları bul" ile bulabilirsiniz.', 'bilgi'); return; }
           durum.duzelt = f.id; $('#zp-cerceve').scrollIntoView({ block: 'center' }); mesaj({ t: 'yerlestir', id: f.id, baslik: f.name }); duzeltBari(f); return;
         }
