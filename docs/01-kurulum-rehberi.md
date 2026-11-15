@@ -675,3 +675,31 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 - **Harita:** Ziyaret planlama artık konumu yalnızca **işyeri adresinden** bulur; il/ilçe filtreleri ve arama da işyeri adresine göredir. İşyeri adresi girilmemiş firmalar haritaya girmez ("Adres eksik" görünür). Fatura adresinden bulunmuş eski konumlar bu güncellemede temizlenir; işyeri adreslerini girdikten sonra **Konumları bul**'a basın (elle yerleştirdikleriniz için de aynı geçerli, işyeri adresi girilene kadar temizlenir).
 - **Uzman / hekim işyerleri:** Ziyaret planlama'da yeni **"Tüm işyerleri"** filtresi: iş güvenliği uzmanı olan, işyeri hekimi olan, ikisi de olan veya hiçbiri atanmamış işyerleri. Seçime göre hem liste hem harita değişir. Haritadaki iğnenin üzerinde harf görünür: **U** = uzman, **H** = hekim, **UH** = ikisi de; renk ay durumunu gösterir. Belirli bir kişiyi görmek için mevcut "Görevli" filtresini kullanın.
 - **Sınırlar:** Excel ile firma içe aktarmada işyeri adresi henüz yoktur (firma açıldıktan sonra formdan girilir). Potansiyel müşteri (aday) kartında tek adres alanı vardır; firmaya dönüştüğünde fatura adresine geçer, işyeri adresini firma formundan girin.
+
+## Karma OSGB ziyaret kayıtlarını otomatik çekme (Aşama 43) — `supabase/44_asama43.sql` çalıştırılmalı
+
+Uzman ve hekimlerin `karmaosgb.com.tr` yazılımına işlediği ziyaretler her gün otomatik çekilir ve **Zaman ve ziyaret takibi**'ne "ziyaret" olarak yazılır. Ziyaret planlama'daki aylık durum (Yapıldı / Planlı / Bekliyor) bu kayıtlardan hesaplandığı için kendiliğinden güncellenir; planlı bir ziyaret gerçekleşmiş kayıt gelince "yapıldı" görünür.
+
+**Eşleştirme:** Firma → **Firma kısaltması** (firma formunda; her firmada farklı olmalı, büyük/küçük harf ve Türkçe karakter farkı yok sayılır). Personel → **e-posta** (Personel kaydındaki e-posta, Karma OSGB'de doğrulanan e-postayla aynı olmalı; personel aktif olmalı). Eşleşmeyen kayıtlar kaybolmaz: Sistem ayarları → "Karma OSGB ziyaret aktarımı" kartında nedeniyle listelenir; kısaltmayı/e-postayı düzeltince **Eşleşmeyenleri yeniden dene** (veya sonraki otomatik çekim) işler.
+
+**Kurulum (sırayla):**
+1. Karma OSGB tarafında `GET /api/ziyaretler?since=...&limit=500` uç noktasını ekletin (Bearer anahtarlı, `{"kayitlar":[{id, firma_kisaltma, personel_eposta, tarih, sure_dakika, tur, not, guncellendi, silindi}], "sonraki":"..."}` biçiminde). Anahtar orada Cloudflare gizli değişkeni olmalıdır.
+2. Supabase SQL Editor'de `44_asama43.sql` dosyasını çalıştırın.
+3. Edge Functions → yeni fonksiyon, adı tam `karma-ziyaret-cekme`; `supabase/functions/karma-ziyaret-cekme/index.ts` içeriğini yapıştırıp Deploy edin.
+4. Edge Functions → Secrets: `KARMA_API_ADRES` (uç noktanın tam https adresi), `KARMA_API_ANAHTARI` (Karma OSGB'deki gizli anahtar). `OZET_CRON_SIRRI` günlük özet kurulumundan zaten vardır. İsteğe bağlı: `KARMA_BASLANGIC` (YYYY-MM-DD; ilk çekimde bu tarihten itibaren alınır, boşsa geçen ayın başı).
+5. Firmalarda "Firma kısaltması"nı girin; personel e-postalarını kontrol edin.
+6. Sistem ayarları → "Karma OSGB ziyaret aktarımı" → **Şimdi çek** ile deneyin.
+7. Zamanlama (SQL Editor, günde 3 kez; saatler UTC):
+```sql
+select cron.schedule('osgb360-karma-ziyaret', '0 6,10,15 * * *', $$
+  select net.http_post(
+    url := 'https://hstvzdumaabqdwdzsbcx.supabase.co/functions/v1/karma-ziyaret-cekme',
+    headers := jsonb_build_object('Content-Type', 'application/json',
+      'x-ozet-sirri', (select decrypted_secret from vault.decrypted_secrets where name = 'ozet_cron_sirri')),
+    body := '{}'::jsonb) $$);
+```
+Kapatmak için: `select cron.unschedule('osgb360-karma-ziyaret');`
+
+**Kayıtlar nasıl yazılır:** Karma OSGB'de başlangıç saati olmadığı için ziyaret, o gün 09:00'dan başlatılır; aynı personelin o günkü önceki kayıtlarının sonuna eklenir (çakışma olmaz). Süre yoksa 60 dk, en az 5 en çok 720 dk. Karma OSGB'de değişen ziyaret eski kaydı arşivleyip yenisini yazar; silinen ziyaret arşivlenir. Aynı kayıt iki kez gelirse çoğalmaz. Gelecek tarihli kayıtlar "hata" olarak listelenir.
+
+**Sınırlar:** Bu aşamada aktarım Karma OSGB → OSGB 360 yönündedir. Gerçek Karma OSGB uç noktasıyla canlı deneme yapılamadı (testler sahte uç noktayla yapıldı); ilk çalıştırmada birkaç kaydı "Zaman ve ziyaret takibi"nde kontrol edin. Ziyaret türü (uzman/hekim) kayıttaki personelin türünden alınır. Kayıt kimliği (`id`) Karma OSGB'de değişmemelidir.
