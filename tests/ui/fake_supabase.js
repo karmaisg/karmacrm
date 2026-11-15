@@ -48,7 +48,7 @@ const tablo = {
   ].map(([s, h, m]) => ({ id: uid(), organization_id: ORG, staff_type: s, hazard_class: h, minutes_per_employee: m, valid_from: '2000-01-01', valid_to: null })),
 };
 // Aşama 11: yedeğe giren ama henüz tanımlı olmayan tablolar boş gelir; denetim kaydı testlerde doldurulur
-for (const ad of ['visit_plans', 'integration_settings', 'offer_pdfs', 'salary_calcs', 'budget_personnel_lines', 'budget_expense_lines', 'budget_lines', 'signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
+for (const ad of ['karma_senkron', 'karma_ziyaretler', 'visit_plans', 'integration_settings', 'offer_pdfs', 'salary_calcs', 'budget_personnel_lines', 'budget_expense_lines', 'budget_lines', 'signed_contracts', 'offer_shares', 'company_profiles', 'leads', 'attachments', 'notifications', 'outbound_messages', 'email_digest_log', 'audit_logs', 'company_sites', 'katip_imports', 'katip_rows', 'katip_people', 'calendar_items', 'calendar_completions', 'invoice_aliases', 'expense_imports', 'expense_row_map', 'employee_leaves', 'vehicles', 'vehicle_records', 'admin_documents']) tablo[ad] ??= [];
 if (globalThis.__fakeTohum) for (const [k, v] of Object.entries(JSON.parse(globalThis.__fakeTohum))) tablo[k] = v;
 let oturum = null;
 const izinVar = (modul, alan) => {
@@ -65,7 +65,8 @@ function paylasimBul(token) {
 const dinleyiciler = new Set();
 const gunluk = [];
 const ozetAyar = { varsa: true, sonuc: 'ok' }; // UI testleri: varsa=false → fonksiyon kurulu değil (404); sonuc: 'ok' | 'yapilandirma' | 'ag'
-globalThis.__fake = { tablo, gunluk, hesaplar, ozetAyar, depoSayisi: () => depo.size };
+const karmaAyar = { varsa: true, sonuc: 'ok', cekimler: 0, gelecek: [] };
+globalThis.__fake = { tablo, gunluk, hesaplar, ozetAyar, karmaAyar, depoSayisi: () => depo.size };
 
 const hata = (message, code) => ({ message, code });
 const bugun = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
@@ -78,7 +79,7 @@ function kurucu(ad) {
     gunluk.push(`${durum.islem} ${ad}`);
     const satirlar = tablo[ad];
     if (!satirlar) return { data: null, error: hata(`tablo yok: ${ad}`) };
-    let eslesen = satirlar.filter((r) => durum.filtre.every(([k, v, op]) => (op === 'gte' ? r[k] >= v : op === 'lte' ? r[k] <= v : v === null ? (r[k] ?? null) === null : r[k] === v)));
+    let eslesen = satirlar.filter((r) => durum.filtre.every(([k, v, op]) => (op === 'in' ? v.includes(r[k]) : op === 'gte' ? r[k] >= v : op === 'lte' ? r[k] <= v : v === null ? (r[k] ?? null) === null : r[k] === v)));
     const ben = tablo.users.find((u) => u.id === oturum?.user?.id);
     const alanPersoneli = ben && ben.role_id === rid('uzman_hekim');
     if (durum.islem !== 'insert' && alanPersoneli && ['time_entries', 'assignments'].includes(ad)) eslesen = eslesen.filter((r) => r.employee_id === ben.employee_id);
@@ -197,10 +198,12 @@ function kurucu(ad) {
     if (durum.aralik) sonuc = sonuc.slice(durum.aralik[0], durum.aralik[1] + 1);
     if (durum.tek === 'single') return sonuc.length === 1 ? { data: sonuc[0], error: null } : { data: null, error: hata('yok', 'PGRST116') };
     if (durum.tek === 'maybe') return { data: sonuc[0] ?? null, error: null };
+    if (durum.sayim) return { data: durum.sayim.head ? null : sonuc, error: null, count: eslesen.length };
     return { data: sonuc, error: null };
   };
   const q = {
-    select() { return q; },
+    select(_c, o) { if (o?.count) durum.sayim = o; return q; },
+    in(k, v) { durum.filtre.push([k, v, 'in']); return q; },
     insert(v) { durum.islem = 'insert'; durum.yukle = v; return q; },
     update(v) { durum.islem = 'update'; durum.yukle = v; return q; },
     delete() { durum.islem = 'delete'; return q; },
@@ -743,6 +746,11 @@ const rpcler = {
       personeller: tablo.employees.map((e) => ({ id: e.id, full_name: e.full_name, staff_type: e.staff_type ?? null, role_kind: e.role_kind ?? null, title: e.title ?? null, is_management: !!e.is_management, is_active: e.is_active, archived_at: e.archived_at, monthly_capacity_min: e.monthly_capacity_min })),
     } };
   },
+  karma_eslesmeyenleri_yeniden_dene() {
+    if (!(izinVar('settings', 'can_edit') || izinVar('time', 'can_create'))) return { error: hata('Bu işlem için yetkiniz yok.', 'P0001') };
+    let n = 0; for (const z of tablo.karma_ziyaretler) { const f = tablo.companies.find((c) => c.short_code && c.short_code.toLowerCase() === String(z.firma_kisaltma).toLowerCase()); if (z.durum === 'eslesmedi' && f) { z.durum = 'islendi'; z.neden = null; n += 1; } }
+    return { data: { islendi: n }, error: null };
+  },
   firma_konum_kaydet({ p_company, p_lat, p_lng, p_sorgu, p_kaynak }) {
     if (!(izinVar('time', 'can_create') || izinVar('companies', 'can_edit'))) return { error: hata('Firma konumunu kaydetme yetkiniz yok.', 'P0001') };
     const f = tablo.companies.find((x) => x.id === p_company && !x.archived_at);
@@ -950,6 +958,16 @@ export function createClient() {
         gunluk.push(`fn ${ad}`);
         await new Promise((r) => setTimeout(r, 5));
         const yanit = (durum, govde) => ({ data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code', context: { status: durum, json: async () => govde } } });
+        if (ad === 'karma-ziyaret-cekme') {
+          if (!karmaAyar.varsa) return yanit(404, { error: 'NOT_FOUND' });
+          if (!izinVar('settings', 'can_create') || !izinVar('settings', 'can_edit')) return yanit(403, { ok: false, mesaj: 'Bu işlem için yetkiniz yok.' });
+          const su = new Date().toISOString();
+          if (karmaAyar.sonuc === 'hata') { tablo.karma_senkron.splice(0, 1, { organization_id: ORG, son_calisma: su, son_durum: 'hata', son_mesaj: 'Karma OSGB yazılımı anahtarı reddetti; KARMA_API_ANAHTARI değerini kontrol edin.', son_sonuc: null }); return { data: { ok: false, mesaj: 'Karma OSGB yazılımı anahtarı reddetti; KARMA_API_ANAHTARI değerini kontrol edin.' }, error: null }; }
+          karmaAyar.cekimler += 1;
+          for (const k of karmaAyar.gelecek.splice(0)) tablo.karma_ziyaretler.push({ id: uid(), organization_id: ORG, updated_at: su, ...k });
+          tablo.karma_senkron.splice(0, 1, { organization_id: ORG, son_calisma: su, son_durum: 'tamam', son_mesaj: null, son_sonuc: {} });
+          return { data: { ok: true, mesaj: '3 kayıt alındı; 2 ziyaret işlendi, 1 kayıt eşleşmedi.' }, error: null };
+        }
         if (ad !== 'gunluk-ozet' || !ozetAyar.varsa) return yanit(404, { error: 'NOT_FOUND' });
         if (!izinVar('settings', 'can_create') || !izinVar('settings', 'can_edit')) return yanit(403, { ok: false, mesaj: 'Bu işlem için ayarlar modülünde oluşturma ve düzenleme izni gerekir.' });
         const kayit = (durum, ayrinti) => tablo.email_digest_log.push({ id: uid(), organization_id: ORG, gun: bugun(), tur: body?.test ? 'test' : 'gunluk', durum, ayrinti, created_at: new Date().toISOString() });

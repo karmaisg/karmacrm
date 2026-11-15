@@ -3659,17 +3659,46 @@ await test('Ziyaret planlama: zaman modülü yetkisi olmayan rol menüyü görme
 
 await test('Firma formu: fatura adresi ve işyeri adresi ayrı; "işyeri = fatura" düğmesi', async (s) => {
   await girisYap(s); await git(s, '#/firmalar'); await s.waitForSelector('[data-action="yeni-firma"]'); await s.click('[data-action="yeni-firma"]');
-  const m = modal(s); const etiketler = await m.locator('label').allTextContents();
-  for (const e of ['Fatura adresi: İl', 'Fatura adresi: İlçe', 'Fatura adresi', 'İşyeri adresi: İl', 'İşyeri adresi: İlçe', 'İşyeri adresi']) if (!etiketler.some((x) => x.replace(/\s+/g, ' ').trim().startsWith(e))) throw new Error(`etiket yok: ${e}`);
-  await m.locator('#f-name').fill('Adresli Firma'); await m.locator('#f-city').fill('Ankara'); await m.locator('#f-district').fill('Çankaya'); await m.locator('#f-address').fill('Fatura Cd. 1');
+  const m = modal(s); await m.locator('#f-workplace_address').waitFor(); const etiketler = await m.locator('label').allTextContents();
+  for (const e of ['Firma kısaltması', 'Fatura adresi: İl', 'Fatura adresi: İlçe', 'Fatura adresi', 'İşyeri adresi: İl', 'İşyeri adresi: İlçe', 'İşyeri adresi']) if (!etiketler.some((x) => x.replace(/\s+/g, ' ').trim().startsWith(e))) throw new Error(`etiket yok: ${e} | ${etiketler.map((x) => x.trim()).join(' ; ')}`);
+  await m.locator('#f-name').fill('Adresli Firma'); await m.locator('#f-short_code').fill('ADR-1'); await m.locator('#f-city').fill('Ankara'); await m.locator('#f-district').fill('Çankaya'); await m.locator('#f-address').fill('Fatura Cd. 1');
   await m.locator('#isyeri-ayni').click();
   esit(await m.locator('#f-workplace_city').inputValue(), 'Ankara', 'işyeri ili kopyalandı'); esit(await m.locator('#f-workplace_address').inputValue(), 'Fatura Cd. 1', 'işyeri adresi kopyalandı');
   await m.locator('#f-workplace_city').fill('İzmir'); await m.locator('#f-workplace_district').fill('Gaziemir'); await m.locator('#f-workplace_address').fill('Sanayi Sk. 5');
   await m.locator('button[type=submit]').click(); await s.waitForSelector('.company-head');
   const k = await s.evaluate(() => globalThis.__fake.tablo.companies.find((x) => x.name === 'Adresli Firma'));
-  esit([k.city, k.address, k.workplace_city, k.workplace_district, k.workplace_address].join('|'), 'Ankara|Fatura Cd. 1|İzmir|Gaziemir|Sanayi Sk. 5', 'iki adres ayrı kaydedildi');
+  esit([k.city, k.address, k.workplace_city, k.workplace_district, k.workplace_address].join('|'), 'Ankara|Fatura Cd. 1|İzmir|Gaziemir|Sanayi Sk. 5', 'iki adres ayrı kaydedildi'); esit(k.short_code, 'ADR-1', 'firma kısaltması kaydedildi');
   const metin = (await s.locator('main').innerText()).replace(/\s+/g, ' ');
   if (!metin.includes('Fatura adresi') || !metin.includes('İşyeri adresi') || !metin.includes('Sanayi Sk. 5')) throw new Error('firma sayfasında iki adres görünmeli');
+});
+
+await test('Karma OSGB ziyaret aktarımı: Ayarlar kartı, şimdi çek, eşleşmeyenler, yeniden dene', async (s) => {
+  await girisYap(s);
+  await s.evaluate(() => { const f = globalThis.__fake; f.karmaAyar.gelecek.push({ dis_id: 'k1', durum: 'eslesmedi', neden: 'Firma kısaltması eşleşmedi: ZZZ', firma_kisaltma: 'ZZZ', personel_eposta: 'a@b.com', tarih: '2026-11-10', sure_dakika: 60 }, { dis_id: 'k2', durum: 'islendi', firma_kisaltma: 'EGE', personel_eposta: 'a@b.com', tarih: '2026-11-11', sure_dakika: 30 }); });
+  await git(s, '#/ayarlar'); await s.waitForSelector('#karma-kart');
+  if (!(await s.locator('#karma-durum').innerText()).includes('Henüz çekim yapılmadı')) throw new Error('ilk durum');
+  await s.click('#karma-cek'); await s.waitForSelector('.toast:has-text("kayıt alındı")');
+  await s.waitForFunction(() => document.querySelector('#karma-durum')?.innerText.includes('Son çekim başarılı'));
+  const tablo = (await s.locator('#karma-bekleyen').innerText()).replace(/\s+/g, ' '); if (!tablo.includes('ZZZ') || !tablo.includes('Firma kısaltması eşleşmedi')) throw new Error(`eşleşmeyen listesi: ${tablo}`);
+  if (!(await s.locator('#karma-durum').innerText()).includes('Aktarılan ziyaret: 1')) throw new Error('aktarılan sayısı');
+  // firma kısaltması girilince yeniden dene
+  await s.evaluate(() => { const t = globalThis.__fake.tablo; (t.companies[0] ?? t.companies[t.companies.push({ id: crypto.randomUUID(), organization_id: t.organizations[0].id, name: 'Zzz Ltd', customer_status: 'musteri', archived_at: null }) - 1]).short_code = 'zzz'; });
+  await s.click('#karma-tekrar'); await s.waitForSelector('.toast:has-text("1 ziyaret işlendi")');
+  await s.waitForFunction(() => document.querySelector('#karma-kart').innerText.includes('Eşleşmeyen kayıt yok'));
+  // hata
+  await s.evaluate(() => { globalThis.__fake.karmaAyar.sonuc = 'hata'; });
+  await s.click('#karma-cek'); await s.waitForSelector('.toast:has-text("anahtarı reddetti")');
+  await s.waitForFunction(() => document.querySelector('#karma-durum').innerText.includes('Son çekim hatalı'));
+  // fonksiyon kurulu değil
+  await s.evaluate(() => { globalThis.__fake.karmaAyar.varsa = false; });
+  await s.click('#karma-cek'); await s.waitForSelector('.toast:has-text("henüz kurulmamış")');
+});
+
+await test('Karma OSGB aktarımı: tablo yoksa kart kurulum uyarısı verir, düğme görünmez', async (s) => {
+  await girisYap(s); await s.evaluate(() => { delete globalThis.__fake.tablo.karma_senkron; });
+  await git(s, '#/ayarlar'); await s.waitForSelector('#karma-kart');
+  if (!(await s.locator('#karma-kart').innerText()).includes('44_asama43.sql')) throw new Error('kurulum uyarısı');
+  if (await s.locator('#karma-cek').count()) throw new Error('tablo yokken düğme olmamalı');
 });
 
 await tarayici.close(); sunucu.close();
