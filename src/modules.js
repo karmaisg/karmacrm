@@ -25,7 +25,7 @@ export const MODUL_ADLARI = {
   users: 'Kullanıcılar ve yetkiler',
   settings: 'Sistem ayarları',
   admin_affairs: 'İdari işler (özlük, izin, araç, şirket belgeleri)',
-  budget: 'Yıllık bütçe (fiyat artışı çalışması)',
+  budget: 'Yıllık bütçe çalışması (fiyat artışı)',
 };
 
 export const MODUL_SIRASI = Object.keys(MODUL_ADLARI);
@@ -66,47 +66,47 @@ export const MENU = [
   { id: 'sozlesmeler', grup: 'satis', modul: 'contracts', ad: 'Sözleşmeler ve yenilemeler', simge: 'contract', yapildi: true,
     aciklama: 'Sözleşme dönemleri, fiyat geçmişi ve 90/60/30 gün yenileme uyarıları.' },
 
-  { id: 'uzmanlar', grup: 'operasyon', modul: 'staff', ad: 'Uzmanlar', simge: 'shield', yapildi: true,
+  { id: 'uzmanlar', ust: 'personel', grup: 'operasyon', modul: 'staff', ad: 'Uzmanlar', simge: 'shield', yapildi: true,
     aciklama: 'İş güvenliği uzmanı kayıtları, kapasite ve maliyet bilgisi.' },
-  { id: 'hekimler', grup: 'operasyon', modul: 'staff', ad: 'İşyeri hekimleri', simge: 'pulse', yapildi: true,
+  { id: 'hekimler', ust: 'personel', grup: 'operasyon', modul: 'staff', ad: 'İşyeri hekimleri', simge: 'pulse', yapildi: true,
     aciklama: 'İşyeri hekimi kayıtları, kapasite ve maliyet bilgisi.' },
-  { id: 'digerpersonel', grup: 'operasyon', modul: 'staff', ad: 'Diğer personel', simge: 'users', yapildi: true,
+  { id: 'digerpersonel', ust: 'personel', grup: 'operasyon', modul: 'staff', ad: 'Diğer personel', simge: 'users', yapildi: true,
     aciklama: 'Diğer sağlık personeli, satın alma, satış, sekreter, temizlik ve yönetim; yönetim gideri işareti.' },
   { id: 'gorevlendirmeler', grup: 'operasyon', modul: 'assignments', ad: 'Görevlendirmeler', simge: 'briefcase', yapildi: true,
     aciklama: 'Uzman ve hekimlerin firmalara görevlendirmesi, hizmet payları ve yürürlük tarihleri.' },
-  { id: 'zaman', grup: 'operasyon', modul: 'time', ad: 'Zaman ve ziyaret takibi', simge: 'clock', yapildi: true,
+  { id: 'zaman', ust: 'ziyaret', grup: 'operasyon', modul: 'time', ad: 'Zaman ve ziyaret takibi', simge: 'clock', yapildi: true,
     aciklama: 'Fiilî çalışma, yol ve bekleme süreleri; zaman çakışması kontrolü.' },
-  { id: 'ziyaret-planlama', grup: 'operasyon', modul: 'time', ad: 'Ziyaret planlama', simge: 'pin', yapildi: true,
+  { id: 'ziyaret-planlama', ust: 'ziyaret', grup: 'operasyon', modul: 'time', ad: 'Harita', simge: 'pin', yapildi: true,
     aciklama: 'Firmaları haritada gösterir; aylık uzman ve hekim ziyaretlerini planlar, takip eder ve rota çıkarır.' },
-  { id: 'kapasite', grup: 'operasyon', modul: 'capacity', ad: 'Kapasite analizi', simge: 'gauge', yapildi: true,
+  { id: 'kapasite', ust: 'personel', grup: 'operasyon', modul: 'capacity', ad: 'Kapasite analizi', simge: 'gauge', yapildi: true,
     aciklama: 'Teorik yük ve fiilî süreye göre uzman ve hekim doluluk oranları.' },
   { id: 'takvim', grup: 'operasyon', modul: 'tasks', ad: 'Takvim', simge: 'calendar', yapildi: true,
     aciklama: 'Aylık tekrarlayan ödemeler, hatırlatmalar ve görev tarihleri.' },
   { id: 'gorevler', grup: 'operasyon', modul: 'tasks', ad: 'Hatırlatmalar ve görevler', simge: 'checksq', yapildi: true },
 
-  { id: 'tahsilat', grup: 'finans', modul: 'invoices', ad: 'Fatura Takip', simge: 'wallet', yapildi: true,
+  { id: 'tahsilat', ust: 'fatura', grup: 'finans', modul: 'invoices', ad: 'Fatura Takip', simge: 'wallet', yapildi: true,
     aciklama: 'Faturalar, kısmi tahsilatlar, vade ve gecikme takibi.' },
-  { id: 'gelirler', grup: 'finans', modul: 'invoices', ad: 'Gelirler', simge: 'trend', yapildi: true,
+  { id: 'gelirler', ust: 'gelirgider', grup: 'finans', modul: 'invoices', ad: 'Gelirler', simge: 'trend', yapildi: true,
     aciklama: 'Ay bazında toplam gelir ve gelir kalemlerinin listesi.' },
-  { id: 'giderler', grup: 'finans', modul: 'expenses', ad: 'Giderler', simge: 'receipt', yapildi: true,
+  { id: 'giderler', ust: 'gelirgider', grup: 'finans', modul: 'expenses', ad: 'Giderler', simge: 'receipt', yapildi: true,
     aciklama: 'Doğrudan ve ortak giderler; KDV hariç ve dahil tutarlar.' },
-  { id: 'cari', grup: 'finans', modul: 'invoices', ad: 'Cari hesap', simge: 'contract', yapildi: true,
+  { id: 'cari', ust: 'fatura', grup: 'finans', modul: 'invoices', ad: 'Cari hesap', simge: 'contract', yapildi: true,
     aciklama: 'Firma bazında cari hesap ekstresi; yıl veya tarih aralığı seçimi ve Excel çıktısı.' },
-  { id: 'personel-karlilik', grup: 'finans', modul: 'staff_profit', ad: 'Personel kârlılığı', simge: 'trend', yapildi: true,
+  { id: 'personel-karlilik', ust: 'karlilik', grup: 'finans', modul: 'staff_profit', ad: 'Personel kârlılığı', simge: 'trend', yapildi: true,
     aciklama: 'Uzman ve hekim bazında gelir, maliyet ve katkı kârı.' },
-  { id: 'firma-karlilik', grup: 'finans', modul: 'company_profit', ad: 'Firma kârlılığı', simge: 'bars', yapildi: true,
+  { id: 'firma-karlilik', ust: 'karlilik', grup: 'finans', modul: 'company_profit', ad: 'Firma kârlılığı', simge: 'bars', yapildi: true,
     aciklama: 'Firma bazında katkı kârı, ortak gider payı ve vergi öncesi kâr katkısı.' },
 
-  { id: 'butce', grup: 'finans', modul: 'budget', ad: 'Yıllık Bütçe', simge: 'trend', yapildi: true,
+  { id: 'butce', grup: 'finans', modul: 'budget', ad: 'Yıllık Bütçe Çalışması', simge: 'trend', yapildi: true,
     aciklama: 'Firma bazında gelecek yıl hizmet bedeli artışı, görüşme durumu ve beklenen aylık gelir.' },
   { id: 'idari', grup: 'finans', modul: 'admin_affairs', ad: 'İdari İşler', simge: 'folder', yapildi: true,
     aciklama: 'Özlük belgeleri, personel izinleri, şirket araçları ve şirket belgeleri.' },
 
   { id: 'raporlar', grup: 'yonetim', modul: 'reports', ad: 'Raporlar', simge: 'bars', yapildi: true,
     aciklama: 'Aylık yönetici raporu ve Excel/CSV dışa aktarımları.' },
-  { id: 'aktarim', grup: 'yonetim', modul: 'import_export', ad: 'Veri içe/dışa aktarma', simge: 'upload', yapildi: true,
+  { id: 'aktarim', ust: 'veri', grup: 'yonetim', modul: 'import_export', ad: 'Veri içe/dışa aktarma', simge: 'upload', yapildi: true,
     aciklama: 'Excel ve CSV içe aktarma: sütun eşleştirme, önizleme ve mükerrer kayıt kontrolü.' },
-  { id: 'katip', grup: 'yonetim', modul: 'import_export', ad: 'İSG-Katip aktarımı', simge: 'upload', yapildi: true,
+  { id: 'katip', ust: 'veri', grup: 'yonetim', modul: 'import_export', ad: 'İSG-Katip aktarımı', simge: 'upload', yapildi: true,
     aciklama: 'İSG-Katip sözleşme listesi Excel\'i: işyeri/sicil eşleştirme, çalışan sayısı, görevli uzman/hekim ve değişiklik uyarıları.' },
   { id: 'kullanicilar', grup: 'yonetim', modul: 'users', ad: 'Kullanıcılar ve yetkiler', simge: 'lock', yapildi: true },
   { id: 'denetim', grup: 'yonetim', modul: 'users', ad: 'Denetim kaydı', simge: 'history', yapildi: true,
@@ -115,6 +115,19 @@ export const MENU = [
     aciklama: 'Tüm verinin tek dosyada yedeği ve yedek dosyası doğrulama.' },
   { id: 'ayarlar', grup: 'yonetim', modul: 'settings', ad: 'Sistem ayarları', simge: 'settings', yapildi: true,
     aciklama: 'Hizmet süresi parametreleri, kâr marjı eşiği, vergi oranı ve gider dağıtım kuralları.' },
+];
+
+/**
+ * Üst menüler: tıklanınca altındaki menüleri açar/kapatır (kendi sayfası yoktur).
+ * Alt menülerin `ust` alanı buradaki id'yi gösterir. Üst menü, ilk alt menünün sırasında görünür.
+ */
+export const UST_MENULER = [
+  { id: 'personel', grup: 'operasyon', ad: 'Personel Yönetimi', simge: 'users' },
+  { id: 'ziyaret', grup: 'operasyon', ad: 'Ziyaret Yönetimi', simge: 'pin' },
+  { id: 'fatura', grup: 'finans', ad: 'Fatura Yönetimi', simge: 'wallet' },
+  { id: 'gelirgider', grup: 'finans', ad: 'Gelir/Gider Yönetimi', simge: 'trend' },
+  { id: 'karlilik', grup: 'finans', ad: 'Karlılık', simge: 'bars' },
+  { id: 'veri', grup: 'yonetim', ad: 'Veri aktarımı', simge: 'upload' },
 ];
 
 export const menuOgesi = (id) => MENU.find((m) => m.id === id);

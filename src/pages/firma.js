@@ -304,7 +304,7 @@ export async function firmaSayfasi(app, id) {
   function isyeriDuzenleFormu(x) {
     openFormModal({
       baslik: 'İşyeri: Karma kısaltması ve adres', altBaslik: x.site_name, gonderEtiketi: 'Kaydet', boyut: 'lg',
-      govde: html`${field({ ad: 'short_code', etiket: 'Karma OSGB kısaltması', deger: x.short_code ?? '', maksUzunluk: 30, tam: true, ipucu: 'Personelin Karma OSGB yazılımında bu işyeri için girdiği kısaltma. Firmalar ve işyerleri arasında benzersiz olmalı.' })}
+      govde: html`${field({ ad: 'short_code', etiket: 'Karma OSGB kısaltması', deger: x.short_code ?? '', maksUzunluk: 150, tam: true, ipucu: 'Personelin Karma OSGB yazılımında bu işyeri için girdiği kısaltma. Firmalar ve işyerleri arasında benzersiz olmalı.' })}
         ${field({ ad: 'city', etiket: 'İşyeri adresi: İl', deger: x.city ?? '', maksUzunluk: 80, ipucu: 'Adres alanlarını boş bırakırsanız firmanın işyeri adresi geçerli olur.' })}
         ${field({ ad: 'district', etiket: 'İşyeri adresi: İlçe', deger: x.district ?? '', maksUzunluk: 80 })}
         ${field({ ad: 'address', etiket: 'İşyeri adresi', deger: x.address ?? '', tam: true, maksUzunluk: 500 })}`,
@@ -323,7 +323,7 @@ export async function firmaSayfasi(app, id) {
       govde: html`${field({ ad: 'site_name', etiket: 'İşyeri adı', zorunlu: true, tam: true, maksUzunluk: 200, yerTutucu: 'Örn. Ukem Sağlık Hizmetleri Şubesi' })}
         ${field({ ad: 'invoice_alias', etiket: 'Fatura adı (takma ad)', maksUzunluk: 120, yerTutucu: 'Örn. UKEM' })}
         ${field({ ad: 'employee_count', etiket: 'Çalışan sayısı', tur: 'number', min: 0, adim: 1, inputmode: 'numeric' })}
-        ${field({ ad: 'short_code', etiket: 'Karma OSGB kısaltması', maksUzunluk: 30, yerTutucu: 'Örn. EGE-GEB', ipucu: 'Personelin Karma OSGB yazılımında bu işyeri için girdiği kısaltma. Ziyaretler bu kısaltmayla firmaya ve bu işyerine eşleşir; firmalar ve işyerleri arasında benzersiz olmalı.' })}
+        ${field({ ad: 'short_code', etiket: 'Karma OSGB kısaltması', maksUzunluk: 150, yerTutucu: 'Örn. EGE-GEB', ipucu: 'Personelin Karma OSGB yazılımında bu işyeri için girdiği kısaltma. Ziyaretler bu kısaltmayla firmaya ve bu işyerine eşleşir; firmalar ve işyerleri arasında benzersiz olmalı.' })}
         ${field({ ad: 'city', etiket: 'İşyeri adresi: İl', maksUzunluk: 80, ipucu: 'Adres alanlarını boş bırakırsanız firmanın işyeri adresi geçerli olur (aynı adreste birden fazla işyeri).' })}
         ${field({ ad: 'district', etiket: 'İşyeri adresi: İlçe', maksUzunluk: 80 })}
         ${field({ ad: 'address', etiket: 'İşyeri adresi', tam: true, maksUzunluk: 500 })}

@@ -3,7 +3,7 @@ import { html, mount, ilkAd, icerir, trSirala } from '../lib/format.js';
 import { icon } from './icons.js';
 import { avatar, attachMenu, openModal, openFormModal, toast } from './components.js';
 import { logo, sifreHatalari } from '../pages/auth.js';
-import { MENU, GRUPLAR, ROL_ADLARI } from '../modules.js';
+import { MENU, GRUPLAR, UST_MENULER, ROL_ADLARI } from '../modules.js';
 import { firmaFormuAc } from '../pages/firmalar.js';
 import { kisiFormuAc } from '../pages/kisiler.js';
 import { leadFormuAc } from '../pages/crm.js';
@@ -32,6 +32,9 @@ export function kabukKur(app) {
   const gruplar = GRUPLAR.map((g) => ({ ...g, ogeler: ogeler.filter((o) => o.grup === g.id) })).filter((g) => g.ogeler.length);
   const etiket = (o) => (o.yapildi ? '' : html`<span class="nav-tag">${o.asama ? `Aşama ${o.asama}` : 'Yakında'}</span>`);
 
+  const baglanti = (o) => html`<a class="nav-item ${o.yapildi ? '' : 'nav-bekliyor'}" href="#/${o.id}" data-nav="${o.id}" title="${o.ad}">
+            ${icon(o.simge, 20)}<span class="nav-ad">${o.ad}</span>${etiket(o)}</a>`;
+
   const yeniOgeleri = [
     app.can('companies', 'create') && { id: 'yeni-firma', ad: 'Yeni firma', simge: 'building' },
     app.can('contacts', 'create') && { id: 'yeni-kisi', ad: 'Yeni kişi', simge: 'contact' },
@@ -48,8 +51,15 @@ export function kabukKur(app) {
       <div class="side-brand">${logo(36)}<span class="side-brand-ad">OSGB 360</span></div>
       <nav class="side-nav">
         ${gruplar.map((g) => html`<div class="nav-grup"><div class="nav-grup-ad">${g.ad}</div>
-          ${g.ogeler.map((o) => html`<a class="nav-item ${o.yapildi ? '' : 'nav-bekliyor'}" href="#/${o.id}" data-nav="${o.id}" title="${o.ad}">
-            ${icon(o.simge, 20)}<span class="nav-ad">${o.ad}</span>${etiket(o)}</a>`)}</div>`)}
+          ${g.ogeler.map((o) => {
+            if (!o.ust) return baglanti(o);
+            const ust = UST_MENULER.find((u) => u.id === o.ust);
+            if (g.ogeler.find((x) => x.ust === o.ust) !== o) return '';       // üst menü, ilk alt menünün yerinde bir kez çizilir
+            const cocuklar = g.ogeler.filter((x) => x.ust === o.ust);
+            return html`<div class="nav-ust" data-ust="${ust.id}"><button type="button" class="nav-ust-dugme" data-ust-dugme="${ust.id}" aria-expanded="false" aria-controls="nav-alt-${ust.id}" title="${ust.ad}">
+              ${icon(ust.simge, 20)}<span class="nav-ad">${ust.ad}</span><span class="nav-ok">${icon('chevron', 16)}</span></button>
+              <div class="nav-alt" id="nav-alt-${ust.id}" hidden>${cocuklar.map(baglanti)}</div></div>`;
+          })}</div>`)}
       </nav>
       <button type="button" class="side-collapse" id="menu-daralt" aria-label="Menüyü daralt" aria-pressed="${dar}">${icon('panel', 18)}<span class="nav-ad">Menüyü daralt</span></button>
     </aside>
@@ -102,6 +112,17 @@ export function kabukKur(app) {
     temaBtn.innerHTML = icon(yeni === 'dark' ? 'sun' : 'moon', 20).s;
   });
 
+  // ---- üst menüler (tıklayınca altındakileri aç/kapat)
+  const ustAc = (ust, ac) => {
+    ust.querySelector('.nav-alt').hidden = !ac;
+    ust.querySelector('.nav-ust-dugme').setAttribute('aria-expanded', String(ac));
+    ust.classList.toggle('nav-ust-acik', ac);
+  };
+  kabuk.querySelector('.side-nav').addEventListener('click', (e) => {
+    const d = e.target.closest('.nav-ust-dugme'); if (!d) return;
+    const ust = d.closest('.nav-ust'); ustAc(ust, ust.querySelector('.nav-alt').hidden);
+  });
+
   // ---- menüler
   if (yeniOgeleri.length) {
     attachMenu(document.getElementById('yeni-dugme'), document.getElementById('yeni-menu'));
@@ -135,8 +156,9 @@ export function kabukKur(app) {
       kabuk.querySelectorAll('[data-nav]').forEach((a) => {
         const acik = a.dataset.nav === id;
         a.classList.toggle('nav-on', acik);
-        if (acik) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+        if (acik) { a.setAttribute('aria-current', 'page'); const ust = a.closest('.nav-ust'); if (ust) ustAc(ust, true); } else a.removeAttribute('aria-current');
       });
+      kabuk.querySelectorAll('.nav-ust').forEach((u) => u.querySelector('.nav-ust-dugme').classList.toggle('nav-ust-on', !!u.querySelector('.nav-on')));
     },
     odakla() { document.getElementById('main-icerik')?.focus({ preventScroll: true }); },
   };
