@@ -21,7 +21,7 @@ export function kayitTemizle(k) {
   if (!k || typeof k !== 'object') return null;
   const id = metin(k.id, 200); if (!id) return null;
   return {
-    id, firma_kisaltma: metin(k.firma_kisaltma, 60), personel_eposta: metin(k.personel_eposta, 160), tarih: metin(k.tarih, 10),
+    id, firma_kisaltma: metin(k.firma_kisaltma, 150), personel_eposta: metin(k.personel_eposta, 160), tarih: metin(k.tarih, 10),
     sure_dakika: k.sure_dakika === null || k.sure_dakika === undefined || k.sure_dakika === '' ? null : Number(k.sure_dakika),
     tur: metin(k.tur, 80), not: metin(k.not, 300), silindi: k.silindi === true || k.silindi === 'true' || k.silindi === 1,
   };
