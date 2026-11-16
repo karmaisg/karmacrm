@@ -1,0 +1,19 @@
+# Gizli bilgiler asla depoya girmez
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Bağımlılıklar ve geçici dosyalar
+node_modules/
+.DS_Store
+*.log
+*.bak
+
+# Gerçek müşteri / finans verisi içeren dosyalar (Excel/CSV aktarım dosyaları dahil)
+veri/
+yedek/
+*.xlsx
+*.xls
+*.csv

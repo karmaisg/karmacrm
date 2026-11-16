@@ -2772,12 +2772,12 @@ await test('panel: aylık personel grafiği İSG-Katip aktarımlarından besleni
 });
 
 // ---------------------------------------------------------------- Menü düzeni: Fatura Takip, Gelirler
-await test('menü: Fatura Takip, Gelirler, Giderler, Cari sırası; Satış grubu Finans\'tan sonra; Gelirler sayfası ay toplamı', async (s) => {
+await test('menü: Fatura Yönetimi (Fatura Takip, Cari), Gelir/Gider Yönetimi (Gelirler, Giderler) sırası; Satış grubu Finans\'tan sonra; Gelirler sayfası ay toplamı', async (s) => {
   await girisYap(s);
   const gruplar = (await s.locator('.nav-grup-ad').allTextContents()).map((x) => x.trim());
   if (gruplar.indexOf('Satış') < gruplar.indexOf('Finans') || gruplar.indexOf('Finans') < 0) throw new Error(`grup sırası: ${gruplar}`);
   const fin = await s.evaluate(() => [...document.querySelectorAll('.nav-grup')].find((g) => g.querySelector('.nav-grup-ad').textContent.trim() === 'Finans').textContent);
-  const sira = ['Fatura Takip', 'Gelirler', 'Giderler', 'Cari hesap'].map((x) => fin.indexOf(x));
+  const sira = ['Fatura Takip', 'Cari hesap', 'Gelirler', 'Giderler'].map((x) => fin.indexOf(x));
   if (sira.some((x) => x < 0) || sira.join() !== [...sira].sort((a, b) => a - b).join()) throw new Error(`finans menü sırası: ${fin}`);
   await git(s, '#/gelirler'); await s.waitForSelector('h1:has-text("Gelirler")'); await s.waitForSelector('#gelir-ozet .kpi');
   await s.selectOption('#gelir-ay', { index: 3 });
@@ -3541,8 +3541,8 @@ const satirMetni = async (s, ad) => (await s.locator(`#zp-tablo tbody tr:has-tex
 
 await test('Ziyaret planlama: menü, aylık uzman/hekim durumu, filtreler, konumları bulma, harita işaretleri', async (s) => {
   await girisYap(s); await haritaKukla(s); const id = await ziyaretTohumu(s);
-  await s.waitForSelector('a[href="#/ziyaret-planlama"]');
-  esit(await s.locator('a[href="#/ziyaret-planlama"]').first().innerText().then((t) => t.trim()), 'Ziyaret planlama', 'menü adı');
+  await s.waitForSelector('a[href="#/ziyaret-planlama"]', { state: 'attached' });
+  esit(await s.locator('a[href="#/ziyaret-planlama"]').first().innerText().then((t) => t.trim()), 'Harita', 'menü adı');
   await git(s, '#/ziyaret-planlama'); await s.waitForSelector('#zp-tablo');
   esit(await s.locator('#zp-tablo tbody tr').count(), 4, 'dört firma');
   const a = await satirMetni(s, 'Ege Çelik'); if (!a.includes('Yapıldı') || !a.includes('Bekliyor') || !a.includes('Kısmen yapıldı') || !a.includes('Uzman Ali')) throw new Error(`A satırı: ${a}`);
@@ -3737,6 +3737,48 @@ await test('Ziyaret planlama: kendi adresi olan işyeri haritada ayrı iğne al�
   // iğneyi sürükle: manuel
   await cer.evaluate(() => { const m = window.__gm.markers.find((x) => x.o.map && x.o.title.includes('Gebze Fabrika')); m.o.position = { lat: 40.7, lng: 29.5 }; m.l.dragend(); });
   await s.waitForFunction(() => globalThis.__fake.tablo.company_sites.find((x) => x.id === 'site-gebze').geo_source === 'manuel');
+});
+
+await test('Menü: üst menüler tıklanınca açılır; sayfa açılınca ilgili üst menü kendiliğinden açılır; yeni adlar', async (s) => {
+  await girisYap(s); await haritaKukla(s); await ziyaretTohumu(s);
+  const ustler = await s.locator('.nav-ust-dugme .nav-ad').allTextContents();
+  for (const ad of ['Personel Yönetimi', 'Ziyaret Yönetimi', 'Fatura Yönetimi', 'Gelir/Gider Yönetimi', 'Karlılık', 'Veri aktarımı']) if (!ustler.map((x) => x.trim()).includes(ad)) throw new Error(`üst menü yok: ${ad} | ${ustler}`);
+  const altlar = { personel: ['Uzmanlar', 'İşyeri hekimleri', 'Diğer personel', 'Kapasite analizi'], ziyaret: ['Zaman ve ziyaret takibi', 'Harita'], fatura: ['Fatura Takip', 'Cari hesap'], gelirgider: ['Gelirler', 'Giderler'], karlilik: ['Personel kârlılığı', 'Firma kârlılığı'], veri: ['Veri içe/dışa aktarma', 'İSG-Katip aktarımı'] };
+  for (const [ust, adlar] of Object.entries(altlar)) {
+    const alt = s.locator(`#nav-alt-${ust}`);
+    if (!(await alt.isHidden())) throw new Error(`${ust} başlangıçta kapalı olmalı`);
+    esit((await alt.locator('.nav-ad').allTextContents()).map((x) => x.trim()).join('|'), adlar.join('|'), `${ust} alt menüleri`);
+  }
+  // alt menüler üst menü dışında yan menüde tek başına yok
+  esit(await s.locator('.side-nav > .nav-grup > .nav-item:has-text("Gelirler")').count(), 0, 'Gelirler yalnızca üst menü altında');
+  esit(await s.locator('.nav-item:has-text("Yıllık Bütçe Çalışması")').count(), 1, 'bütçe yeni adıyla tek başına');
+  await s.click('[data-ust-dugme="gelirgider"]'); await s.locator('#nav-alt-gelirgider').waitFor({ state: 'visible' });
+  esit(await s.getAttribute('[data-ust-dugme="gelirgider"]', 'aria-expanded'), 'true', 'açık işareti');
+  await s.click('#nav-alt-gelirgider a[data-nav="giderler"]'); await s.waitForSelector('#sayfa h1:has-text("Giderler"), #sayfa h1:has-text("giderler")', { timeout: 8000 }).catch(() => {});
+  if (!(await s.url()).endsWith('#/giderler')) throw new Error(`adres: ${s.url()}`);
+  await s.click('[data-ust-dugme="gelirgider"]'); await s.locator('#nav-alt-gelirgider').waitFor({ state: 'hidden' });
+  // doğrudan bir sayfaya gidince ilgili üst menü açılır ve vurgulanır
+  await git(s, '#/cari'); await s.locator('#nav-alt-fatura').waitFor({ state: 'visible' });
+  if (!(await s.locator('[data-ust-dugme="fatura"]').getAttribute('class')).includes('nav-ust-on')) throw new Error('üst menü vurgulanmalı');
+  // Harita sayfası başlığı
+  await git(s, '#/ziyaret-planlama'); await s.waitForSelector('#zp-tablo');
+  esit((await s.locator('#sayfa h1').first().innerText()).trim(), 'Harita', 'sayfa başlığı');
+});
+
+await test('Firma formu metinleri: kısaltma firma adından sonra, açıklamalar, 150 karakter', async (s) => {
+  await girisYap(s); await git(s, '#/firmalar'); await s.waitForSelector('[data-action="yeni-firma"]'); await s.click('[data-action="yeni-firma"]');
+  const m = modal(s); await m.locator('#f-short_code').waitFor();
+  const adlar = (await m.locator('label').allTextContents()).map((x) => x.replace(/\s+/g, ' ').trim());
+  const sira = (x) => adlar.findIndex((a) => a.startsWith(x));
+  if (!(sira('Firma adı') >= 0 && sira('Firma kısaltması') === sira('Firma adı') + 1)) throw new Error(`kısaltma firma adından hemen sonra olmalı: ${adlar.slice(0, 4)}`);
+  const metin = (await m.innerText()).replace(/\s+/g, ' ');
+  if (metin.includes('Karma OSGB yazılımında personelin ziyaret girerken')) throw new Error('kısaltma açıklaması kalkmalıydı');
+  if (metin.includes('Haritada (Ziyaret planlama)')) throw new Error('eski işyeri adresi açıklaması kalkmalıydı');
+  if (metin.includes('Cari hesap ekstresinde (Excel) görünür')) throw new Error('vergi dairesi açıklaması kalkmalıydı');
+  if (!metin.includes('Haritalarda gözükecek reel adres bilgisini girin')) throw new Error('yeni işyeri adresi açıklaması');
+  if (!metin.includes('Vergi no 10, TC kimlik no 11 haneli olur. Aynı numaralı ikinci aktif firma açılamaz.')) throw new Error('vergi no açıklaması kalmalı');
+  if (!metin.includes('İşyeri adresi ile fatura adresi aynı')) throw new Error('düğme adı');
+  const uzun = 'Ç'.repeat(150); await m.locator('#f-short_code').fill(uzun + 'x'); esit(await m.locator('#f-short_code').inputValue(), uzun, 'kısaltma 150 karakterle sınırlı');
 });
 
 await tarayici.close(); sunucu.close();

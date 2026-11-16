@@ -657,7 +657,7 @@ Yönetici özetindeki **Toplam gider**, **Vergi öncesi tahmini kâr** ve **Verg
 4. Anahtarı kısıtlayın: **Application restrictions: Websites (HTTP referrers)** → `https://karmasg.github.io/*` ; **API restrictions** → yalnızca bu iki API. (Kısıtlanmamış anahtar başkalarınca kullanılabilir; mutlaka kısıtlayın.)
 5. Yazılımda **Sistem ayarları → Google Haritalar** kartından anahtarı yapıştırıp kaydedin. Anahtar kod deposunda tutulmaz, veritabanında saklanır; ekranda yalnızca maskeli (`AIza…abcd`) görünür. **Kaldır** düğmesiyle silinir.
 
-**2) Kullanım (Operasyon → Ziyaret planlama):**
+**2) Kullanım (Operasyon → Ziyaret Yönetimi → Harita):**
 - Yalnızca **firmalar** listelenir (potansiyel müşteriler değil). Her firma için o ay **uzman** ve **hekim** ziyareti beklenir (o ay görevlendirmesi olan türler için).
 - **Aylık durum** otomatik hesaplanır: "Zaman ve ziyaret takibi"ndeki ziyaret kayıtları ile görevlendirmeler karşılaştırılır → Yapıldı / Planlı / Bekliyor / Gerekmez. Firma özeti: Tamamlandı, Kısmen, Ziyaret bekliyor, Beklenen ziyaret yok. Harita iğneleri bu duruma göre renklenir.
 - **Konumları bul:** Konumu olmayan firmaların adresi Google ile bulunup veritabanına kaydedilir (bir kere; sonraki açılışlarda tekrar sorgulanmaz). Adres değişirse "eski" işaretlenir ve yeniden bulunabilir. Yaklaşık bulunanlar ve bulunamayanlar listelenir; iğneyi sürükleyerek elle düzeltebilirsiniz (kaynak "manuel" olur ve korunur).
@@ -705,3 +705,13 @@ Kapatmak için: `select cron.unschedule('osgb360-karma-ziyaret');`
 **Kayıtlar nasıl yazılır:** Karma OSGB'de başlangıç saati olmadığı için ziyaret, o gün 09:00'dan başlatılır; aynı personelin o günkü önceki kayıtlarının sonuna eklenir (çakışma olmaz). Süre yoksa 60 dk, en az 5 en çok 720 dk. Karma OSGB'de değişen ziyaret eski kaydı arşivleyip yenisini yazar; silinen ziyaret arşivlenir. Aynı kayıt iki kez gelirse çoğalmaz. Gelecek tarihli kayıtlar "hata" olarak listelenir.
 
 **Sınırlar:** Bu aşamada aktarım Karma OSGB → OSGB 360 yönündedir. Gerçek Karma OSGB uç noktasıyla canlı deneme yapılamadı (testler sahte uç noktayla yapıldı); ilk çalıştırmada birkaç kaydı "Zaman ve ziyaret takibi"nde kontrol edin. Ziyaret türü (uzman/hekim) kayıttaki personelin türünden alınır. Kayıt kimliği (`id`) Karma OSGB'de değişmemelidir.
+
+## Menü düzeni ve kısaltma uzunluğu (Aşama 45) — `supabase/46_asama45.sql` çalıştırılmalı
+
+- **Kısaltma uzunluğu:** Firma kısaltması ve işyeri Karma OSGB kısaltması artık en çok **150 karakter** olabilir. `46_asama45.sql`'i Supabase'de çalıştırın (tekrar çalıştırılabilir); çalıştırmazsanız 30 karakterden uzun kısaltma kaydedilirken hata alırsınız.
+- **Firma formu:** "Firma kısaltması" firma adının hemen altında; açıklama metinleri sadeleştirildi; işyeri adresi alanında "Haritalarda gözükecek reel adres bilgisini girin"; düğme adı "İşyeri adresi ile fatura adresi aynı".
+- **Yan menü:** Üst menüler tıklanınca altındakiler açılır, tekrar tıklanınca kapanır; bir sayfaya girince ilgili üst menü kendiliğinden açılır.
+  - Operasyon → **Personel Yönetimi** (Uzmanlar, İşyeri hekimleri, Diğer personel, Kapasite analizi); **Ziyaret Yönetimi** (Zaman ve ziyaret takibi, **Harita**; eski adı Ziyaret planlama).
+  - Finans → **Fatura Yönetimi** (Fatura Takip, Cari hesap); **Gelir/Gider Yönetimi** (Gelirler, Giderler); **Karlılık** (Personel kârlılığı, Firma kârlılığı); **Yıllık Bütçe Çalışması** (eski adı Yıllık Bütçe).
+  - Yönetim → **Veri aktarımı** (Veri içe/dışa aktarma, İSG-Katip aktarımı).
+  - Bir üst menü, yalnızca altındaki menülerden en az birini görmeye yetkisi olan kullanıcıya görünür.
