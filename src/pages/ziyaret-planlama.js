@@ -116,7 +116,7 @@ export async function ziyaretPlanlamaSayfasi(app) {
   const gorevliler = () => personel.filter((p) => p.staff_type && p.is_active !== false).sort((a, b) => a.full_name.localeCompare(b.full_name, 'tr'));
 
   return {
-    baslik: 'Ziyaret planlama', altBaslik: 'Firmalar harita üzerinde; aylık uzman ve hekim ziyaretlerini planlayın ve takip edin',
+    baslik: 'Harita', altBaslik: 'Firmalar harita üzerinde; aylık uzman ve hekim ziyaretlerini planlayın ve takip edin',
     govde: html`${kurulu ? '' : html`<div class="notice notice-info" role="note" id="zp-kurulu-degil">Ziyaret planlama için Supabase'de <strong>42_asama41.sql</strong> dosyasını çalıştırın. O zamana kadar firmalar ve ay durumu görüntülenir, konum ve plan kaydedilemez.</div>`}
       <section class="card"><div class="toolbar">
         <label class="select-inline"><span class="muted">Ay</span><select id="zp-ay">${aySecenekleri().map((a) => html`<option value="${a}" ${a === durum.ay ? html`selected` : ''}>${ayAdi(a)}</option>`)}</select></label>

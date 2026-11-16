@@ -50,6 +50,13 @@ svg { flex: none; }
 .nav-grup { margin-bottom: 16px; }
 .nav-grup-ad { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); padding: 0 12px 6px; }
 .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; color: var(--text-2); text-decoration: none; font-weight: 600; font-size: 14px; }
+.nav-ust-dugme { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-radius: 12px; background: none; color: var(--text-2); font: inherit; font-weight: 600; font-size: 14px; text-align: left; cursor: pointer; }
+.nav-ust-dugme:hover { background: var(--surface-2); color: var(--text); }
+.nav-ust-dugme.nav-ust-on { color: var(--primary); }
+.nav-ok { display: inline-flex; margin-left: auto; transition: transform .15s; transform: rotate(-90deg); }
+.nav-ust-acik > .nav-ust-dugme .nav-ok { transform: rotate(0deg); }
+.nav-alt { margin: 2px 0 4px 14px; padding-left: 8px; border-left: 2px solid var(--border); }
+.nav-alt .nav-item { padding: 8px 10px; }
 .nav-item:hover { background: var(--surface-2); color: var(--text); }
 .nav-item.nav-on { background: var(--primary-50); color: var(--primary); }
 .nav-bekliyor { opacity: .75; }
@@ -58,7 +65,9 @@ svg { flex: none; }
 .side-collapse { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 0; background: none; color: var(--text-2); border-radius: 12px; font-weight: 600; font-size: 14px; }
 .side-collapse:hover { background: var(--surface-2); }
 .shell-dar .side-brand-ad, .shell-dar .nav-ad, .shell-dar .nav-tag, .shell-dar .nav-grup-ad { display: none; }
-.shell-dar .nav-item, .shell-dar .side-collapse { justify-content: center; }
+.shell-dar .nav-item, .shell-dar .side-collapse, .shell-dar .nav-ust-dugme { justify-content: center; }
+.shell-dar .nav-ok { display: none; }
+.shell-dar .nav-alt { margin-left: 0; padding-left: 0; border-left: 0; }
 .main-col { min-width: 0; display: flex; flex-direction: column; }
 .topbar { position: sticky; top: 0; z-index: 20; height: var(--topbar-h); display: flex; align-items: center; gap: 12px; padding: 0 28px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); }
 .menu-ac, .side-scrim { display: none; }
@@ -267,6 +276,7 @@ svg { flex: none; }
   .sidebar { position: fixed; left: 0; top: 0; z-index: 50; width: min(300px, 86vw); transform: translateX(-102%); transition: transform .2s; }
   .sidebar.acik { transform: none; }
   .shell-dar .side-brand-ad, .shell-dar .nav-ad, .shell-dar .nav-tag, .shell-dar .nav-grup-ad { display: revert; }
+  .shell-dar .nav-ok { display: inline-flex; }
   .side-collapse { display: none; }
   .side-scrim { display: block; position: fixed; inset: 0; background: rgba(20,12,8,.45); z-index: 45; }
   .side-scrim[hidden] { display: none; }
