@@ -23,6 +23,9 @@ async function logoBaytlari() {
   return logoOnbellek;
 }
 
+// Kayıt/silme sonrası sayfa yeniden çizilince seçili firma/dönem korunsun.
+let cariSecimi = {};
+
 export async function cariSayfasi(app) {
   if (!app.can('invoices', 'view') || !app.can('companies', 'view')) {
     return { baslik: 'Cari hesap', altBaslik: '', govde: emptyState({ simge: 'lock', baslik: 'Bu sayfa için gerekli izinler eksik', metin: 'Cari hesap için firma ve gelir/tahsilat görüntüleme yetkisi gerekir.' }) };
@@ -36,7 +39,9 @@ export async function cariSayfasi(app) {
   const faturaliFirmaIdleri = new Set(faturalar.filter((f) => !f.archived_at && f.company_id).map((f) => f.company_id));
   const liste = firmalar.filter((f) => !f.archived_at && (f.customer_status === 'musteri' || faturaliFirmaIdleri.has(f.id)))
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-  const durum = { firma: new URLSearchParams(location.hash.split('?')[1] ?? '').get('firma') || liste[0]?.id || '', yil: yilBugun, bas: '', bit: '' };
+  const kayitli = cariSecimi.firma && liste.some((f) => f.id === cariSecimi.firma) ? cariSecimi : null;
+  const durum = { firma: new URLSearchParams(location.hash.split('?')[1] ?? '').get('firma') || kayitli?.firma || liste[0]?.id || '', yil: kayitli?.yil ?? yilBugun, bas: kayitli?.bas ?? '', bit: kayitli?.bit ?? '' };
+  const secimiSakla = () => { cariSecimi = { firma: durum.firma, yil: durum.yil, bas: durum.bas, bit: durum.bit }; try { history.replaceState(null, '', `${location.hash.split('?')[0]}?firma=${encodeURIComponent(durum.firma)}`); } catch { /* yok say */ } };
   const olusturabilir = app.can('invoices', 'edit');
 
   const aralik = () => (durum.yil === 'aralik' ? { baslangic: durum.bas, bitis: durum.bit }
@@ -75,7 +80,7 @@ export async function cariSayfasi(app) {
           <td><em>${s.aciklama}</em>${s.tahmini ? html` ${pill('Tarih tahmini', 'warning')}` : ''}</td>
           <td class="actions">${s.tur === 'tahsilat' && olusturabilir ? (s.grup
             ? html`<button type="button" class="icon-btn" data-cari-grup-duzenle="${s.grup}|${s.tarih}" aria-label="Tahsilat tarihini düzenle" title="Tarih / yöntem / not düzenle">${icon('pencil', 16)}</button><button type="button" class="icon-btn" data-cari-grup-iptal="${s.grup}|${s.tarih}" aria-label="Tahsilatı iptal et" title="Tahsilatı iptal et">${icon('trash', 16)}</button>`
-            : html`<button type="button" class="icon-btn" data-cari-duzenle="${s.kayit.id}" aria-label="Tahsilatı düzenle" title="Tahsilat tarihini / tutarını düzenle">${icon('pencil', 16)}</button>`) : ''}</td></tr>`)}
+            : html`<button type="button" class="icon-btn" data-cari-duzenle="${s.kayit.id}" aria-label="Tahsilatı düzenle" title="Tahsilat tarihini / tutarını düzenle">${icon('pencil', 16)}</button><button type="button" class="icon-btn" data-cari-sil="${s.kayit.id}" aria-label="Tahsilatı sil" title="Tahsilatı sil">${icon('trash', 16)}</button>`) : ''}</td></tr>`)}
       </tbody><tfoot><tr><th scope="row">Toplam</th><td class="num">${para2(e.toplamBorc)}</td><td class="num">${para2(e.toplamAlacak)}</td><td class="num">${para2(e.bakiye)}</td><td colspan="2">${CARI_DURUM[e.durum]}</td></tr></tfoot></table></div>`;
   };
 
@@ -98,10 +103,10 @@ export async function cariSayfasi(app) {
       const ciz = () => { kok.querySelector('#cari-ust').innerHTML = ust().s; kok.querySelector('#cari-govde').innerHTML = tablo().s; };
       kok.addEventListener('change', (ev) => {
         const t = ev.target;
-        if (t.id === 'cari-firma') { durum.firma = t.value; durum.yil = yilBugun; ciz(); }
-        else if (t.id === 'cari-yil') { durum.yil = t.value; ciz(); }
-        else if (t.id === 'cari-bas') { durum.bas = t.value; kok.querySelector('#cari-govde').innerHTML = tablo().s; }
-        else if (t.id === 'cari-bit') { durum.bit = t.value; kok.querySelector('#cari-govde').innerHTML = tablo().s; }
+        if (t.id === 'cari-firma') { durum.firma = t.value; durum.yil = yilBugun; secimiSakla(); ciz(); }
+        else if (t.id === 'cari-yil') { durum.yil = t.value; secimiSakla(); ciz(); }
+        else if (t.id === 'cari-bas') { durum.bas = t.value; secimiSakla(); kok.querySelector('#cari-govde').innerHTML = tablo().s; }
+        else if (t.id === 'cari-bit') { durum.bit = t.value; secimiSakla(); kok.querySelector('#cari-govde').innerHTML = tablo().s; }
       });
       kok.addEventListener('click', async (ev) => {
         if (ev.target.closest('[data-action="cari-excel"]')) { try { await excelIndir(); } catch (err) { toast(humanError(err), 'hata'); } return; }
@@ -138,6 +143,13 @@ export async function cariSayfasi(app) {
           const [grup, tarihi] = gi.dataset.cariGrupIptal.split('|');
           if (await confirmDialog({ baslik: 'Tahsilat iptal edilsin mi?', mesaj: 'Bu tahsilatın bağlı olduğu tüm faturalardaki ödeme kayıtları iptal edilir; faturalar tekrar açık kalır.', onayEtiketi: 'Tahsilatı iptal et', tehlikeli: true })) {
             try { await app.api.archivePaymentGroup(grup, tarihi); toast('Tahsilat iptal edildi.'); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
+          }
+          return;
+        }
+        const sl = ev.target.closest('[data-cari-sil]');
+        if (sl) {
+          if (await confirmDialog({ baslik: 'Tahsilat silinsin mi?', mesaj: 'Bu tahsilat kaydı (ör. toplu işaretlemeyle oluşan tahmini ödeme) iptal edilir; fatura tekrar açık kalır. Gerçek ödemeyi sonra girebilirsiniz.', onayEtiketi: 'Tahsilatı sil', tehlikeli: true })) {
+            try { await app.api.archivePayment(sl.dataset.cariSil); toast('Tahsilat silindi.'); app.yenile(); } catch (err) { toast(humanError(err), 'hata'); }
           }
           return;
         }
